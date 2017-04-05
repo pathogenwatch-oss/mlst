@@ -2,6 +2,26 @@
 
 cat - > /tmp/file
 
-get_sequence_type -s 'Staphylococcus_aureus' /tmp/file
+case "$WGSA_organismId" in
+  666)
+    scheme=vcholerae
+    ;;
 
-node /parser.js /data/mlst_results.allele.csv
+  1280)
+    scheme=saureus
+      ;;
+
+  1313)
+    scheme=spneumoniae
+    ;;
+
+  90370)
+    scheme=senterica
+      ;;
+
+  *)
+    echo Invalid organism ID
+    exit 1
+esac
+
+/mlst/bin/mlst --scheme $scheme --quiet --csv /tmp/file | node /parser.js
