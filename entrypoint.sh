@@ -13,5 +13,5 @@ fi
 
 echo "Organism has TaxId '$taxid'.  Using the MLST scheme '$scheme' for '$species'" 1>&2
 
-/mlst/bin/mlst --legacy --scheme $scheme --quiet --csv /tmp/sequence.fa --novel=/tmp/novel.fa > /tmp/output.csv
+/mlst/bin/mlst --scheme $scheme --quiet --csv /tmp/sequence.fa --novel=/tmp/novel.fa > /tmp/output.csv
 ./parser.py /tmp/output.csv /tmp/novel.fa
