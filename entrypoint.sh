@@ -1,27 +1,17 @@
 #!/usr/bin/env bash
 
-cat - > /tmp/file
+cat - > /tmp/sequence.fa
 
-case "$WGSA_organismId" in
-  666)
-    scheme=vcholerae
-    ;;
+export taxid=$WGSA_organismId
+export scheme=$(awk -F ',' -v TAXID=$WGSA_organismId '$1 == TAXID {print $2}' taxIdSchemeMap.csv)
+export species=$(awk -F ',' -v TAXID=$WGSA_organismId '$1 == TAXID {print $3}' taxIdSchemeMap.csv)
 
-  1280)
-    scheme=saureus
-      ;;
+if [ -z $scheme ]; then
+  echo Invalid organism ID
+  exit 1
+fi
 
-  1313)
-    scheme=spneumoniae
-    ;;
+echo "Organism has TaxId '$taxid'.  Using the MLST scheme '$scheme' for '$species'"
 
-  90370)
-    scheme=senterica
-      ;;
-
-  *)
-    echo Invalid organism ID
-    exit 1
-esac
-
-/mlst/bin/mlst --scheme $scheme --quiet --csv /tmp/file | node /parser.js
+/mlst/bin/mlst --scheme $scheme --quiet --csv /tmp/sequence.fa --novel=/tmp/novel.fa > /tmp/output.csv
+./parser.py /tmp/output.csv /tmp/novel.fa
