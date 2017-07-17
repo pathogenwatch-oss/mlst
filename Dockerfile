@@ -9,5 +9,6 @@ RUN git clone https://github.com/tseemann/mlst.git
 
 COPY ./entrypoint.sh /entrypoint.sh
 COPY ./parser.py /parser.py
+COPY ./taxIdSchemeMap.csv /taxIdSchemeMap.csv
 
 CMD ["/entrypoint.sh"]
