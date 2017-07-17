@@ -10,8 +10,8 @@ RUN wget -O - https://nodejs.org/dist/v6.10.1/node-v6.10.1-linux-x64.tar.gz | \
 
 RUN git clone https://github.com/tseemann/mlst.git
 
-COPY ./entypoint.sh /entypoint.sh
+COPY ./entrypoint.sh /entrypoint.sh
 COPY ./parser.js /parser.js
 COPY ./node_modules /node_modules
 
-CMD ["/entypoint.sh"]
+CMD ["/entrypoint.sh"]
