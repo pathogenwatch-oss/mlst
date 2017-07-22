@@ -5,34 +5,36 @@ const commander = require('commander');
 const _ = require('lodash');
 const readline = require('readline');
 const logger = require('debug');
+const fasta = require('bionode-fasta');
+const fs = require('fs');
+const stream = require('stream');
 
-var fasta, db;
+var alleleDir, db;
 const program = commander
-  .arguments('<fasta> <db>')
+  .arguments('<alleleDir> <db>')
   .action((_fasta, _db) => {
-    fasta = _fasta;
+    alleleDir = _alleleDir;
     db = _db;
   }).parse(process.argv);
 
 
 if (! fasta || ! db) {
-  logger('error')("Need fasta and blastdb")
+  logger('error')("Need alleleDir and blastdb")
   process.exit(1)
 } else {
-  logger('debug')(`Using ${fasta} and ${db}`)
+  logger('debug')(`Using ${alleleDir} and ${db}`)
 }
 
-function runBlast(fasta, db, word_size=11, perc_identity=0) {
+function runBlast(db, word_size=11, perc_identity=0) {
   const command='blastn -task blastn ' +
     '-max_target_seqs 10000 ' +
-    '-query $fasta ' +
+    '-query - ' +
     '-db $db ' +
     '-outfmt "6 qseqid sseqid pident length mismatch gapopen qstart qend sstart send evalue bitscore nident" ' +
     '-word_size ${word_size} ' +
     '-perc_identity ${perc_identity}';
   const env = Object.create(process.env);
   _.assign(env, {
-    fasta,
     db,
     word_size,
     perc_identity
@@ -43,30 +45,47 @@ function runBlast(fasta, db, word_size=11, perc_identity=0) {
     env
   })
   blastShell.stderr.pipe(process.stderr);
-  return readline.createInterface({
-    input: blastShell.stdout
-  })
+  return blastShell;
+  // return readline.createInterface({
+  //   input: blastShell.stdout
+  // })
 }
 
-const blast=runBlast(fasta, db);
-const closest = {};
-var last_query = "";
+function getQuerySequences(alleleDir, number) {
+  const sequenceStream = new stream.Readable({ objectMode: true });
+  fs.readdir(alleleDir, (err, files) => {
+
+  });
+  return
+}
+
+const blast=runBlast(fasta, db, 11, 80);
+const bins = {};
+const BINWIDTH = 500;
 
 blast.on('line', line => {
   const QUERY = 0;
   const DB = 1;
   const PIDENT = 2;
-  const LENGHT = 3;
+  const LENGTH = 3;
   const MISMATCH = 4;
+  const SSTART = 8;
+  const SEND = 9;
+
   const row = line.split('\t');
-  const this_score = Number(row[LENGHT]) - Number(row[MISMATCH]);
-  const [best, best_score] = closest[row[QUERY]] || ['', 0];
-  // console.log([row[QUERY], row[DB], Number(row[PIDENT]), best, pident])
-  if (last_query != row[QUERY]) {
-    if (last_query) logger('debug')(`New best score: ${[last_query, ...closest[last_query]]}`);
-    last_query=row[QUERY];
+  if (Number(row[PIDENT]) > 95) {
+    logger('debug')(line);
+  } else {
+    logger('trace')(line)
   }
-  if (best_score < this_score && row[QUERY] != row[DB]) {
-    closest[row[QUERY]] = [row[DB], this_score]
-  }
+
+  // for (var b=(1 + (row[SSTART] % BINWIDTH))*BINWIDTH; b<=(1 + (row[SEND] % BINWIDTH))*BINWIDTH; b+=BINWIDTH) {
+  //   if (! bins[b]) bins[b] = [];
+  //   bins[b].push(row);
+  // }
+
+})
+
+blast.on('close', () => {
+  logger('trace')(_.keys(bins));
 })
