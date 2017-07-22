@@ -5,33 +5,64 @@ const fs = require('fs');
 const path = require('path');
 const logger = require('debug');
 
-FASTA_DIR="/code/pubmlst/Staphylococcus_aureus/alleles";
-FASTA=`${FASTA_DIR}/arcC.tfa`;
-// const fastaStream = fasta.obj(FASTA);
+// FASTA_DIR="/code/pubmlst/Staphylococcus_aureus/alleles";
+MLST_DIR="/code/pubmlst"
+SPECIES="Staphylococcus aureus"
 
-class FastaLength extends Transform {
-  constructor(options={}) {
-    options.objectMode = true;
-    super(options)
-  }
-
-  _transform(chunk, encoding, callback) {
-    chunk.length = chunk.seq.length;
-    this.push(chunk);
-    callback()
-  }
+function listAlleleFiles(species) {
+  alleleDir=path.join(MLST_DIR, SPECIES.replace(' ', '_'), 'alleles');
+  return new Promise((resolve, reject) => {
+    fs.readdir(alleleDir, (err, files) => {
+      if (err) reject(err);
+      const paths = _.map(files, f => {
+        return path.join(alleleDir, f);
+      });
+      logger('paths')(paths)
+      resolve(paths);
+    });
+  });
 }
 
-class FastaHead extends Transform {
-  constructor(options={}) {
-    options.objectMode = true;
-    super(options)
+class AlleleStream {
+  constructor(path, maxSeqs=0) {
+    logger('stream')(`New from ${path}`);
+    var count = 0;
+    this.maxSeqs = maxSeqs;
+    this.stream = fasta.obj(path);
+    this.alleleSizes = {};
+    this.wait = new Promise((resolve, reject) => {
+      this.onMaxSeqs = resolve;
+    });
+    this.stream.on('data', seq => {
+      logger('stream')(`Got ${seq.id} from ${path}`)
+      count++;
+      this.alleleSizes[seq.id] = seq.seq.length;
+      if (this.maxSeqs > 0 && count >= this.maxSeqs) {
+        logger('stream')(`Read ${count} from ${path}`);
+        logger('stream')(this.alleleSizes);
+        this.onMaxSeqs(this.alleleSizes);
+        this.stream.pause();
+      }
+    });
+    this.stream.on('close', () => {
+      logger('stream')(`Finished reading from ${path}`)
+      this.onMaxSeqs(this.alleleSizes);
+    });
   }
 
-  _transform(chunk, encoding, callback) {
-    const after = {id: chunk.id, seq: chunk.seq.slice(0, 10)};
-    this.push(after);
-    callback()
+  pipe(...options) {
+    return this.stream.pipe(...options)
+  }
+
+  setMaxSeqs(maxSeqs) {
+    if (maxSeqs > this.maxSeqs) {
+      logger('wait')(`Increasing maxSeq from ${this.maxSeqs} to ${maxSeqs}`);
+      this.maxSeqs = maxSeqs;
+      this.wait = new Promise((resolve, reject) => {
+        this.onMaxSeqs = resolve;
+      });
+      this.stream.resume();
+    }
   }
 }
 
@@ -48,41 +79,25 @@ class FastaString extends Transform {
   }
 }
 
+// const alleleStreams = listAlleleFiles(SPECIES).then(files => _.map(files, f => { return new AlleleStream(f, 5) }))
+// const output = new FastaString();
+// output.pipe(process.stdout);
+// _.forEach(alleleStreams, s => { s.pipe(output) });
+// Promise.all(_.map(alleleStreams, s => { return s.wait })).then(logger('counts'));
 
-class Aggregator extends Transform {
-  constructor(options={}) {
-    super(options)
-  }
-
-  _transform(chunk, encoding, callback) {
-    this.push(chunk);
-    callback();
-  }
-}
-
-function readAllelesFromDir(dir, maxSeqs) {
-  const aggregator = new Aggregator({objectMode: true});
-  fs.readdir(dir, (err, files) => {
-    _.forEach(files, file => {
-      var count = 0;
-      const fastaPath = path.join(FASTA_DIR, file)
-      const fastaFile = fasta.obj(fastaPath)
-      fastaFile.on('data', seq => {
-        seq.path = fastaPath;
-        aggregator.write(seq);
-        count++;
-        if (count >= maxSeqs) {
-          // fastaFile.pause();
-          fastaFile.destroy('Read enough sequences');
-        }
-      })
-    })
-  });
-  aggregator.on('close', logger('agg:close'))
-  aggregator.on('end', logger('agg:end'))
-  aggregator.on('error', logger('agg:error'))
-  return aggregator;
-}
-
-readAllelesFromDir(FASTA_DIR, 5).pipe(new FastaLength).pipe(new FastaHead).pipe(new FastaString()).pipe(process.stdout);
-// fastaStream.pipe(new FastaHead()).on('data', logger('head'));
+const alleleStream = listAlleleFiles(SPECIES).then(paths => { return new AlleleStream(paths[0], 10) });
+// alleleStream.then(logger('debug'));
+alleleStream.then(s => {
+  s.wait.then(logger('counts'));
+  // logger('debug')(s);
+  s.pipe(new FastaString()).pipe(process.stdout);
+  return s
+}).then(s => {
+  return new Promise((resolve, reject) => {
+    logger('sleep')('Having a sleep');
+    setTimeout(()=>resolve(s), 5000);
+  })
+}).then(s => {
+  s.setMaxSeqs(20);
+  return s.wait;
+}).then(logger('counts:2'));
