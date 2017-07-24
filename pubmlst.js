@@ -6,8 +6,14 @@ const fasta = require('bionode-fasta');
 const fs = require('fs');
 const path = require('path');
 const logger = require('debug');
+const hasha = require('hasha');
 
 const MLST_DIR="/code/pubmlst"
+
+function getAlleleHashes(species) {
+  const hashPath=path.join(MLST_DIR, species.replace(' ', '_'), 'hashes');
+  return require(hashPath);
+}
 
 function listAlleleFiles(species) {
   const alleleDir=path.join(MLST_DIR, species.replace(' ', '_'), 'alleles');
@@ -20,6 +26,51 @@ function listAlleleFiles(species) {
       logger('paths')(paths)
       resolve(paths);
     });
+  });
+}
+
+function hashAlleles(species) {
+  const hashAlleleFile = (path) => {
+    logger('debug')(`About to hash sequences in ${path}`)
+    const listOfHashes = [];
+    const seqStream = fasta.obj(path);
+    seqStream.on('data', seq => {
+      const allele = seq.id;
+      const gene = allele.split('_')[0];
+      // logger('trace')(`Hashing ${allele} from ${path}`)
+      const hash = hasha(seq.seq.toLowerCase(), {algorithm: 'sha1'});
+      const hashObj = {};
+      hashObj[hash] = allele;
+      listOfHashes.push(hashObj);
+    });
+    var onFinished;
+    const output = new Promise((resolve, reject) => {
+      onFinished = resolve;
+    })
+    seqStream.on('end', () => {
+      logger('debug')(`Finished hashing ${listOfHashes.length} hashes from ${path}`)
+      onFinished(listOfHashes);
+    })
+    return output;
+  }
+  return listAlleleFiles(species).then(paths => {
+    return Promise.all(_.map(paths, p => {
+      return hashAlleleFile(p)
+    })).then(fileHashes => {
+      const hashes = _.flatten(fileHashes);
+      return _.merge(...hashes);
+    });
+  });
+}
+
+function writeAlleleHashes(path, species) {
+  return hashAlleles(species).then(hashes => {
+    const json = JSON.stringify(hashes);
+    fs.writeFile(path, json, (err, data) => {
+      if (err) logger('error')(err);
+      logger('debug')(`Wrote ${_.keys(hashes).length} hashes to ${path}`)
+    })
+    return hashes;
   });
 }
 
@@ -43,7 +94,7 @@ class AlleleStream {
         this._stream.pause();
       }
     });
-    this._stream.on('close', () => {
+    this._stream.on('end', () => {
       logger('stream')(`Finished reading from ${path}`)
       this.onMaxSeqs(this._alleleSizes);
     });
@@ -79,4 +130,4 @@ class FastaString extends Transform {
   }
 }
 
-module.exports = { listAlleleFiles, AlleleStream, FastaString };
+module.exports = { listAlleleFiles, getAlleleHashes, AlleleStream, FastaString, writeAlleleHashes };

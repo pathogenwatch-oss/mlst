@@ -2,12 +2,43 @@
 
 'use strict';
 
+const fasta = require('bionode-fasta');
 const { spawn } = require('child_process');
 const _ = require('lodash');
 const readline = require('readline');
 const logger = require('debug');
+const tmp = require('tmp');
+const path = require('path');
+const hasha = require('hasha');
 
-const { listAlleleFiles, FastaString, AlleleStream } = require('./pubmlst')
+tmp.setGracefulCleanup();
+
+const { listAlleleFiles, getAlleleHashes, FastaString, AlleleStream } = require('./pubmlst')
+
+function makeBlastDb(fastaPath) {
+  const blastDir = new Promise((resolve, reject) => {
+    tmp.dir({ mode: '0750', prefix: 'mlst_blast_'}, (err, tempDir) => {
+      if (err) reject(err);
+      resolve(tempDir);
+    })
+  })
+  return blastDir.then(dir => {
+    const databasePath = path.join(dir, 'blast.db');
+    const command = `makeblastdb -in ${fastaPath} -dbtype nucl -out ${databasePath}`
+    logger('makeBlast')(`Creating Blast database '${databasePath}' from ${fastaPath}`)
+    const shell = spawn(command, { shell: true });
+    const output = new Promise((resolve, reject) => {
+      shell.on('exit', (code, signal) => {
+        if (code == 0) {
+          logger('makeBlast')(`Created Blast database '${databasePath}' from ${fastaPath}`)
+          resolve(databasePath);
+        }
+        reject([code, signal])
+      });
+    })
+    return output;
+  });
+}
 
 function runBlast(db, word_size=11, perc_identity=0) {
   const command='blastn -task blastn ' +
@@ -33,7 +64,9 @@ function runBlast(db, word_size=11, perc_identity=0) {
 }
 
 const SPECIES="Staphylococcus aureus"
-const DB="/code/blast_dbs/Staphylococcus_aureus/saureus_7hlohgcu9cho/MRSA_10C.db"
+const SAMPLE='/data/saureus_7hlohgcu9cho/MRSA_10C.fasta';
+const alleleHashes = getAlleleHashes(SPECIES);
+const NUMBER_OF_ALLELES=1;
 
 var onAlleleSizes;
 var alleleSizes = new Promise((resolve, reject) => {
@@ -41,21 +74,24 @@ var alleleSizes = new Promise((resolve, reject) => {
 });
 const _alleleSizes = {};
 var streamPromises = [];
-const blastInputStream = (new FastaString())
+const blastInputStream = (new FastaString({
+  highWaterMark: _.keys(alleleHashes).length + 10,
+}))
 const alleleStreams = [];
 listAlleleFiles(SPECIES).then(paths => {
   _.forEach(paths, p => {
-    logger('makeStream')(`Made a stream from ${p}`);
-    const stream = new AlleleStream(p, 3);
+    const stream = new AlleleStream(p, NUMBER_OF_ALLELES);
     alleleStreams.push(stream);
     stream.pipe(blastInputStream);
     streamPromises.push(stream.alleleSizes);
   });
   return Promise.all(streamPromises);
 }).then(listOfAlleleSizes => {
+  logger('stream')(`${listOfAlleleSizes.length} streams are ready`)
   _.assign(_alleleSizes, ...listOfAlleleSizes)
   logger('sizes')(_alleleSizes)
   onAlleleSizes(_alleleSizes);
+  blastInputStream.end();
 });
 
 class HitsStore {
@@ -85,9 +121,10 @@ class HitsStore {
     const gene = allele.split('_')[0];
     const length = Number(row[LENGTH]);
     const pident = Number(row[PIDENT]);
+    const sequence = row[SEQ];
     const [start, end, reverse] = Number(row[SSTART]) < Number(row[SEND]) ? [Number(row[SSTART]), Number(row[SEND]), false] : [Number(row[SEND]), Number(row[SSTART]), true]
 
-    return { gene, allele, length, pident, start, end, reverse }
+    return { sequence, gene, allele, length, pident, start, end, reverse }
   }
 
   best() {
@@ -148,10 +185,47 @@ class HitsStore {
   }
 }
 
-var hits;
-alleleSizes.then(sizes => {
-  hits = new HitsStore(sizes);
-  const blast = runBlast(DB, 11, 80);
+function hashSequence(fastaPath, contig, start, end, reverse) {
+  logger('hashing')(`Looking for ${contig} in ${fastaPath}`);
+  const seqStream = fasta.obj(fastaPath);
+  const compliment = (b) => {
+    return {t: 'a', a: 't', c: 'g', g: 'c'}[b] || b
+  }
+  var onSuccess, onFailure;
+  const output = new Promise((resolve, reject) => {
+    onSuccess = resolve;
+    onFailure = reject;
+  });
+  seqStream.on('data', seq => {
+    // logger('seq')(seq);
+    if (seq.id != contig) return;
+    logger('hashing')(`Found sequence for ${contig}`)
+    var bases;
+    if (reverse) {
+      bases = _(seq.seq.toLowerCase()).slice(start - 1, end).map(compliment).reverse().value();
+    } else {
+      bases = _(seq.seq.toLowerCase()).slice(start - 1, end).value();
+    }
+    logger('bases')([contig, _.slice(bases, 0, 10).join(''), _.slice(bases, bases.length-10).join('')]);
+    onSuccess(hasha(bases.join(''), {algorithm: 'sha1'}))
+  });
+  seqStream.on('end', () => {
+    logger('hashing')(`Finished reading ${fastaPath}`)
+    Promise.race([output, Promise.resolve(null)]).then(hash => {
+      if (!hash) {
+        onFailure(`Couldn't find a contig called ${contig} in ${fastaPath}`)
+      }
+    });
+  });
+  return output;
+}
+
+// var done = false;
+const blastDb = makeBlastDb(SAMPLE);
+Promise.all([alleleSizes, blastDb]).then(([sizes, db]) => {
+  logger('debug')(`Got allele sizes and a blast db (${db})`)
+  const hits = new HitsStore(sizes);
+  const blast = runBlast(db, 11, 80);
   blastInputStream.pipe(blast.stdin);
 
   const blastResultsStream = readline.createInterface({
@@ -163,12 +237,30 @@ alleleSizes.then(sizes => {
     if (hits.update(hit)) {
       logger('added')(line);
     } else {
-      logger('skipped')(line);
+      // logger('skipped')(line);
     }
   })
-})
 
-setTimeout(() => {
-  blastInputStream.end();
-  logger('best')(hits.best());
-}, 3000);
+  var onExit;
+  const output = new Promise((resolve, reject) => {
+    onExit = resolve;
+  });
+
+  blast.on('exit', (code, signal) => {
+    onExit(hits.best())
+  })
+
+  return output
+}).then(hits => {
+  // logger('hits')(hits);
+  const matched_hits = _.map(hits, hit => {
+    logger('hashMatching')(hit)
+    return hashSequence(SAMPLE, hit.sequence, hit.start, hit.end, hit.reverse).then(hash => {
+      hit.match = alleleHashes[hash] || 'Unknown';
+      hit.hash = hash;
+      logger('hashMatched')(`Hashed matching region of ${hit.sequence} to ${hash}`)
+      return hit
+    })
+  });
+  return Promise.all(matched_hits)
+}).then(logger('matches'))
