@@ -58,33 +58,117 @@ listAlleleFiles(SPECIES).then(paths => {
   onAlleleSizes(_alleleSizes);
 });
 
-const blast=runBlast(DB, 11, 80);
-blastInputStream.pipe(blast.stdin);
-// blastInputStream.pipe(process.stderr);
+class HitsStore {
+  constructor(alleleLengths) {
+    this.alleleLengths = alleleLengths;
+    this._bins = []
+  }
 
-const blastResultsStream = readline.createInterface({
-  input: blast.stdout,
-})
+  update(hit) {
+    if (!this.longEnough(hit.allele, hit.length)) return false;
+    const bin = this.getBin(hit.gene, hit.start, hit.end);
+    if (!this.closeEnough(hit.pident, bin)) return false;
+    this.updateBin(bin, hit);
+    return true;
+  }
 
-blastResultsStream.on('line', line => {
-  const QUERY = 0;
-  const SEQ = 1;
-  const LENGTH = 3;
+  buildHit(line) {
+    const QUERY = 0;
+    const SEQ = 1;
+    const PIDENT = 2;
+    const LENGTH = 3;
+    const SSTART = 8;
+    const SEND = 9;
 
-  blastResultsStream.pause();
-  alleleSizes.then(sizes => {
     const row = line.split('\t');
-    if (Number(row[LENGTH]) > 0.8*Number(sizes[row[QUERY]])) {
-      logger('good')(line);
+    const allele = row[QUERY];
+    const gene = allele.split('_')[0];
+    const length = Number(row[LENGTH]);
+    const pident = Number(row[PIDENT]);
+    const [start, end, reverse] = Number(row[SSTART]) < Number(row[SEND]) ? [Number(row[SSTART]), Number(row[SEND]), false] : [Number(row[SEND]), Number(row[SSTART]), true]
+
+    return { gene, allele, length, pident, start, end, reverse }
+  }
+
+  best() {
+    return _.map(this._bins, bin => {
+      const bestHit = _.reduce(bin.hits, (bestHit, hit) => {
+        if (bestHit.length == hit.length) {
+          return bestHit.pident > hit.pident ? bestHit : hit;
+        }
+        return bestHit.length > hit.length ? bestHit : hit;
+      })
+      bestHit.alleleLength = this.alleleLengths[bestHit.allele];
+      return bestHit;
+    })
+  }
+
+  longEnough(allele, length) {
+    return length >= this.alleleLengths[allele] * 0.8;
+  }
+
+  getBin(gene, start, end) {
+    const bin = _.find(this._bins, bin => {
+      if (bin.gene != gene) return false;
+      if (bin.start <= start && bin.end >= end) return true;
+      if (start <= bins.start && end >= bin.end) return true;
+      if (bin.start <= start && end > bin.end) {
+        overlap = Math.abs((bin.end - bin.start)/(end - start));
+        return overlap > 0.8;
+      }
+      if (start <= bin.start && end > bin.end) {
+        overlap = Math.abs((bin.end - bin.start)/(end - start));
+        return overlap > 0.8;
+      }
+      return false;
+    })
+    if (bin) {
+      return bin;
     } else {
-      logger('too short')(line);
+      const newBin = { gene, start, end, hits: [], bestPIdent: 0 }
+      this._bins.push(newBin);
+      return newBin;
     }
-    blastResultsStream.resume();
-  }).catch(() => {
-    blastResultsStream.resume();
-  });
+  }
+
+  closeEnough(pident, bin) {
+    return pident >= bin.bestPIdent - 2.0;
+  }
+
+  updateBin(bin, hit) {
+    bin.start = bin.start < hit.start ? bin.start : hit.start;
+    bin.end = bin.end > hit.end ? bin.end : hit.end;
+    if (hit.pident > bin.bestPIdent) {
+      bin.bestPIdent = hit.pident;
+      bin.hits = _.filter(bin.hits, h => {
+        return this.closeEnough(h.pident, bin);
+      })
+    }
+    bin.hits.push(hit);
+  }
+}
+
+var hits;
+alleleSizes.then(sizes => {
+  hits = new HitsStore(sizes);
+  const blast = runBlast(DB, 11, 80);
+  blastInputStream.pipe(blast.stdin);
+
+  const blastResultsStream = readline.createInterface({
+    input: blast.stdout,
+  })
+
+  blastResultsStream.on('line', line => {
+    const hit = hits.buildHit(line);
+    if (hits.update(hit)) {
+      logger('added')(line);
+    } else {
+      logger('skipped')(line);
+    }
+  })
 })
 
 setTimeout(() => {
   blastInputStream.end();
+  logger('best')(hits.best());
 }, 3000);
