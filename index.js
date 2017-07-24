@@ -1,29 +1,13 @@
 #!/usr/bin/env node
 
+'use strict';
+
 const { spawn } = require('child_process');
-const commander = require('commander');
 const _ = require('lodash');
 const readline = require('readline');
 const logger = require('debug');
-const fasta = require('bionode-fasta');
-const fs = require('fs');
-const stream = require('stream');
 
-var alleleDir, db;
-const program = commander
-  .arguments('<alleleDir> <db>')
-  .action((_fasta, _db) => {
-    alleleDir = _alleleDir;
-    db = _db;
-  }).parse(process.argv);
-
-
-if (! fasta || ! db) {
-  logger('error')("Need alleleDir and blastdb")
-  process.exit(1)
-} else {
-  logger('debug')(`Using ${alleleDir} and ${db}`)
-}
+const { listAlleleFiles, FastaString, AlleleStream } = require('./pubmlst')
 
 function runBlast(db, word_size=11, perc_identity=0) {
   const command='blastn -task blastn ' +
@@ -46,46 +30,61 @@ function runBlast(db, word_size=11, perc_identity=0) {
   })
   blastShell.stderr.pipe(process.stderr);
   return blastShell;
-  // return readline.createInterface({
-  //   input: blastShell.stdout
-  // })
 }
 
-function getQuerySequences(alleleDir, number) {
-  const sequenceStream = new stream.Readable({ objectMode: true });
-  fs.readdir(alleleDir, (err, files) => {
+const SPECIES="Staphylococcus aureus"
+const DB="/code/blast_dbs/Staphylococcus_aureus/saureus_7hlohgcu9cho/MRSA_10C.db"
 
+var onAlleleSizes;
+var alleleSizes = new Promise((resolve, reject) => {
+  onAlleleSizes = resolve;
+});
+const _alleleSizes = {};
+var streamPromises = [];
+const blastInputStream = (new FastaString())
+const alleleStreams = [];
+listAlleleFiles(SPECIES).then(paths => {
+  _.forEach(paths, p => {
+    logger('makeStream')(`Made a stream from ${p}`);
+    const stream = new AlleleStream(p, 3);
+    alleleStreams.push(stream);
+    stream.pipe(blastInputStream);
+    streamPromises.push(stream.alleleSizes);
   });
-  return
-}
+  return Promise.all(streamPromises);
+}).then(listOfAlleleSizes => {
+  _.assign(_alleleSizes, ...listOfAlleleSizes)
+  logger('sizes')(_alleleSizes)
+  onAlleleSizes(_alleleSizes);
+});
 
-const blast=runBlast(fasta, db, 11, 80);
-const bins = {};
-const BINWIDTH = 500;
+const blast=runBlast(DB, 11, 80);
+blastInputStream.pipe(blast.stdin);
+// blastInputStream.pipe(process.stderr);
 
-blast.on('line', line => {
+const blastResultsStream = readline.createInterface({
+  input: blast.stdout,
+})
+
+blastResultsStream.on('line', line => {
   const QUERY = 0;
-  const DB = 1;
-  const PIDENT = 2;
+  const SEQ = 1;
   const LENGTH = 3;
-  const MISMATCH = 4;
-  const SSTART = 8;
-  const SEND = 9;
 
-  const row = line.split('\t');
-  if (Number(row[PIDENT]) > 95) {
-    logger('debug')(line);
-  } else {
-    logger('trace')(line)
-  }
-
-  // for (var b=(1 + (row[SSTART] % BINWIDTH))*BINWIDTH; b<=(1 + (row[SEND] % BINWIDTH))*BINWIDTH; b+=BINWIDTH) {
-  //   if (! bins[b]) bins[b] = [];
-  //   bins[b].push(row);
-  // }
-
+  blastResultsStream.pause();
+  alleleSizes.then(sizes => {
+    const row = line.split('\t');
+    if (Number(row[LENGTH]) > 0.8*Number(sizes[row[QUERY]])) {
+      logger('good')(line);
+    } else {
+      logger('too short')(line);
+    }
+    blastResultsStream.resume();
+  }).catch(() => {
+    blastResultsStream.resume();
+  });
 })
 
-blast.on('close', () => {
-  logger('trace')(_.keys(bins));
-})
+setTimeout(() => {
+  blastInputStream.end();
+}, 3000);
