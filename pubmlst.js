@@ -1,7 +1,7 @@
 'use strict';
 
 const _ = require('lodash');
-const { Transform, Readable } = require('stream');
+const { Transform } = require('stream');
 const fasta = require('bionode-fasta');
 const fs = require('fs');
 const path = require('path');
@@ -9,11 +9,6 @@ const logger = require('debug');
 const hasha = require('hasha');
 
 const MLST_DIR="/code/pubmlst"
-
-function getAlleleHashes(species) {
-  const hashPath=path.join(MLST_DIR, species.replace(' ', '_'), 'hashes');
-  return require(hashPath);
-}
 
 function listAlleleFiles(species) {
   const alleleDir=path.join(MLST_DIR, species.replace(' ', '_'), 'alleles');
@@ -29,92 +24,68 @@ function listAlleleFiles(species) {
   });
 }
 
-function hashAlleles(species) {
-  const hashAlleleFile = (path) => {
-    logger('debug')(`About to hash sequences in ${path}`)
-    const listOfHashes = [];
+function buildMetadata(species) {
+  const alleleFiles = listAlleleFiles(species)
+  const analyseAlleleFile = (path) => {
+    logger('analyse')(`Analysing ${path}`)
     const seqStream = fasta.obj(path);
+    const lengths = {};
+    const hashes = {};
+
+    var onComplete;
+    const output = new Promise((resolve, reject) => {
+      onComplete = resolve;
+    });
+
     seqStream.on('data', seq => {
       const allele = seq.id;
-      const gene = allele.split('_')[0];
-      // logger('trace')(`Hashing ${allele} from ${path}`)
+      logger('trace')(`Analysing ${allele} from ${path}`)
+      const length = seq.seq.length;
       const hash = hasha(seq.seq.toLowerCase(), {algorithm: 'sha1'});
-      const hashObj = {};
-      hashObj[hash] = allele;
-      listOfHashes.push(hashObj);
+
+      lengths[allele] = length;
+      hashes[hash] = allele;
     });
-    var onFinished;
-    const output = new Promise((resolve, reject) => {
-      onFinished = resolve;
-    })
+
     seqStream.on('end', () => {
-      logger('debug')(`Finished hashing ${listOfHashes.length} hashes from ${path}`)
-      onFinished(listOfHashes);
+      logger('analyse')(`Finished reading ${_.keys(lengths).length} alleles from ${path}`);
+      onComplete([lengths, hashes]);
     })
+
+
     return output;
   }
-  return listAlleleFiles(species).then(paths => {
-    return Promise.all(_.map(paths, p => {
-      return hashAlleleFile(p)
-    })).then(fileHashes => {
-      const hashes = _.flatten(fileHashes);
-      return _.merge(...hashes);
-    });
-  });
+
+  return alleleFiles.then(paths => {
+    return Promise.all(_.map(paths, analyseAlleleFile))
+  }).then(metadata => {
+    logger('metadata')(`Got ${metadata.length} bits of metadata`)
+    return _.reduce(metadata, ([totalLengths, totalHashes], [lengths, hashes]) => {
+      return [_.assign(totalLengths, lengths), _.assign(totalHashes, hashes)]
+    })
+  }).then(([lengths, hashes]) => {
+    return {
+      species,
+      lengths,
+      hashes,
+    }
+  })
 }
 
-function writeAlleleHashes(path, species) {
-  return hashAlleles(species).then(hashes => {
-    const json = JSON.stringify(hashes);
+function readMetadata(species) {
+  const hashPath=path.join(MLST_DIR, species.replace(' ', '_'), 'metadata');
+  return require(hashPath);
+}
+
+function writeMetadata(path, species) {
+  return buildMetadata(species).then(metadata => {
+    const json = JSON.stringify(metadata);
     fs.writeFile(path, json, (err, data) => {
       if (err) logger('error')(err);
-      logger('debug')(`Wrote ${_.keys(hashes).length} hashes to ${path}`)
+      logger('debug')(`Wrote metadata for ${species} to ${path}`)
     })
-    return hashes;
+    return metadata;
   });
-}
-
-class AlleleStream {
-  constructor(path, maxSeqs=0) {
-    logger('stream')(`New from ${path}`);
-    var count = 0;
-    this.maxSeqs = maxSeqs;
-    this._stream = fasta.obj(path);
-    this._alleleSizes = {};
-    this.alleleSizes = new Promise((resolve, reject) => {
-      this.onMaxSeqs = resolve;
-    });
-    this._stream.on('data', seq => {
-      logger('stream')(`Got ${seq.id} from ${path}`)
-      count++;
-      this._alleleSizes[seq.id] = seq.seq.length;
-      if (this.maxSeqs > 0 && count >= this.maxSeqs) {
-        logger('stream')(`Read ${count} from ${path}`);
-        this.onMaxSeqs(this._alleleSizes);
-        this._stream.pause();
-      }
-    });
-    this._stream.on('end', () => {
-      logger('stream')(`Finished reading from ${path}`)
-      this.onMaxSeqs(this._alleleSizes);
-    });
-  }
-
-  pipe(...options) {
-    this._stream.pipe(...options);
-  }
-
-  setMaxSeqs(maxSeqs) {
-    if (maxSeqs > this.maxSeqs) {
-      logger('wait')(`Increasing maxSeq from ${this.maxSeqs} to ${maxSeqs}`);
-      this.maxSeqs = maxSeqs;
-      this.alleleSizes = new Promise((resolve, reject) => {
-        this.onMaxSeqs = resolve;
-      });
-      this._stream.resume();
-    }
-    return this.alleleSizes;
-  }
 }
 
 class FastaString extends Transform {
@@ -130,4 +101,4 @@ class FastaString extends Transform {
   }
 }
 
-module.exports = { listAlleleFiles, getAlleleHashes, AlleleStream, FastaString, writeAlleleHashes };
+module.exports = { listAlleleFiles, readMetadata, writeMetadata, FastaString };
