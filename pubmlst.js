@@ -7,6 +7,7 @@ const fs = require('fs');
 const path = require('path');
 const logger = require('debug');
 const hasha = require('hasha');
+const tmp = require('tmp');
 
 const MLST_DIR="/code/pubmlst"
 
@@ -88,6 +89,81 @@ function writeMetadata(path, species) {
   });
 }
 
+function sortFastaBySequenceLength(path) {
+  const sequences = [];
+  const seqStream = fasta.obj(path);
+
+  var onDone;
+  const output = new Promise((resolve, reject) => {
+    onDone = resolve;
+  })
+
+
+  const sortSequences = () => {
+    // Sorts the sequences so that you get a good mix of lengths
+    // For example, if sequences == [{length: 5}, {length: 5}, {length: 5}, {length: 3}, {length: 3}, {length: 1}]
+    // this returns: [{length: 5}, {length: 3}, {length: 1}, {length: 5}, {length: 3}, {length: 5}]
+    const groupedByLength = _.reduce(sequences, (result, seq) => {
+      (result[seq.length] = result[seq.length] || []).push(seq);
+      return result;
+    }, {});
+    const lengths = _.keys(groupedByLength).sort();
+    const sortedSequences = _(groupedByLength) // {455: [seq, ...], 460: [seq, ...], ...}
+      .toPairs() // [[455, [seq, ...]], [460, [seq, ...]], ...]
+      .sortBy(([length, seqs]) => { return -length }) // [[477, [seq, ...]], [475, [seq, ...]], ...]
+      .map(([length, seqs]) => { return seqs }) // [[seq1, seq2, ...], [seq11, seq12, ...], ...]
+      .thru(seqs => _.zip(...seqs)) // [[seq1, seq11, ...], [seq2, undefined, ...], ...]
+      .flatten() // [seq1, seq11, ..., seq2, undefined, ...]
+      .filter(el => { return typeof(el) != 'undefined' }) // [seq1, seq11, ..., seq2, ...]
+      .value()
+    return { lengths, sortedSequences };
+  }
+
+  seqStream.on('data', seq => {
+    seq.length = seq.seq.length;
+    sequences.push(seq);
+  });
+
+  seqStream.on('end', () => {
+    tmp.file((err, tempPath, fd, callback) => {
+      // logger('seqs')(sequences.slice(0,5));
+      const { lengths, sortedSequences } = sortSequences();
+      // logger('seqs:sorted')(sortedSequences.slice(0,5));
+      const tempStream = fs.createWriteStream(tempPath);
+      const output = new FastaString();
+      output.pipe(tempStream)
+      _.forEach(sortedSequences, s => {
+        output.write(s);
+      })
+
+      output.end()
+      logger('rename')([tempPath, path]);
+      fs.rename(tempPath, path, onDone);
+    })
+  })
+
+  return output;
+}
+
+function sortAlleleSequences(species) {
+  const alleleFiles = listAlleleFiles(species)
+  const updatedFastas = alleleFiles.then(paths => {
+    const sorted = _.map(paths, path => {
+      const onDone = () => {
+        logger('sorted')(path)
+        return path
+      }
+      logger('sorting')(path)
+      return sortFastaBySequenceLength(path).then(onDone)
+    })
+    return Promise.all(sorted);
+  })
+  updatedFastas.then((paths) => {
+    logger('sorted:all')(`Sorted ${paths.length} allele files`)
+  })
+  return updatedFastas;
+}
+
 class FastaString extends Transform {
   constructor(options={}) {
     options.objectMode = true;
@@ -101,4 +177,4 @@ class FastaString extends Transform {
   }
 }
 
-module.exports = { listAlleleFiles, readMetadata, writeMetadata, FastaString };
+module.exports = { listAlleleFiles, readMetadata, writeMetadata, sortAlleleSequences, FastaString };
