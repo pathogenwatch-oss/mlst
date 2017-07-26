@@ -23,18 +23,19 @@ const alleleLengths = alleleMetadata['lengths'];
 
 const NUMBER_OF_ALLELES=2;
 
-const blastInputStream = (new FastaString({
-  highWaterMark: _.keys(alleleLengths).length + 10,
-}))
-// blastInputStream.pipe(process.stderr);
+const makeBlastInputStream = () => {
+  return new FastaString({
+    highWaterMark: _.keys(alleleLengths).length + 10,
+  })
+}
+
+// logger('debug')(`highWaterMark: ${_.keys(alleleLengths).length}`)
 
 const alleleStreams = listAlleleFiles(SPECIES).then(paths => {
   const streams = {};
   _.forEach(paths, p => {
     const allele = path.basename(p, '.tfa')
-    const stream = fasta.obj(p).pipe(new ObjectTap(NUMBER_OF_ALLELES));
-    logger('stream')(`Streaming ${allele} to blastInputStream`)
-    stream.pipe(blastInputStream);
+    const stream = fasta.obj(p).pipe(new ObjectTap({limit: NUMBER_OF_ALLELES}));
     streams[allele] = stream;
   });
   return streams;
@@ -76,9 +77,74 @@ function hashSequence(fastaPath, contig, start, end, reverse) {
 }
 
 const blastDb = makeBlastDb(SAMPLE);
-Promise.all([alleleStreams, blastDb]).then(([streams, db]) => {
+const firstRun = Promise.all([alleleStreams, blastDb]).then(([streams, db]) => {
   const hits = new BlastHitsStore(alleleLengths);
   const blast = runBlast(db, 11, 80);
+
+  const blastInputStream = makeBlastInputStream();
+  _.forEach(_.values(streams), stream => {
+    stream.pipe(blastInputStream);
+  })
+  blastInputStream.pipe(blast.stdin);
+  // blastInputStream.pipe(process.stderr);
+
+  const blastResultsStream = readline.createInterface({
+    input: blast.stdout,
+  })
+
+  blastResultsStream.on('line', line => {
+    const hit = hits.buildHit(line);
+    if (hits.update(hit)) {
+      logger('trace:addedHit')(line);
+    } else {
+      logger('trace:skippedHit')(line);
+    }
+  })
+
+  const streamPromises = _.map(_.values(streams), s => { return s.whenEmpty() });
+  return Promise.all(streamPromises).then(() => {
+    logger('streams')('All streams are empty');
+    return { hits, blast, db, blastInputStream };
+  });
+}).then(({hits, blast, db, blastInputStream }) => {
+  var onExit;
+  const output = new Promise((resolve, reject) => {
+    onExit = resolve
+  });
+
+  blastInputStream.end();
+  blast.on('exit', (code, signal) => {
+    onExit({hits, db})
+  });
+
+  return output
+}).then(({hits, db}) => {
+  logger('hits')(hits.best());
+  return { hits, db };
+}).catch(logger('error'))
+
+
+const secondRun = Promise.all([firstRun, alleleStreams]).then(([{hits, db}, streams]) => {
+  logger('debug')('having a second run');
+  const { perfectGenes, imperfectGenes } = _.reduce(hits.best(), (results, h) => {
+    if (h.pident == 100 && h.length == h.alleleLength) {
+      results.perfectGenes.push(h.gene);
+    } else {
+      results.imperfectGenes.push(h.gene);
+    }
+    return results;
+  }, {perfectGenes: [], imperfectGenes: []})
+
+  logger('perfect')(perfectGenes);
+  // logger('imperfect')(imperfectGenes);
+  const blast = runBlast(db, 11, 80);
+  const blastInputStream = makeBlastInputStream();
+  _.forEach(imperfectGenes, gene => {
+    logger('improve')(`Improving hits for ${gene}`);
+    const stream = streams[gene];
+    stream.pipe(blastInputStream);
+    stream.updateLimit(null);
+  })
   blastInputStream.pipe(blast.stdin);
 
   const blastResultsStream = readline.createInterface({
@@ -88,19 +154,45 @@ Promise.all([alleleStreams, blastDb]).then(([streams, db]) => {
   blastResultsStream.on('line', line => {
     const hit = hits.buildHit(line);
     if (hits.update(hit)) {
-      logger('added')(line);
+      logger('trace:addedHit')(line);
     } else {
-      logger('skipped')(line);
+      logger('trace:skippedHit')(line);
     }
   })
 
-  return Promise.all(_.map(alleleStreams, s => { return s.waitForPause })).then(() => { return { hits, blast } });
-}).then(({hits, blast}) => {
+  const streamPromises = _.map(imperfectGenes, gene => {
+    return streams[gene].whenEmpty();
+  });
+  return Promise.all(streamPromises).then(() => {
+    logger('streams')('All streams are empty');
+    return { hits, blast, db, blastInputStream };
+  });
+}).then(({hits, blast, db, blastInputStream }) => {
+  var onExit;
+  const output = new Promise((resolve, reject) => {
+    onExit = resolve
+  });
+
   blastInputStream.end();
   blast.on('exit', (code, signal) => {
-    logger('best')(hits.best());
+    onExit({hits, db})
   });
-})
+
+  return output
+}).then(({hits, db}) => {
+  const { perfectGenes, imperfectGenes } = _.reduce(hits.best(), (results, h) => {
+    if (h.pident == 100 && h.length == h.alleleLength) {
+      results.perfectGenes.push(h.gene);
+    } else {
+      results.imperfectGenes.push(h.gene);
+    }
+    return results;
+  }, {perfectGenes: [], imperfectGenes: []})
+
+  logger('moreHits')(hits.best());
+  logger('perfect')(perfectGenes);
+  return hits;
+}).catch(logger('error'))
 
 // .then(hits => {
 //   // logger('hits')(hits);
