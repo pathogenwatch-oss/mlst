@@ -80,6 +80,7 @@ class BlastHitsStore {
     const LENGTH = 3;
     const SSTART = 8;
     const SEND = 9;
+    const NIDENT = 12;
 
     const row = line.split('\t');
     const allele = row[QUERY];
@@ -88,17 +89,18 @@ class BlastHitsStore {
     const pident = Number(row[PIDENT]);
     const sequence = row[SEQ];
     const [start, end, reverse] = Number(row[SSTART]) < Number(row[SEND]) ? [Number(row[SSTART]), Number(row[SEND]), false] : [Number(row[SEND]), Number(row[SSTART]), true]
+    const matchingBases = Number(row[NIDENT]);
 
-    return { sequence, gene, allele, length, pident, start, end, reverse }
+    return { sequence, gene, allele, length, pident, start, end, reverse, matchingBases }
   }
 
   best() {
     return _.map(this._bins, bin => {
       const bestHit = _.reduce(bin.hits, (bestHit, hit) => {
-        if (bestHit.length == hit.length) {
+        if (bestHit.matchingBases == hit.matchingBases) {
           return bestHit.pident > hit.pident ? bestHit : hit;
         }
-        return bestHit.length > hit.length ? bestHit : hit;
+        return bestHit.matchingBases > hit.matchingBases ? bestHit : hit;
       })
       bestHit.alleleLength = this.alleleLengths[bestHit.allele];
       return bestHit;

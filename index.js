@@ -127,7 +127,7 @@ const firstRun = Promise.all([alleleStreams, blastDb]).then(([streams, db]) => {
 const secondRun = Promise.all([firstRun, alleleStreams]).then(([{hits, db}, streams]) => {
   logger('debug')('having a second run');
   const { perfectGenes, imperfectGenes } = _.reduce(hits.best(), (results, h) => {
-    if (h.pident == 100 && h.length == h.alleleLength) {
+    if (h.length == h.matchingBases && h.matchingBases == h.alleleLength) {
       results.perfectGenes.push(h.gene);
     } else {
       results.imperfectGenes.push(h.gene);
