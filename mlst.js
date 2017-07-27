@@ -129,9 +129,7 @@ function processBlastResultsStream(options={}) {
 
   return Promise.all(_.map(streams, stream => {
     return stream.whenEmpty()
-  })).then(() => {
-    logger('streams:length')(_.map(streams, s => { return s.length() }));
-  })
+  }))
 }
 
 function stopBlast(options={}) {
@@ -150,17 +148,47 @@ function stopBlast(options={}) {
   return output
 }
 
-function filterResults(options={}) {
+function buildResults(options={}) {
   const { bestHits, alleleLengths } = options;
-  return _.reduce(bestHits, (results, hit) => {
-    if (!hit.matchingAllele) results.imperfect.push(hit)
-    else if (hit.sequenceLength != alleleLengths[hit.matchingAllele]) results.imperfect.push(hit)
-    else results.perfect.push(hit)
-    return results
-  }, {perfect: [], imperfect: []})
+
+  const alleleNameToGene = allele => {
+    return allele.split('_').slice(0, -1).join('_');
+  }
+  const genes = _(alleleLengths)
+    .keys()
+    .map(alleleNameToGene)
+    .uniq()
+    .value()
+
+  const hitToResult = hit => {
+    const { gene, sequenceLength, alleleLength, hash, matchingAllele } = hit;
+    const perfect = (!!matchingAllele && (sequenceLength == alleleLengths[matchingAllele]))
+    const allele = matchingAllele ? Number(matchingAllele.split('_').pop()) : null;
+    return {
+      perfect,
+      length: sequenceLength,
+      alleleLength: alleleLengths[matchingAllele] || null,
+      hash,
+      allele
+    }
+  }
+
+  const results = {};
+  _.forEach(bestHits, hit => {
+    const { gene } = hit;
+    const result = hitToResult(hit);
+    (results[gene] = results[gene] || []).push(result);
+  })
+
+  // Fill in the missing genes
+  _.forEach(genes, gene => {
+    results[gene] = results[gene] || [];
+  })
+
+  return results;
 }
 
 module.exports = {
   getAlleleStreams, addHashesToHits, addMatchingAllelesToHits,
-  startBlast, processBlastResultsStream, stopBlast, filterResults
+  startBlast, processBlastResultsStream, stopBlast, buildResults
 }

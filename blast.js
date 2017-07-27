@@ -116,7 +116,7 @@ class BlastHitsStore {
     const bin = _.find(this._bins, bin => {
       if (bin.gene != gene) return false;
       if (bin.start <= start && bin.end >= end) return true;
-      if (start <= bins.start && end >= bin.end) return true;
+      if (start <= bin.start && end >= bin.end) return true;
       if (bin.start <= start && end > bin.end) {
         overlap = Math.abs((bin.end - bin.start)/(end - start));
         return overlap > 0.8;
