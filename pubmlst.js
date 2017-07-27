@@ -9,7 +9,7 @@ const logger = require('debug');
 const hasha = require('hasha');
 const tmp = require('tmp');
 
-const MLST_DIR="/code/pubmlst"
+const MLST_DIR="/tmp/pubmlst"
 
 function listAlleleFiles(species) {
   const alleleDir=path.join(MLST_DIR, species.replace(' ', '_'), 'alleles');
