@@ -35,7 +35,7 @@ function makeBlastDb(fastaPath) {
   });
 }
 
-function runBlast(db, word_size=11, perc_identity=0) {
+function createBlastProcess(db, word_size=11, perc_identity=0) {
   const command='blastn -task blastn ' +
     '-max_target_seqs 10000 ' +
     '-query - ' +
@@ -89,9 +89,10 @@ class BlastHitsStore {
     const pident = Number(row[PIDENT]);
     const sequence = row[SEQ];
     const [start, end, reverse] = Number(row[SSTART]) < Number(row[SEND]) ? [Number(row[SSTART]), Number(row[SEND]), false] : [Number(row[SEND]), Number(row[SSTART]), true]
+    const sequenceLength = end - start + 1;
     const matchingBases = Number(row[NIDENT]);
 
-    return { sequence, gene, allele, length, pident, start, end, reverse, matchingBases }
+    return { sequence, gene, allele, length, pident, start, end, reverse, sequenceLength, matchingBases }
   }
 
   best() {
@@ -152,4 +153,4 @@ class BlastHitsStore {
   }
 }
 
-module.exports = { makeBlastDb, runBlast, BlastHitsStore };
+module.exports = { makeBlastDb, createBlastProcess, BlastHitsStore };
