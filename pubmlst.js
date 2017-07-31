@@ -8,85 +8,280 @@ const path = require('path');
 const logger = require('debug');
 const hasha = require('hasha');
 const tmp = require('tmp');
+const readline = require('readline');
 
 const MLST_DIR="/tmp/pubmlst"
 
-function listAlleleFiles(species) {
-  const alleleDir=path.join(MLST_DIR, species.replace(' ', '_'), 'alleles');
-  return new Promise((resolve, reject) => {
-    fs.readdir(alleleDir, (err, files) => {
-      if (err) reject(err);
-      const paths = _.map(files, f => {
-        return path.join(alleleDir, f);
-      });
-      logger('paths')(paths)
-      resolve(paths);
-    });
-  });
-}
-
-function buildMetadata(species) {
-  const alleleFiles = listAlleleFiles(species)
-  const analyseAlleleFile = (path) => {
-    logger('analyse')(`Analysing ${path}`)
-    const seqStream = fasta.obj(path);
-    const lengths = {};
-    const hashes = {};
-
-    var onComplete;
-    const output = new Promise((resolve, reject) => {
-      onComplete = resolve;
-    });
-
-    seqStream.on('data', seq => {
-      const allele = seq.id;
-      logger('trace')(`Analysing ${allele} from ${path}`)
-      const length = seq.seq.length;
-      const hash = hasha(seq.seq.toLowerCase(), {algorithm: 'sha1'});
-
-      lengths[allele] = length;
-      hashes[hash] = allele;
-    });
-
-    seqStream.on('end', () => {
-      logger('analyse')(`Finished reading ${_.keys(lengths).length} alleles from ${path}`);
-      onComplete([lengths, hashes]);
+class Metadata {
+  constructor(species) {
+    this.species = species;
+    this.alleleFiles = this.getAlleleFiles(species);
+    this.geneNames = this.alleleFiles.then(this.getGenes);
+    this.hashes = new Promise((resolve, reject) => {
+      this.onHashes = resolve;
     })
-
-
-    return output;
+    this.lengths = new Promise((resolve, reject) => {
+      this.onLengths = resolve
+    })
+    this.commonGeneLengths = new Promise((resolve, reject) => {
+      this.onCommonGeneLengths = resolve
+    })
+    this.alleleFiles
+      .then(this.parseAlleleDetails)
+      .then(({hashes, lengths, mostCommonGeneLengths }) => {
+        this.onHashes(hashes);
+        this.onLengths(lengths);
+        this.onCommonGeneLengths(mostCommonGeneLengths);
+        return {hashes, lengths, mostCommonGeneLengths };
+      })
+    this.profilePath = new Promise((resolve, reject) => {
+      this.onProfilePath = resolve;
+    });
+    this.scheme = new Promise((resolve, reject) => {
+      this.onScheme = resolve
+    })
+    this.getProfileSchemeAndPath(species)
+      .then(({profilePath, scheme}) => {
+        logger('tmp')({profilePath, scheme})
+        this.onProfilePath(profilePath);
+        this.onScheme(scheme);
+        return {profilePath, scheme};
+      })
+    this.profiles = Promise.all([this.profilePath, this.geneNames])
+      .then(([profilePath, genes]) => {
+        return {profilePath, genes}
+      })
+      .then(this.getProfiles)
   }
 
-  return alleleFiles.then(paths => {
-    return Promise.all(_.map(paths, analyseAlleleFile))
-  }).then(metadata => {
-    logger('metadata')(`Got ${metadata.length} bits of metadata`)
-    return _.reduce(metadata, ([totalLengths, totalHashes], [lengths, hashes]) => {
-      return [_.assign(totalLengths, lengths), _.assign(totalHashes, hashes)]
-    })
-  }).then(([lengths, hashes]) => {
-    return {
-      species,
-      lengths,
-      hashes,
+  getAlleleFiles(species) {
+    const alleleDir=path.join(MLST_DIR, species.replace(' ', '_'), 'alleles');
+    const geneRegex = /(.+)\.tfa$/;
+    return new Promise((resolve, reject) => {
+      fs.readdir(alleleDir, (err, files) => {
+        if (err) reject(err);
+        const paths = _(files)
+          .filter(f => {
+            return geneRegex.test(f)
+          })
+          .map(f => {
+            return path.join(alleleDir, f);
+          })
+          .value();
+        logger('debug:alleleFiles')(`Found ${paths.length} allele files for ${species}`);
+        logger('trace:alleleFiles')(paths);
+        resolve(paths);
+      });
+    });
+  }
+
+  getGenes(alleleFiles) {
+    const geneRegex = /(.+)\.tfa$/;
+    const genes = _(alleleFiles)
+      .map(f => {
+        return path.basename(f)
+      }) // File names
+      .map(f => {
+        const match = geneRegex.exec(f);
+        return match ? match[1] : null;
+      }) // Remove the extension if it's .tfa
+      .filter(gene => {
+        return (gene != null);
+      }) // Remove null entries (i.e. files not ending in .tfa)
+      .value()
+      .sort() // Sort them alphabetically
+    logger('debug:genes')(`Found ${genes.length} genes`)
+    logger('trace:genes')(genes)
+    return genes
+  }
+
+  parseAlleleDetails(alleleFiles) {
+    const analyseAlleleFile = (path) => {
+      logger('analyse')(`Analysing ${path}`)
+      const seqStream = fasta.obj(path);
+      const lengths = {};
+      const hashes = {};
+
+      var onComplete;
+      const output = new Promise((resolve, reject) => {
+        onComplete = resolve;
+      });
+
+      seqStream.on('data', seq => {
+        const allele = seq.id;
+        logger('trace:alleleDetails')(`Analysing ${allele} from ${path}`)
+        const length = seq.seq.length;
+        const hash = hasha(seq.seq.toLowerCase(), {algorithm: 'sha1'});
+
+        lengths[allele] = length;
+        hashes[hash] = allele;
+      });
+
+      seqStream.on('end', () => {
+        logger('debug:alleleDetails')(`Finished reading ${_.keys(lengths).length} alleles from ${path}`);
+        onComplete([lengths, hashes]);
+      })
+
+      return output;
     }
-  })
+
+    return Promise.all(_.map(alleleFiles, analyseAlleleFile)).then(metadata => {
+      return _.reduce(metadata, ([totalLengths, totalHashes], [lengths, hashes]) => {
+        return [_.assign(totalLengths, lengths), _.assign(totalHashes, hashes)]
+      })
+    }).then(([lengths, hashes]) => {
+      const lengthCounts = _.reduce(_.toPairs(lengths), (results, [allele, length]) => {
+        const gene = allele.split('_').slice(0,-1).join('_');
+        (results[gene] = results[gene] || {});
+        results[gene][length] = (results[gene][length] || 0) + 1;
+        return results;
+      }, {})
+      const mostCommonGeneLengths = _(lengthCounts)
+        .toPairs()
+        .map(([gene, lengths]) => {
+          const [mostCommonLength, count] = _.maxBy(
+            _.toPairs(lengths),
+            ([length, count]) => { return count }
+          )
+          return [gene, mostCommonLength]
+        })
+        .fromPairs()
+        .value()
+      return { lengths, hashes, mostCommonGeneLengths };
+    })
+  }
+
+  getProfileSchemeAndPath(species) {
+    const profileDir=path.join(MLST_DIR, species.replace(' ', '_'), 'profiles');
+    return new Promise((resolve, reject) => {
+      fs.readdir(profileDir, (err, files) => {
+        if (err) reject(err);
+        const textRegex = /(.+)\.txt$/;
+        const profilePaths = _(files)
+          .map(f => {
+            const match = textRegex.exec(f)
+            return match ? path.join(profileDir, f) : null
+          })
+          .filter(path => {
+            return !!path;
+          })
+          .value()
+        if (profilePaths.length != 1) {
+          const paths = JSON.stringify(_.values(profilePaths));
+          reject(`Expected ${species} to have one profile, found '${paths}'`)
+        } else {
+          logger('debug:profilePath')(`Found profile file ${profilePaths[0]} for ${species}`)
+          const profilePath = profilePaths[0];
+          const scheme = path.basename(profilePath, '.txt')
+          resolve({ profilePath, scheme });
+        }
+      });
+    });
+  }
+
+  getProfiles(options={}) {
+    const { profilePath, genes } = options;
+    logger('debug:profile')(`Loading profile data from ${profilePath}`)
+    var onClose, onError;
+    const output = new Promise((resolve, reject) => {
+      onClose = resolve;
+      onError = reject;
+    })
+
+    var header = [];
+    const profileData = {};
+
+    const parseRow = (row) => {
+      // logger('tmp')([header, row])
+      const rowObj = _(header)
+        .zip(row)
+        .fromPairs()
+        .value()
+
+      // logger('tmp:rowObj')(rowObj);
+      const alleles = _.map(genes, gene => {
+        return rowObj[gene];
+      })
+      const ST = rowObj['ST'];
+
+      return { ST, alleles };
+    }
+
+    const profileFileStream = readline.createInterface({
+      input: fs.createReadStream(profilePath)
+    });
+
+    profileFileStream.on('line', line => {
+      const row = line.split('\t');
+      if (header.length == 0) {
+        header = row;
+      } else {
+        const { ST, alleles } = parseRow(row);
+        logger('trace:profile')({ ST, alleles })
+        const allelesKey = alleles.join('_');
+        profileData[allelesKey] = ST;
+      }
+    });
+
+    profileFileStream.on('close', () => {
+      logger('debug:profile')(`Found ${_.keys(profileData).length} profiles in ${profilePath}`)
+      onClose(profileData);
+    });
+
+    return output
+  }
+
+  data() {
+    return Promise.all([
+      this.species, this.alleleFiles,
+      this.geneNames, this.hashes,
+      this.lengths, this.profiles,
+      this.scheme, this.profilePath,
+      this.commonGeneLengths
+    ]).then(([
+      species, alleleFiles,
+      genes, hashes,
+      lengths, profiles,
+      scheme, profilePath,
+      commonGeneLengths
+    ]) => {
+      logger('debug:metadata')(`Returning data on ${genes.length} genes from ${species}`)
+      return { species, alleleFiles, genes, hashes, lengths, profiles, scheme, profilePath, commonGeneLengths }
+    })
+  }
+
+  write(path) {
+    return this.data().then(data => {
+      const jsonData = JSON.stringify(data);
+      const { species } = data;
+      fs.writeFile(path, jsonData, (err, data) => {
+        if (err) logger('error')(err);
+        logger('debug:metadataWrite')(`Wrote metadata for ${species} to ${path}`)
+      })
+      return data
+    })
+  }
 }
 
 function readMetadata(species) {
-  const hashPath=path.join(MLST_DIR, species.replace(' ', '_'), 'metadata');
-  return require(hashPath);
+  const metadataPath=path.join(MLST_DIR, species.replace(' ', '_'), 'metadata');
+  return require(metadataPath);
 }
 
-function writeMetadata(path, species) {
-  return buildMetadata(species).then(metadata => {
-    const json = JSON.stringify(metadata);
-    fs.writeFile(path, json, (err, data) => {
-      if (err) logger('error')(err);
-      logger('debug')(`Wrote metadata for ${species} to ${path}`)
-    })
-    return metadata;
-  });
+function sortAlleleSequences(alleleFiles) {
+  const sorted = _.map(alleleFiles, path => {
+    const onDone = () => {
+      logger('trace:sorted')(path)
+      return path
+    }
+    logger('trace:sorting')(path)
+    return sortFastaBySequenceLength(path).then(onDone)
+  })
+  const updatedFastas = Promise.all(sorted);
+  updatedFastas.then((paths) => {
+    logger('debug:sorted')(`Sorted ${paths.length} allele files`)
+  })
+  return updatedFastas;
 }
 
 function sortFastaBySequenceLength(path) {
@@ -97,7 +292,6 @@ function sortFastaBySequenceLength(path) {
   const output = new Promise((resolve, reject) => {
     onDone = resolve;
   })
-
 
   const sortSequences = () => {
     // Sorts the sequences so that you get a good mix of lengths
@@ -145,25 +339,6 @@ function sortFastaBySequenceLength(path) {
   return output;
 }
 
-function sortAlleleSequences(species) {
-  const alleleFiles = listAlleleFiles(species)
-  const updatedFastas = alleleFiles.then(paths => {
-    const sorted = _.map(paths, path => {
-      const onDone = () => {
-        logger('sorted')(path)
-        return path
-      }
-      logger('sorting')(path)
-      return sortFastaBySequenceLength(path).then(onDone)
-    })
-    return Promise.all(sorted);
-  })
-  updatedFastas.then((paths) => {
-    logger('sorted:all')(`Sorted ${paths.length} allele files`)
-  })
-  return updatedFastas;
-}
-
 class FastaString extends Transform {
   constructor(options={}) {
     options.objectMode = true;
@@ -177,4 +352,4 @@ class FastaString extends Transform {
   }
 }
 
-module.exports = { listAlleleFiles, readMetadata, writeMetadata, sortAlleleSequences, FastaString };
+module.exports = { Metadata, readMetadata, sortAlleleSequences, FastaString };

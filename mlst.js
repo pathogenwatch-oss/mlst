@@ -11,17 +11,14 @@ const { createBlastProcess } = require('./blast')
 const { listAlleleFiles, FastaString } = require('./pubmlst')
 const { ObjectTap } = require('./utils')
 
-function getAlleleStreams(species, limit) {
-  return listAlleleFiles(species)
-    .then(paths => {
-      const streams = {};
-      _.forEach(paths, p => {
-        const allele = path.basename(p, '.tfa')
-        const stream = fasta.obj(p).pipe(new ObjectTap({limit}));
-        streams[allele] = stream;
-      });
-      return streams;
-    })
+function getAlleleStreams(alleleFiles, limit) {
+  const streams = {};
+  _.forEach(alleleFiles, p => {
+    const allele = path.basename(p, '.tfa')
+    const stream = fasta.obj(p).pipe(new ObjectTap({limit}));
+    streams[allele] = stream;
+  });
+  return streams;
 }
 
 function addHashesToHits(fastaPath, hits) {
@@ -149,16 +146,13 @@ function stopBlast(options={}) {
 }
 
 function buildResults(options={}) {
-  const { bestHits, alleleLengths } = options;
+  const { bestHits, alleleLengths, genes, profiles, scheme, commonGeneLengths } = options;
+
+  // logger('tmp')(options);
 
   const alleleNameToGene = allele => {
     return allele.split('_').slice(0, -1).join('_');
   }
-  const genes = _(alleleLengths)
-    .keys()
-    .map(alleleNameToGene)
-    .uniq()
-    .value()
 
   const hitToResult = hit => {
     const { gene, sequenceLength, alleleLength, hash, matchingAllele } = hit;
@@ -169,21 +163,37 @@ function buildResults(options={}) {
       length: sequenceLength,
       alleleLength: alleleLengths[matchingAllele] || null,
       hash,
-      allele
+      allele,
+      modeGeneLength: Number(commonGeneLengths[gene]),
     }
   }
 
-  const results = {};
+  const alleles = {};
+  const raw = {};
+
   _.forEach(bestHits, hit => {
     const { gene } = hit;
     const result = hitToResult(hit);
-    (results[gene] = results[gene] || []).push(result);
+    const { allele, hash } = result;
+    (alleles[gene] = alleles[gene] || []).push(allele ? allele : hash);
+    (raw[gene] = raw[gene] || []).push(result);
   })
 
-  // Fill in the missing genes
-  _.forEach(genes, gene => {
-    results[gene] = results[gene] || [];
-  })
+  const results = {
+    alleles: _.zip(genes, _.map(genes, gene => {
+      return (alleles[gene] || []).join(',').toLowerCase()
+    })),
+    raw,
+  };
+
+  const code = _.map(genes, gene => {
+    return (alleles[gene] || []).join(',');
+  }).join('_').toLowerCase();
+
+  const st = profiles[code] ? profiles[code] : hasha(code.toLowerCase(), {algorithm: 'sha1'})
+  results['st'] = st;
+  results['code'] = code;
+  results['scheme'] = scheme;
 
   return results;
 }

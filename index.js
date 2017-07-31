@@ -24,17 +24,15 @@ logger('params')({ SPECIES, SAMPLE })
 const alleleMetadata = readMetadata(SPECIES);
 const alleleHashes = alleleMetadata['hashes'];
 const alleleLengths = alleleMetadata['lengths'];
+const { genes, profiles, alleleFiles, scheme, commonGeneLengths } = alleleMetadata;
 
 const NUMBER_OF_ALLELES=5;
-const alleleStreams = getAlleleStreams(SPECIES, NUMBER_OF_ALLELES)
+const alleleStreams = getAlleleStreams(alleleFiles, NUMBER_OF_ALLELES)
 
 const blastDb = makeBlastDb(SAMPLE);
 const hits = new BlastHitsStore(alleleLengths);
 
-const firstStreams = alleleStreams
-  .then(streamsMap => {
-    return _.values(streamsMap)
-  })
+const firstStreams = _.values(alleleStreams);
 
 const firstRunStart = Promise.all([firstStreams, blastDb])
   .then(([streams, db]) => {
@@ -65,7 +63,7 @@ const firstResults = firstRunStop
     addMatchingAllelesToHits(alleleHashes, bestHits)
     return bestHits
   }).then(bestHits => {
-    return { bestHits, alleleLengths }
+    return { bestHits, alleleLengths, genes, profiles, scheme, commonGeneLengths }
   })
   .then(buildResults)
   .catch(logger('hits:error'))
@@ -79,13 +77,14 @@ const secondStreams = Promise.all([alleleStreams, firstResults])
       const perfect = (firstMatch && firstMatch.perfect && otherMatches.length == 0);
       return !perfect;
     }
-    const imperfectGenes = _(results)
+    const imperfectGenes = _(results.raw)
       .toPairs()
       .filter(perfectResultFilter)
       .map(([gene, matches]) => { return gene })
       .value()
     const imperfectStreams = _.map(imperfectGenes, gene => {
       const stream = streamsMap[gene];
+      logger('debug')(`Blasting more alleles of ${gene}`)
       stream.updateLimit(50);
       return stream
     });
@@ -125,7 +124,7 @@ const secondResults = secondRunStop
     addMatchingAllelesToHits(alleleHashes, bestHits)
     return bestHits
   }).then(bestHits => {
-    return { bestHits, alleleLengths }
+    return { bestHits, alleleLengths, genes, profiles, scheme, commonGeneLengths }
   })
   .then(buildResults)
   .catch(logger('hits:error'))
@@ -139,13 +138,14 @@ const thirdStreams = Promise.all([alleleStreams, secondResults])
       const perfect = (firstMatch && firstMatch.perfect && otherMatches.length == 0);
       return !perfect;
     }
-    const imperfectGenes = _(results)
+    const imperfectGenes = _(results.raw)
       .toPairs()
       .filter(perfectResultFilter)
       .map(([gene, matches]) => { return gene })
       .value()
     const imperfectStreams = _.map(imperfectGenes, gene => {
       const stream = streamsMap[gene];
+      logger('debug')(`Blasting remaining alleles of ${gene}`)
       stream.updateLimit(null);
       return stream
     });
@@ -185,7 +185,7 @@ const thirdResults = thirdRunStop
     addMatchingAllelesToHits(alleleHashes, bestHits)
     return bestHits
   }).then(bestHits => {
-    return { bestHits, alleleLengths }
+    return { bestHits, alleleLengths, genes, profiles, scheme, commonGeneLengths }
   })
   .then(buildResults)
   .catch(logger('hits:error'))
