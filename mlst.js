@@ -8,7 +8,7 @@ const readline = require('readline');
 const path = require('path');
 
 const { createBlastProcess } = require('./blast')
-const { listAlleleFiles, FastaString } = require('./pubmlst')
+const { parseAlleleName, listAlleleFiles, FastaString } = require('./pubmlst')
 const { ObjectTap } = require('./utils')
 
 function getAlleleStreams(alleleFiles, limit) {
@@ -150,15 +150,22 @@ function buildResults(options={}) {
 
   // logger('tmp')(options);
 
-  const alleleNameToGene = allele => {
-    return allele.split('_').slice(0, -1).join('_');
-  }
-
   const hitToResult = hit => {
-    const { gene, sequenceLength, alleleLength, hash, matchingAllele } = hit;
+    const { sequence, start, end, reverse, gene, sequenceLength, alleleLength, hash, matchingAllele, matchingBases } = hit;
     const perfect = (!!matchingAllele && (sequenceLength == alleleLengths[matchingAllele]))
-    const allele = matchingAllele ? Number(matchingAllele.split('_').pop()) : null;
+    const allele = matchingAllele ? parseAlleleName(matchingAllele)['st'] : null;
+    const closestAllele = parseAlleleName(hit.allele)['st'];
+    const closestAlleleLength = alleleLengths[hit.allele] || null;
     return {
+      blastResult: {
+        contig: sequence,
+        start,
+        end,
+        reverse,
+        matchingBases,
+        closestAllele,
+        closestAlleleLength: closestAlleleLength || null,
+      },
       perfect,
       length: sequenceLength,
       alleleLength: alleleLengths[matchingAllele] || null,
@@ -174,8 +181,12 @@ function buildResults(options={}) {
   _.forEach(bestHits, hit => {
     const { gene } = hit;
     const result = hitToResult(hit);
-    const { allele, hash } = result;
-    (alleles[gene] = alleles[gene] || []).push(allele ? allele : hash);
+    const { allele, hash, blastResult, length, modeGeneLength } = result;
+    if (allele) {
+      (alleles[gene] = alleles[gene] || []).push(allele);
+    } else if (blastResult.matchingBases > 0.8*modeGeneLength && length < 1.1*modeGeneLength) {
+      (alleles[gene] = alleles[gene] || []).push(hash);
+    }
     (raw[gene] = raw[gene] || []).push(result);
   })
 

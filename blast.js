@@ -8,6 +8,8 @@ const logger = require('debug');
 const tmp = require('tmp');
 const path = require('path');
 
+const { parseAlleleName } = require('./pubmlst')
+
 tmp.setGracefulCleanup();
 
 function makeBlastDb(fastaPath) {
@@ -84,7 +86,7 @@ class BlastHitsStore {
 
     const row = line.split('\t');
     const allele = row[QUERY];
-    const gene = allele.split('_')[0];
+    const { gene } = parseAlleleName(allele);
     const length = Number(row[LENGTH]);
     const pident = Number(row[PIDENT]);
     const sequence = row[SEQ];
