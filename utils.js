@@ -6,81 +6,71 @@ const _ = require('lodash');
 const { Transform, Duplex } = require('stream');
 const AsyncLock = require('async-lock');
 
-class AsyncQueue {
-  constructor(options={}) {
-    this.buffer = options.buffer || [];
-    this._lock = new AsyncLock();
-    this._next = new Promise((resolve, reject) => {
-      this._onNext = resolve;
-    });
-    this.onEmpty();
+class DeferredPromise {
+  constructor(fn) {
+    this.promise = new Promise((resolve, reject) => {
+      this._resolve = resolve;
+      this._reject = reject;
+    })
   }
 
-  onEmpty() {
-    const oldOnEmpty = this._onEmpty;
-    this._empty = new Promise((resolve, reject) => {
-      this._onEmpty = () => {
-        logger('trace:AsyncQueue')('queue is empty');
-        resolve();
-      }
-    });
-    if (oldOnEmpty) return oldOnEmpty();
+  then(fn) {
+    return this.promise.then(fn)
+  }
+
+  catch(fn) {
+    return this.promise.catch(fn)
+  }
+
+  resolve(val) {
+    this._resolve(val);
+    return this;
+  }
+
+  reject(val) {
+    this._reject(val);
+    return this;
+  }
+}
+
+class AsyncQueue {
+  constructor(options={}) {
+    this.contents = options.contents || [];
+    this.consumerQueue = [];
+    this.whenEmpty = new DeferredPromise().resolve(true);
   }
 
   push(el) {
-    logger('trace:AsyncQueue')(`pushing to queue of length ${this.buffer.length}`);
-    if (this.buffer.length == 0) {
-      const onNext = this._onNext;
-      this._next = new Promise((resolve, reject) => {
-        this._onNext = resolve;
-      });
-      this.buffer.push(el);
-      onNext();
+    logger('trace:AsyncQueue')(`push:${this.contents.length}:${this.consumerQueue.length}`)
+    const nextConsumer = this.consumerQueue.shift();
+    if (typeof(nextConsumer) == 'undefined') {
+      this.contents.push(el);
+      if (this.contents.length == 1) {
+        this.whenEmpty = new DeferredPromise();
+      }
     } else {
-      this.buffer.push(el);
+      nextConsumer.resolve(el)
     }
   }
 
   shift() {
-    var onShift;
-    const output = new Promise((resolve, reject) => {
-      onShift = resolve;
-    })
-    if (this.buffer.length == 0) {
-      logger('trace:AsyncQueue')(`waiting to shift from queue of ${this.buffer.length} elements`)
-      this._lock.acquire('shift', (done) => {
-        logger('trace:AsyncQueue')('at the front of the queue for new elements')
-        this._next.then(() => {
-          logger('trace:AsyncQueue')('there are new elements')
-          const el = this.buffer.shift()
-          if (this.buffer.length == 0) this.onEmpty()
-          done(null, el)
-        })
-      }, (err, ret) => {
-        logger('trace:AsyncQueue')('returning the newest element')
-        onShift(ret)
-      })
+    logger('trace:AsyncQueue')(`shift:${this.contents.length}:${this.consumerQueue.length}`)
+    const nextElement = this.contents.shift()
+    const response = new DeferredPromise()
+    if (typeof(nextElement) == 'undefined') {
+      this.consumerQueue.push(response);
     } else {
-      logger('trace:AsyncQueue')(`waiting to shift from queue of ${this.buffer.length} elements`)
-      this._lock.acquire('shift', (done) => {
-        logger('trace:AsyncQueue')('getting the newest element')
-        const el = this.buffer.shift()
-        if (this.buffer.length == 0) this.onEmpty()
-        done(null, el)
-      }, (err, ret) => {
-        logger('trace:AsyncQueue')('returning the newest element');
-        onShift(ret)
-      })
+      if (this.contents.length == 0) {
+        this.whenEmpty.resolve(true);
+      }
+      response.resolve(nextElement);
     }
-    return output
+    return response;
   }
 
   length() {
-    return this.buffer.length;
-  }
-
-  whenEmpty() {
-    return this._empty;
+    logger('trace:AsyncQueue')(`shift:${this.contents.length}:${this.consumerQueue.length}`)
+    return this.contents.length;
   }
 }
 
@@ -92,15 +82,15 @@ class ObjectTap extends Duplex {
     // this.name = options.name;
     this._buffer = new AsyncQueue();
     this.limit = options.limit || null;
-    this._writeTokens = new AsyncQueue({buffer: _.range(this.limit)});
+    this._writeTokens = new AsyncQueue({contents: _.range(this.limit)});
   }
 
   whenFull() {
-    return this._writeTokens.whenEmpty();
+    return this._writeTokens.whenEmpty;
   }
 
   whenEmpty() {
-    return this._buffer.whenEmpty();
+    return this._buffer.whenEmpty;
   }
 
   _read() {
@@ -152,4 +142,4 @@ class ObjectTap extends Duplex {
   }
 }
 
-module.exports = { AsyncQueue, ObjectTap };
+module.exports = { DeferredPromise, AsyncQueue, ObjectTap };
