@@ -8,7 +8,7 @@ const readline = require('readline');
 const path = require('path');
 
 const { createBlastProcess } = require('./blast')
-const { parseAlleleName, listAlleleFiles, FastaString } = require('./pubmlst')
+const { parseAlleleName, listAlleleFiles, FastaString } = require('./mlst-database')
 const { ObjectTap } = require('./utils')
 
 function getAlleleStreams(alleleFiles, limit) {

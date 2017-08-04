@@ -8,7 +8,7 @@ const logger = require('debug');
 const tmp = require('tmp');
 const path = require('path');
 
-const { parseAlleleName } = require('./pubmlst')
+const { parseAlleleName } = require('./mlst-database')
 
 tmp.setGracefulCleanup();
 

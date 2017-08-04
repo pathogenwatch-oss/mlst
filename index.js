@@ -7,7 +7,7 @@ const _ = require('lodash');
 const logger = require('debug');
 const path = require('path');
 
-const { readMetadata } = require('./pubmlst')
+const { PubMlst } = require('./mlst-database')
 const { makeBlastDb, BlastHitsStore } = require('./blast')
 const {
   getAlleleStreams, addHashesToHits, addMatchingAllelesToHits,
@@ -21,7 +21,7 @@ logger('params')({ SPECIES, SAMPLE })
 // const SPECIES="Staphylococcus aureus"
 // const SAMPLE='/data/saureus_7hlohgcu9cho/MRSA_10C.fasta';
 
-const alleleMetadata = readMetadata(SPECIES);
+const alleleMetadata = new PubMlst().read(SPECIES);
 const alleleHashes = alleleMetadata['hashes'];
 const alleleLengths = alleleMetadata['lengths'];
 const { genes, profiles, alleleFiles, scheme, commonGeneLengths } = alleleMetadata;
