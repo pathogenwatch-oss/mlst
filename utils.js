@@ -4,7 +4,34 @@ const logger = require('debug');
 
 const _ = require('lodash');
 const { Transform, Duplex } = require('stream');
-const AsyncLock = require('async-lock');
+
+function pmap(promises, fn) {
+  return _.map(promises, p => p.then(fn))
+}
+
+function splitResolveReject(promises) {
+  const resolved = []
+  const rejected = []
+
+  const waiting = []
+
+  _.forEach(promises, p => {
+    const waitingPromise = new DeferredPromise();
+    waiting.push(waitingPromise);
+    p
+      .then(() => {
+        resolved.push(p);
+        waitingPromise.resolve();
+      })
+      .catch(() => {
+        rejected.push(p);
+        waitingPromise.resolve();
+      })
+  })
+
+  return Promise.all(waiting)
+    .then(() => ({resolved, rejected}))
+}
 
 class DeferredPromise {
   constructor(fn) {
@@ -142,4 +169,4 @@ class ObjectTap extends Duplex {
   }
 }
 
-module.exports = { DeferredPromise, AsyncQueue, ObjectTap };
+module.exports = { pmap, splitResolveReject, DeferredPromise, AsyncQueue, ObjectTap };

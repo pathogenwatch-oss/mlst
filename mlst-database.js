@@ -2,6 +2,7 @@
 
 const _ = require('lodash');
 const axios = require('axios');
+const AsyncLock = require('async-lock');
 const fasta = require('bionode-fasta');
 const fs = require('fs');
 const mkdirp = require('mkdirp-promise')
@@ -14,7 +15,7 @@ const tmp = require('tmp');
 const { Transform } = require('stream');
 const { parseString } = require('xml2js');
 
-const { DeferredPromise, AsyncQueue } = require('./utils');
+const { DeferredPromise, AsyncQueue, pmap, splitResolveReject } = require('./utils');
 
 const MLST_DIR="/tmp/pubmlst"
 
@@ -26,7 +27,7 @@ function parseAlleleName(allele) {
 
 class Metadata {
   _parseAlleleFile(alleleFilePath) {
-    logger('analyse')(`Analysing ${alleleFilePath}`)
+    logger('trace:metadata:analyse')(`Analysing ${alleleFilePath}`)
     const seqStream = fasta.obj(alleleFilePath);
     const lengths = {};
     const hashes = {};
@@ -190,6 +191,7 @@ class PubMlst extends Metadata {
     this.downloadTokens = new AsyncQueue({contents: _.range(CONCURRENCY)});
     this.dataDir = dataDir
     this.metadataPath = path.join(dataDir, 'metadata.json')
+    this.lock = new AsyncLock();
   }
 
   read(speciesName) {
@@ -198,37 +200,61 @@ class PubMlst extends Metadata {
     return require(speciesMetadataPath);
   }
 
-  update(speciesList) {
-    // const PUBMLST_URL='http://pubmlst.org/data/dbases.xml';
-    const PUBMLST_URL='http://localhost:8080/dbases.xml';
-    const pubMlstMetaData=this._getPubMlstMetadata(PUBMLST_URL);
-    return pubMlstMetaData.then(pubMlstMetadata => {
-      var filteredMetadata;
-      if (typeof(speciesList) == 'undefined') {
-        filteredMetadata = pubMlstMetadata
-      } else {
-        filteredMetadata = _.filter(pubMlstMetadata, ({ species }) => {
-          return speciesList.includes(species);
+  update() {
+    const allSpeciesMlstMetadata = {};
+    return this._getPubMlstMetadata(this.PUBMLST_URL)
+      .then(pubMlstMetadata => {
+        const latestMetadata = this._latestMetadata(pubMlstMetadata);
+        const updatedMetadata = _.map(latestMetadata, (speciesMetadata) => {
+          return this._updateSpecies(speciesMetadata);
         })
+
+        const writtenMetadata = pmap(updatedMetadata, data => {
+          return this.lock.acquire(this.metadataPath, () => {
+            const { species } = data;
+            allSpeciesMlstMetadata[species] = data;
+            return this._writeRootMetadata(allSpeciesMlstMetadata, this.metadataPath)
+          })
+        })
+
+        const resolvedRejected = splitResolveReject(writtenMetadata)
+        const output = resolvedRejected
+          .then(({resolved, rejected}) => {
+            logger('debug')(`Finished writing metadata for ${resolved.length} species`)
+            logger('error')(`There were ${rejected.length} errors`)
+            _.forEach(rejected, p => p.catch(logger('error')))
+            return allSpeciesMlstMetadata
+          })
+
+        return output
+      })
+  }
+
+  _latestMetadata(metadata) {
+    // Some species have multiple MLST schemes, find the latest one
+    const maxVersion = {};
+    const latestVersionOfSpeciesData = {};
+
+    _.forEach(metadata, (speciesData) => {
+      const nameParts = speciesData.species.split('#');
+      const species = nameParts[0];
+      const version = Number(nameParts[1] || 0);
+      if ((maxVersion[species] || -1) < version) {
+        maxVersion[species] = version;
+        latestVersionOfSpeciesData[species] = speciesData;
       }
-      const updatedMetadata = _.map(filteredMetadata, (speciesMetadata) => {
-        return this._updateSpecies(speciesMetadata);
+    })
+
+    _(latestVersionOfSpeciesData)
+      .toPairs()
+      .forEach(([species, speciesData]) => {
+        if (species != speciesData.species) {
+          logger('debug:update:latest')(`Using ${speciesData.species} for ${species}`);
+          speciesData.species = species;
+        }
       })
 
-      const output = Promise.all(updatedMetadata)
-        .then(data => {
-          return _.keyBy(data, 'species')
-        })
-
-      return output
-        .then(metadata => {
-          return this._writeRootMetadata(metadata, this.metadataPath)
-        })
-        .then(() => {
-          return output
-        })
-        .catch(logger('error'));
-    })
+    return _.values(latestVersionOfSpeciesData);
   }
 
   _writeRootMetadata(metadata, outPath) {
@@ -244,6 +270,7 @@ class PubMlst extends Metadata {
 
   _updateSpecies(speciesData) {
     const { species, scheme, genes, retrieved } = speciesData;
+    logger('debug:updateSpecies')(`Updating details for ${species}`);
     const downloadedFiles = this._downloadSpecies(speciesData, this.dataDir)
     const sortedFiles = downloadedFiles.then(({ species, allelePaths, profilesPath }) => {
       return Promise.all(this._sortAlleleSequences(allelePaths))
@@ -257,6 +284,7 @@ class PubMlst extends Metadata {
     return Promise.all([sortedFiles, metadata]).then(([{ species, allelePaths, profilesPath }, metadataPath]) => {
       return {
         species,
+        scheme,
         genes,
         metadataPath,
         retrieved,
@@ -288,9 +316,11 @@ class PubMlst extends Metadata {
           })
       })
       .then(({token, response}) => {
-        response.data.pipe(fs.createWriteStream(downloadPath, {mode: 0o644}))
+        const outstream = fs.createWriteStream(downloadPath, {mode: 0o644})
+        response.data.pipe(outstream)
         return new Promise((resolve, reject) => {
-            response.data.on('end', () => {
+            outstream.on('close', () => {
+              logger('trace:pubmlst:download')(`Downloaded ${url} to ${downloadPath} (${token})`)
               resolve({token, downloadPath});
             })
         })
@@ -304,7 +334,6 @@ class PubMlst extends Metadata {
         })
       })
       .then(({token, downloadPath}) => {
-        logger('trace:pubmlst:download')(`Downloaded ${url} to ${downloadPath} (${token})`)
         this.downloadTokens.push(token)
         return downloadPath
       })
@@ -317,15 +346,6 @@ class PubMlst extends Metadata {
     const profileDir = path.join(speciesDir, 'profiles');
     const { loci } = speciesMetadata.database;
 
-    const allelePaths = mkdirp(alleleDir, {mode: 0o755})
-      .then(() => {
-        return Promise.all(_.map(loci, ({ locus, url }) => {
-          const downloadPath = path.join(alleleDir, locus) + '.tfa';
-          return this._downloadFile(url, downloadPath)
-        }))
-      })
-    allelePaths.then(logger(`debug:${species}:allelePaths`))
-
     const profilesPath = mkdirp(profileDir, {mode: 0o755})
       .then(() => {
         const { url } = speciesMetadata.database.profiles;
@@ -333,7 +353,17 @@ class PubMlst extends Metadata {
         const downloadPath = path.join(profileDir, filename);
         return this._downloadFile(url, downloadPath)
       })
-    profilesPath.then(logger(`debug:${species}:profilesPath`))
+    profilesPath.then(filePath => logger('debug:profilesPath')(`${scheme} => ${filePath}`))
+
+    const allelePaths = profilesPath
+      .then(() => mkdirp(alleleDir, {mode: 0o755}))
+      .then(() => {
+        return Promise.all(_.map(loci, ({ locus, url }) => {
+          const downloadPath = path.join(alleleDir, locus) + '.tfa';
+          return this._downloadFile(url, downloadPath)
+        }))
+      })
+    allelePaths.then(filePath => logger('debug:allelePaths')(`${scheme} => ${filePath}`))
 
     return Promise.all([allelePaths, profilesPath])
       .then(([allelePaths, profilesPath]) => {
@@ -395,18 +425,18 @@ class PubMlst extends Metadata {
   }
 
   _sortAlleleSequences(allelePaths) {
-    logger('trace:sorting')(allelePaths)
+    logger('trace:sortAlleleSequences:sorting')(allelePaths)
     function sortAlleleFile(allelePath) {
       return this._sortFastaBySequenceLength(allelePath)
         .then(() => {
-          logger('trace:sorted')(allelePath)
+          logger('trace:sortAlleleSequences:sorted')(allelePath)
           return allelePath;
         })
     }
     const sorted = _.map(allelePaths, sortAlleleFile.bind(this))
     const updatedFastas = Promise.all(sorted);
     updatedFastas.then((paths) => {
-      logger('debug:sorted')(`Sorted ${paths.length} allele files`)
+      logger('debug:sortAlleleSequences:sorted')(`Sorted ${paths.length} allele files`)
     })
     return sorted;
   }
@@ -415,10 +445,10 @@ class PubMlst extends Metadata {
     const sequences = [];
     const seqStream = fasta.obj(fastaPath);
 
-    var onDone;
-    const output = new Promise((resolve, reject) => {
-      onDone = resolve;
-    })
+    const output = new DeferredPromise();
+    const onDone = () => {
+      output.resolve.bind(output)(fastaPath);
+    }
 
     const sortSequences = () => {
       // Sorts the sequences so that you get a good mix of lengths
@@ -456,8 +486,10 @@ class PubMlst extends Metadata {
         })
 
         output.end()
-        logger('rename')([tempFastaPath, fastaPath]);
-        fs.rename(tempFastaPath, fastaPath, onDone);
+        tempStream.on('close', () => {
+          logger('trace:sortFastaBySequenceLength:rename')([tempFastaPath, fastaPath]);
+          fs.rename(tempFastaPath, fastaPath, onDone);
+        })
       })
     })
 
