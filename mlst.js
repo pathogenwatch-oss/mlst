@@ -9,11 +9,11 @@ const path = require('path');
 
 const { createBlastProcess } = require('./blast')
 const { parseAlleleName, listAlleleFiles, FastaString } = require('./mlst-database')
-const { ObjectTap } = require('./utils')
+const { ObjectTap, DeferredPromise } = require('./utils')
 
-function getAlleleStreams(alleleFiles, limit) {
+function getAlleleStreams(allelePaths, limit) {
   const streams = {};
-  _.forEach(alleleFiles, p => {
+  _.forEach(allelePaths, p => {
     const allele = path.basename(p, '.tfa')
     const stream = fasta.obj(p).pipe(new ObjectTap({limit}));
     streams[allele] = stream;
@@ -24,17 +24,7 @@ function getAlleleStreams(alleleFiles, limit) {
 function addHashesToHits(fastaPath, hits) {
   logger('trace:hash')(`About to add hashes to ${hits.length} hits using ${fastaPath}`);
 
-  var onSuccess, onFailure;
-  const output = new Promise((resolve, reject) => {
-    onSuccess = (resp) => {
-      logger('trace:hash')('success')
-      resolve(resp)
-    };
-    onFailure = (resp) => {
-      logger('trace:hash')('fail')
-      reject(resp)
-    };
-  });
+  const output = new DeferredPromise();
 
   const compliment = (b) => {
     return {t: 'a', a: 't', c: 'g', g: 'c'}[b] || b
@@ -64,14 +54,16 @@ function addHashesToHits(fastaPath, hits) {
   });
 
   seqStream.on('end', () => {
-    const missingHashes = _.filter(hits, hit => {
+    const unhashedHits = _.filter(hits, hit => {
       return typeof(hit.hash) == 'undefined';
-    }).length;
-    if (missingHashes) {
-      onFailure(`${missingHashes} hits couldn't be hashed`)
+    });
+    if (unhashedHits.length > 0) {
+      const missingHitSequences = _.map(unhashedHits, hit => `* ${hit.sequence}`)
+      logger('error')(`Couldn't find the following in ${fastaPath}:\n${missingHitSequences.join('\n')}`)
+      output.reject(`${unhashedHits.length} hits couldn't be hashed`);
     } else {
-      logger('trace:hash')(`Finshed adding hashes to hits using ${fastaPath}`)
-      onSuccess(hits)
+      logger('trace:hash')(`Finished adding hashes to hits using ${fastaPath}`)
+      output.resolve(hits);
     }
   });
 

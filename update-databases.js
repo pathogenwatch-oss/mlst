@@ -11,37 +11,35 @@ const { buildTaxidSpeciesMap, TAXDUMP_HOST, TAXDUMP_REMOTE_PATH } = require('./n
 
 const DATA_DIR='/tmp/pubmlst'
 
-function fuzzyMatchTaxidsAndMlstSpecies(taxIdsSpeciesMap, mlstMetadata) {
-  const mappedData = {};
+function matchTaxidsAndMlstSpecies(mlstMetadata, taxIdSpeciesMap) {
+  const lookup = {}
+  const hardCodedSynonyms = {
+    90370: "Salmonella enterica", // Typhi
+  }
   const mlstSpecies = _.keys(mlstMetadata);
+  _.forIn(taxIdSpeciesMap, (species, taxid) => {
+    const hardCodedMlstSpecies = hardCodedSynonyms[Number(taxid)]
+    if (hardCodedMlstSpecies) {
+      lookup[taxid] = {species, mlstSpecies: hardCodedMlstSpecies}
+      logger('trace:match:hardCoded')({species, hardCodedMlstSpecies})
+      return
+    }
 
-  const matchingFunctions = [
-    species => species,
-    species => species.replace(/ sp\.?$/, ' spp.'),
-    // species => species + ' spp',
-    // species => species + ' sp',
-    // species => species + ' spp.',
-    // species => species + ' sp.',
-  ]
+    if (mlstSpecies.includes(species)) {
+      lookup[taxid] = {species, mlstSpecies: species};
+      logger('trace:match:matched')({species})
+      return
+    }
 
-  var unmatched = 0;
-  _(taxIdsSpeciesMap)
-    .toPairs()
-    .forEach(([taxId, species]) => {
-      _.forEach(matchingFunctions, fn => {
-        const reformattedSpeciesName = fn(species);
-        if (mlstSpecies.includes(reformattedSpeciesName)) {
-          mappedData[taxId] = reformattedSpeciesName;
-          if (species == reformattedSpeciesName) {
-            logger('trace:matched')({species})
-          } else {
-            logger('trace:fuzzyMatched')({species, reformattedSpeciesName})
-          }
-          return false;
-        }
-      })
-    })
-  return mappedData;
+    const genus = species.split(' ')[0];
+    const genusScheme = `${genus} spp.`
+    if (mlstSpecies.includes(genusScheme)) {
+      lookup[taxid] = {species, mlstSpecies: genusScheme};
+      logger('trace:match:genus')({species, genusScheme})
+      return
+    }
+  })
+  return lookup;
 }
 
 function writeMap(taxIdsSpeciesMap, outPath) {
@@ -71,26 +69,39 @@ const metadataUpdate = metadata.update()
 
 const taxIdSpeciesMap = buildTaxidSpeciesMap(TAXDUMP_HOST, TAXDUMP_REMOTE_PATH);
 
-const fuzzyMatchedTaxids = Promise.all([metadataUpdate, taxIdSpeciesMap])
+const matchedTaxids = Promise.all([metadataUpdate, taxIdSpeciesMap])
   .then(([mlstMetadata, taxIdSpeciesMap]) => {
-    return fuzzyMatchTaxidsAndMlstSpecies(taxIdSpeciesMap, mlstMetadata)
+    return matchTaxidsAndMlstSpecies(mlstMetadata, taxIdSpeciesMap)
   })
-  .then(fuzzyMatchedTaxids => {
+  .then(matchedTaxids => {
     const outPath = path.join(DATA_DIR, 'taxIdSpeciesMap.json');
-    writeMap(fuzzyMatchedTaxids, outPath);
-    return {outPath, fuzzyMatchedTaxids}
+    writeMap(matchedTaxids, outPath);
+    return {outPath, matchedTaxids}
   })
-  .then(({outPath, fuzzyMatchedTaxids}) => {
-    logger('info')(`Mapped ${_.keys(fuzzyMatchedTaxids).length} taxids to MLST schemes in ${outPath}`)
-    return fuzzyMatchedTaxids;
+  .then(({outPath, matchedTaxids}) => {
+    logger('info')(`Mapped ${_.keys(matchedTaxids).length} taxids to MLST schemes in ${outPath}`)
+    return matchedTaxids;
   })
   .catch(logger('error'))
 
-Promise.all([metadataUpdate, fuzzyMatchedTaxids])
-  .then(([mlstMetadata, fuzzyMatchedTaxids]) => {
+Promise.all([metadataUpdate, matchedTaxids])
+  .then(([mlstMetadata, matchedTaxids]) => {
+    const output = new DeferredPromise();
+    const payload = JSON.stringify({mlstMetadata, matchedTaxids})
+    fs.writeFile('/tmp/tmp.json', payload, (err, data) => {
+      if (err) output.reject(err)
+      output.resolve([mlstMetadata, matchedTaxids])
+    })
+    return output
+  })
+  .then(([mlstMetadata, matchedTaxids]) => {
+    const matched = _(matchedTaxids)
+      .values()
+      .map(({mlstSpecies}) => mlstSpecies)
+      .value()
     const unmatched = _(mlstMetadata)
       .keys()
-      .filter(species => !_.values(fuzzyMatchedTaxids).includes(species))
+      .difference(matched)
       .value()
     const unmatchedString = _.map(unmatched, species => `* ${species}`)
       .join('\n')

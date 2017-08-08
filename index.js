@@ -14,20 +14,27 @@ const {
   startBlast, processBlastResultsStream, stopBlast, buildResults
 } = require('./mlst')
 
-const [ SPECIES, SAMPLE ] = process.argv.slice(2);
-logger('params')({ SPECIES, SAMPLE })
-// process.exit(0);
+const DATA_DIR = '/tmp/pubmlst';
 
-// const SPECIES="Staphylococcus aureus"
-// const SAMPLE='/data/saureus_7hlohgcu9cho/MRSA_10C.fasta';
+const [ TAXID, SAMPLE ] = process.argv.slice(2);
 
-const alleleMetadata = new PubMlst().read(SPECIES);
+const taxIdLookupData = require(path.join(DATA_DIR, 'taxIdSpeciesMap.json'))
+const species = (taxIdLookupData[TAXID] || {}).mlstSpecies
+
+logger('params')({ TAXID, SAMPLE, species })
+
+if (typeof(species) == 'undefined') {
+  console.log(JSON.stringify({error: `Could not find MLST scheme for ${TAXID}`}))
+  process.exit(1);
+}
+
+const alleleMetadata = new PubMlst(DATA_DIR).read(species);
 const alleleHashes = alleleMetadata['hashes'];
 const alleleLengths = alleleMetadata['lengths'];
-const { genes, profiles, alleleFiles, scheme, commonGeneLengths } = alleleMetadata;
+const { genes, profiles, allelePaths, scheme, commonGeneLengths } = alleleMetadata;
 
 const NUMBER_OF_ALLELES=5;
-const alleleStreams = getAlleleStreams(alleleFiles, NUMBER_OF_ALLELES)
+const alleleStreams = getAlleleStreams(allelePaths, NUMBER_OF_ALLELES)
 
 const blastDb = makeBlastDb(SAMPLE);
 const hits = new BlastHitsStore(alleleLengths);
@@ -66,7 +73,7 @@ const firstResults = firstRunStop
     return { bestHits, alleleLengths, genes, profiles, scheme, commonGeneLengths }
   })
   .then(buildResults)
-  .catch(logger('hits:error'))
+  .catch(logger('error'))
 
 firstResults
   .then(logger('hits:first'))
@@ -90,28 +97,28 @@ const secondStreams = Promise.all([alleleStreams, firstResults])
     });
     return imperfectStreams
   })
-  .catch(logger('hits:error'))
+  .catch(logger('error'))
 
 const secondRunStart = Promise.all([secondStreams, blastDb])
   .then(([streams, db]) => {
     return { streams, db, wordSize: 20, pIdent: 80 }
   })
   .then(startBlast)
-  .catch(logger('hits:error'))
+  .catch(logger('error'))
 
 const secondRunProcessing = Promise.all([secondStreams, secondRunStart])
   .then(([streams, { blast, blastResultsStream }]) => {
     return { hits, streams, blast, blastResultsStream };
   })
   .then(processBlastResultsStream)
-  .catch(logger('hits:error'))
+  .catch(logger('error'))
 
 const secondRunStop = Promise.all([secondRunStart, secondRunProcessing])
   .then(([{ blast, blastInputStream }, _tmp]) => {
     return { blast, blastInputStream }
   })
   .then(stopBlast)
-  .catch(logger('hits:error'))
+  .catch(logger('error'))
 
 const secondResults = secondRunStop
   .then(() => {
@@ -127,7 +134,7 @@ const secondResults = secondRunStop
     return { bestHits, alleleLengths, genes, profiles, scheme, commonGeneLengths }
   })
   .then(buildResults)
-  .catch(logger('hits:error'))
+  .catch(logger('error'))
 
 secondResults
   .then(logger('hits:second'))
@@ -151,28 +158,28 @@ const thirdStreams = Promise.all([alleleStreams, secondResults])
     });
     return imperfectStreams
   })
-  .catch(logger('hits:error'))
+  .catch(logger('error'))
 
 const thirdRunStart = Promise.all([thirdStreams, blastDb])
   .then(([streams, db]) => {
     return { streams, db, wordSize: 11, pIdent: 0 }
   })
   .then(startBlast)
-  .catch(logger('hits:error'))
+  .catch(logger('error'))
 
 const thirdRunProcessing = Promise.all([thirdStreams, thirdRunStart])
   .then(([streams, { blast, blastResultsStream }]) => {
     return { hits, streams, blast, blastResultsStream };
   })
   .then(processBlastResultsStream)
-  .catch(logger('hits:error'))
+  .catch(logger('error'))
 
 const thirdRunStop = Promise.all([thirdRunStart, thirdRunProcessing])
   .then(([{ blast, blastInputStream }, _tmp]) => {
     return { blast, blastInputStream }
   })
   .then(stopBlast)
-  .catch(logger('hits:error'))
+  .catch(logger('error'))
 
 const thirdResults = thirdRunStop
   .then(() => {
@@ -188,7 +195,7 @@ const thirdResults = thirdRunStop
     return { bestHits, alleleLengths, genes, profiles, scheme, commonGeneLengths }
   })
   .then(buildResults)
-  .catch(logger('hits:error'))
+  .catch(logger('error'))
 
 thirdResults
   .then(logger('hits:third'))
