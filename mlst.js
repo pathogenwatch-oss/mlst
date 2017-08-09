@@ -1,10 +1,10 @@
 'use strict';
 
 const _ = require('lodash');
+const es = require('event-stream');
 const fasta = require('bionode-fasta');
 const hasha = require('hasha');
 const logger = require('debug');
-const readline = require('readline');
 const path = require('path');
 
 const { createBlastProcess } = require('./blast')
@@ -14,8 +14,9 @@ const { ObjectTap, DeferredPromise } = require('./utils')
 function getAlleleStreams(allelePaths, limit) {
   const streams = {};
   _.forEach(allelePaths, p => {
-    const allele = path.basename(p, '.tfa')
-    const stream = fasta.obj(p).pipe(new ObjectTap({limit}));
+    const allele = path.basename(p, '.tfa');
+    const objectLimiter = new ObjectTap({limit});
+    const stream = fasta.obj(p).pipe(objectLimiter);
     streams[allele] = stream;
   });
   return streams;
@@ -95,24 +96,23 @@ function startBlast(options={}){
   _.forEach(streams, stream => {
     stream.pipe(blastInputStream);
   })
-  blastInputStream.pipe(blast.stdin);
 
-  const blastResultsStream = readline.createInterface({
-    input: blast.stdout,
-  })
+  blastInputStream.pipe(blast.stdin);
+  const blastResultsStream = blast.stdout.pipe(es.split())
 
   return { blast, blastInputStream, blastResultsStream }
 }
 
 function processBlastResultsStream(options={}) {
-  const { hits, streams, blast, blastResultsStream } = options;
+  const { hitsStore, streams, blast, blastResultsStream } = options;
 
-  blastResultsStream.on('line', line => {
-    const hit = hits.buildHit(line);
-    if (hits.update(hit)) {
-      logger('trace:addedHit')(line);
+  blastResultsStream.on('data', line => {
+    if (line == '') return;
+    const hit = hitsStore.buildHit(line);
+    if (hitsStore.update(hit)) {
+      logger('trace:mlst:addedHit')(line);
     } else {
-      logger('trace:skippedHit')(line);
+      logger('trace:mlst:skippedHit')(line);
     }
   })
 
@@ -123,15 +123,11 @@ function processBlastResultsStream(options={}) {
 
 function stopBlast(options={}) {
   const { blast, blastInputStream } = options;
-
-  var onExit;
-  const output = new Promise((resolve, reject) => {
-    onExit = resolve
-  });
+  const output = new DeferredPromise()
 
   blastInputStream.end();
   blast.on('exit', (code, signal) => {
-    onExit(options)
+    output.resolve(options)
   });
 
   return output

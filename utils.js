@@ -3,7 +3,7 @@
 const logger = require('debug');
 
 const _ = require('lodash');
-const { Transform, Duplex } = require('stream');
+const { Duplex } = require('stream');
 
 function pmap(promises, fn) {
   return _.map(promises, p => p.then(fn))

@@ -4,37 +4,73 @@
 
 const { spawn } = require('child_process');
 const _ = require('lodash');
+const fasta = require('bionode-fasta');
+const fs = require('fs');
 const logger = require('debug');
 const tmp = require('tmp');
 const path = require('path');
 
-const { parseAlleleName } = require('./mlst-database')
+const { Transform } = require('stream');
+
+const { parseAlleleName, FastaString } = require('./mlst-database')
+const { DeferredPromise } = require('./utils')
 
 tmp.setGracefulCleanup();
 
+class RenameContigs extends Transform {
+  constructor(options={}) {
+    options.objectMode = true;
+    super(options)
+    this.nameMap = {}
+    this.count = 0;
+  }
+
+  _transform(sequence, encoding, callback) {
+    const newName = `contig_${this.count}`
+    this.nameMap[newName] = sequence.id;
+    sequence.id = newName;
+    this.count++;
+    this.push(sequence);
+    callback();
+  }
+}
+
 function makeBlastDb(fastaPath) {
-  const blastDir = new Promise((resolve, reject) => {
-    tmp.dir({ mode: '0750', prefix: 'mlst_blast_'}, (err, tempDir) => {
+  const whenContigNameMap = new DeferredPromise();
+  const whenBlastDb = new DeferredPromise();
+
+  const whenBlastDirCreated = new Promise((resolve, reject) => {
+    tmp.dir({ mode: '0750', prefix: 'mlst_blast_'}, (err, blastDir) => {
       if (err) reject(err);
-      resolve(tempDir);
+      resolve(blastDir);
     })
   })
-  return blastDir.then(dir => {
+
+  const contigRenamer = new RenameContigs();
+  const renamedFasta = fasta.obj(fastaPath)
+    .pipe(contigRenamer)
+    .pipe(new FastaString())
+
+  whenBlastDirCreated.then(dir => {
     const databasePath = path.join(dir, 'blast.db');
-    const command = `makeblastdb -in ${fastaPath} -dbtype nucl -out ${databasePath}`
-    logger('makeBlast')(`Creating Blast database '${databasePath}' from ${fastaPath}`)
+    const command = `makeblastdb -title "${fastaPath}" -in - -dbtype nucl -out ${databasePath}`
+    logger('debug:blast:makeBlastDb')(`Creating Blast database '${databasePath}' from ${fastaPath}`)
+    logger('trace:blast:makeBlastDb')(`Running '${command}'`)
     const shell = spawn(command, { shell: true });
-    const output = new Promise((resolve, reject) => {
-      shell.on('exit', (code, signal) => {
-        if (code == 0) {
-          logger('makeBlast')(`Created Blast database '${databasePath}' from ${fastaPath}`)
-          resolve(databasePath);
-        }
-        reject([code, signal])
-      });
-    })
-    return output;
+    renamedFasta.pipe(shell.stdin);
+    shell.on('exit', (code, signal) => {
+      if (code == 0) {
+        logger('debug:blast:makeBlastDb')(`Created Blast database '${databasePath}' from ${fastaPath}`)
+        whenContigNameMap.resolve(contigRenamer.nameMap)
+        whenBlastDb.resolve(databasePath)
+      } else {
+        whenContigNameMap.reject(`Got ${code}:${signal} while building BlastDB`)
+        whenBlastDb.reject(`Got ${code}:${signal} while building BlastDB`)
+      }
+    });
   });
+
+  return {whenContigNameMap, whenBlastDb}
 }
 
 function createBlastProcess(db, word_size=11, perc_identity=0) {
@@ -51,7 +87,7 @@ function createBlastProcess(db, word_size=11, perc_identity=0) {
     word_size,
     perc_identity
   });
-  logger('debug')(`Running '${command}' with environment:\n${JSON.stringify(env, null, 2)}`)
+  logger('debug:blast:run')(`Running '${command}' with environment:\n${JSON.stringify(env, null, 2)}`)
   const blastShell = spawn(command, {
     shell: true,
     env
@@ -62,8 +98,9 @@ function createBlastProcess(db, word_size=11, perc_identity=0) {
 }
 
 class BlastHitsStore {
-  constructor(alleleLengths) {
+  constructor(alleleLengths, contigNameMap) {
     this.alleleLengths = alleleLengths;
+    this.contigNameMap = contigNameMap;
     this._bins = []
   }
 
@@ -89,12 +126,12 @@ class BlastHitsStore {
     const { gene } = parseAlleleName(allele);
     const length = Number(row[LENGTH]);
     const pident = Number(row[PIDENT]);
-    const sequence = row[SEQ];
+    const sequenceId = row[SEQ];
     const [start, end, reverse] = Number(row[SSTART]) < Number(row[SEND]) ? [Number(row[SSTART]), Number(row[SEND]), false] : [Number(row[SEND]), Number(row[SSTART]), true]
     const sequenceLength = end - start + 1;
     const matchingBases = Number(row[NIDENT]);
 
-    return { sequence, gene, allele, length, pident, start, end, reverse, sequenceLength, matchingBases }
+    return { sequenceId, gene, allele, length, pident, start, end, reverse, sequenceLength, matchingBases }
   }
 
   best() {
@@ -106,6 +143,7 @@ class BlastHitsStore {
         return bestHit.matchingBases > hit.matchingBases ? bestHit : hit;
       })
       bestHit.alleleLength = this.alleleLengths[bestHit.allele];
+      bestHit.sequence = this.contigNameMap[bestHit.sequenceId];
       return bestHit;
     })
   }

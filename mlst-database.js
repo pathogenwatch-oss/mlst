@@ -20,9 +20,15 @@ const { DeferredPromise, AsyncQueue, pmap, splitResolveReject } = require('./uti
 const MLST_DIR="/tmp/pubmlst"
 
 function parseAlleleName(allele) {
-  const matches = /([^0-9]*)[-_\.]([0-9]+)/.exec(allele);
-  const [gene, st] = matches.slice(1);
-  return {gene, st: Number(st)};
+  try {
+    const matches = /([^0-9]*)[-_\.]([0-9]+)/.exec(allele);
+    const [gene, st] = matches.slice(1);
+    return {gene, st: Number(st)};
+  }
+  catch (err) {
+    logger('error')(`Couldn't parse gene and st from ${allele}`);
+    throw err
+  }
 }
 
 class Metadata {

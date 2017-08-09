@@ -36,36 +36,34 @@ const { genes, profiles, allelePaths, scheme, commonGeneLengths } = alleleMetada
 const NUMBER_OF_ALLELES=5;
 const alleleStreams = getAlleleStreams(allelePaths, NUMBER_OF_ALLELES)
 
-const blastDb = makeBlastDb(SAMPLE);
-const hits = new BlastHitsStore(alleleLengths);
+const {whenContigNameMap, whenBlastDb} = makeBlastDb(SAMPLE);
 
-const firstStreams = _.values(alleleStreams);
+const whenHitsStore = whenContigNameMap
+  .then(contigNameMap => new BlastHitsStore(alleleLengths, contigNameMap));
 
-const firstRunStart = Promise.all([firstStreams, blastDb])
+const whenFirstRunStreams = _.values(alleleStreams);
+
+const whenFirstRunStart = Promise.all([whenFirstRunStreams, whenBlastDb])
   .then(([streams, db]) => {
     return { streams, db, wordSize: 30, pIdent: 80 }
   })
   .then(startBlast)
 
-const firstRunProcessing = Promise.all([firstStreams, firstRunStart])
-  .then(([streams, { blast, blastResultsStream }]) => {
-    return { hits, streams, blast, blastResultsStream };
+const whenFirstRunProcessed = Promise.all([whenHitsStore, whenFirstRunStreams, whenFirstRunStart])
+  .then(([hitsStore, streams, { blast, blastResultsStream }]) => {
+    return { hitsStore, streams, blast, blastResultsStream };
   })
   .then(processBlastResultsStream)
 
-const firstRunStop = Promise.all([firstRunStart, firstRunProcessing])
+const whenFirstRunStopped = Promise.all([whenFirstRunStart, whenFirstRunProcessed])
   .then(([{ blast, blastInputStream }, _tmp]) => {
     return { blast, blastInputStream }
   })
   .then(stopBlast)
 
-const firstResults = firstRunStop
-  .then(() => {
-    return hits.best()
-  })
-  .then(bestHits => {
-    return addHashesToHits(SAMPLE, bestHits)
-  })
+const whenFirstRunResultCalculated = whenFirstRunStopped.then(() => whenHitsStore)
+  .then(hitsStore => hitsStore.best())
+  .then(bestHits => addHashesToHits(SAMPLE, bestHits))
   .then(bestHits => {
     addMatchingAllelesToHits(alleleHashes, bestHits)
     return bestHits
@@ -75,55 +73,64 @@ const firstResults = firstRunStop
   .then(buildResults)
   .catch(logger('error'))
 
-firstResults
+whenFirstRunResultCalculated
   .then(logger('hits:first'))
 
-const secondStreams = Promise.all([alleleStreams, firstResults])
-  .then(([streamsMap, results]) => {
-    const perfectResultFilter = ([gene, [firstMatch, ...otherMatches]]) => {
-      const perfect = (firstMatch && firstMatch.perfect && otherMatches.length == 0);
-      return !perfect;
-    }
-    const imperfectGenes = _(results.raw)
-      .toPairs()
-      .filter(perfectResultFilter)
-      .map(([gene, matches]) => { return gene })
-      .value()
-    const imperfectStreams = _.map(imperfectGenes, gene => {
-      const stream = streamsMap[gene];
-      logger('debug')(`Blasting more alleles of ${gene}`)
-      stream.updateLimit(50);
-      return stream
-    });
-    return imperfectStreams
+function findGenesWithImperfectResults(results) {
+  const perfectResultFilter = ([gene, [firstMatch, ...otherMatches]]) => {
+    const perfect = (firstMatch && firstMatch.perfect && otherMatches.length == 0);
+    return !perfect;
+  }
+  const imperfectGenes = _(results.raw)
+    .toPairs()
+    .filter(perfectResultFilter)
+    .map(([gene, matches]) => gene)
+    .value()
+  return imperfectGenes
+}
+
+function getAlleleStreamsForGenes(genes) {
+  return _.map(genes, gene => alleleStreams[gene])
+}
+
+function updateAlleleStreamLimits(streams, limit) {
+  return _.map(streams, stream => {
+    stream.updateLimit(limit);
+    return stream
   })
+}
+
+const whenSecondRunStreams = whenFirstRunResultCalculated
+  .then(findGenesWithImperfectResults)
+  .then(getAlleleStreamsForGenes)
+  .then(alleleStreamsWithoutPerfectResults =>
+    updateAlleleStreamLimits(alleleStreamsWithoutPerfectResults, 50))
   .catch(logger('error'))
 
-const secondRunStart = Promise.all([secondStreams, blastDb])
+const whenSecondRunStart = Promise.all([whenSecondRunStreams, whenBlastDb])
   .then(([streams, db]) => {
     return { streams, db, wordSize: 20, pIdent: 80 }
   })
   .then(startBlast)
   .catch(logger('error'))
 
-const secondRunProcessing = Promise.all([secondStreams, secondRunStart])
-  .then(([streams, { blast, blastResultsStream }]) => {
-    return { hits, streams, blast, blastResultsStream };
+const whenSecondRunProcessed = Promise.all([whenHitsStore, whenSecondRunStreams, whenSecondRunStart])
+  .then(([hitsStore, streams, { blast, blastResultsStream }]) => {
+    return { hitsStore, streams, blast, blastResultsStream };
   })
   .then(processBlastResultsStream)
   .catch(logger('error'))
 
-const secondRunStop = Promise.all([secondRunStart, secondRunProcessing])
+const whenSecondRunStopped = Promise.all([whenSecondRunStart, whenSecondRunProcessed])
   .then(([{ blast, blastInputStream }, _tmp]) => {
     return { blast, blastInputStream }
   })
   .then(stopBlast)
   .catch(logger('error'))
 
-const secondResults = secondRunStop
-  .then(() => {
-    return hits.best()
-  })
+const whenSecondRunResultsCalculated = whenSecondRunStopped
+  .then(() => whenHitsStore)
+  .then(hitsStore => hitsStore.best())
   .then(bestHits => {
     return addHashesToHits(SAMPLE, bestHits)
   })
@@ -136,58 +143,41 @@ const secondResults = secondRunStop
   .then(buildResults)
   .catch(logger('error'))
 
-secondResults
+whenSecondRunResultsCalculated
   .then(logger('hits:second'))
 
-const thirdStreams = Promise.all([alleleStreams, secondResults])
-  .then(([streamsMap, results]) => {
-    const perfectResultFilter = ([gene, [firstMatch, ...otherMatches]]) => {
-      const perfect = (firstMatch && firstMatch.perfect && otherMatches.length == 0);
-      return !perfect;
-    }
-    const imperfectGenes = _(results.raw)
-      .toPairs()
-      .filter(perfectResultFilter)
-      .map(([gene, matches]) => { return gene })
-      .value()
-    const imperfectStreams = _.map(imperfectGenes, gene => {
-      const stream = streamsMap[gene];
-      logger('debug')(`Blasting remaining alleles of ${gene}`)
-      stream.updateLimit(null);
-      return stream
-    });
-    return imperfectStreams
-  })
+const whenThirdRunStreams = whenSecondRunResultsCalculated
+  .then(findGenesWithImperfectResults)
+  .then(getAlleleStreamsForGenes)
+  .then(alleleStreamsWithoutPerfectResults =>
+    updateAlleleStreamLimits(alleleStreamsWithoutPerfectResults, null))
   .catch(logger('error'))
 
-const thirdRunStart = Promise.all([thirdStreams, blastDb])
+const whenThirdRunStarted = Promise.all([whenThirdRunStreams, whenBlastDb])
   .then(([streams, db]) => {
     return { streams, db, wordSize: 11, pIdent: 0 }
   })
   .then(startBlast)
   .catch(logger('error'))
 
-const thirdRunProcessing = Promise.all([thirdStreams, thirdRunStart])
-  .then(([streams, { blast, blastResultsStream }]) => {
-    return { hits, streams, blast, blastResultsStream };
+const whenThirdRunProcessed = Promise.all([whenHitsStore, whenThirdRunStreams, whenThirdRunStarted])
+  .then(([hitsStore, streams, { blast, blastResultsStream }]) => {
+    return { hitsStore, streams, blast, blastResultsStream };
   })
   .then(processBlastResultsStream)
   .catch(logger('error'))
 
-const thirdRunStop = Promise.all([thirdRunStart, thirdRunProcessing])
+const whenThirdRunStopped = Promise.all([whenThirdRunStarted, whenThirdRunProcessed])
   .then(([{ blast, blastInputStream }, _tmp]) => {
     return { blast, blastInputStream }
   })
   .then(stopBlast)
   .catch(logger('error'))
 
-const thirdResults = thirdRunStop
-  .then(() => {
-    return hits.best()
-  })
-  .then(bestHits => {
-    return addHashesToHits(SAMPLE, bestHits)
-  })
+const whenThirdRunResultsCalculated = whenThirdRunStopped
+  .then(() => whenHitsStore)
+  .then(hitsStore => hitsStore.best())
+  .then(bestHits => addHashesToHits(SAMPLE, bestHits))
   .then(bestHits => {
     addMatchingAllelesToHits(alleleHashes, bestHits)
     return bestHits
@@ -197,9 +187,9 @@ const thirdResults = thirdRunStop
   .then(buildResults)
   .catch(logger('error'))
 
-thirdResults
+whenThirdRunResultsCalculated
   .then(logger('hits:third'))
 
-thirdResults
+whenThirdRunResultsCalculated
   .then(JSON.stringify)
   .then(console.log)
