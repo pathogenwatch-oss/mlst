@@ -7,14 +7,14 @@ const _ = require('lodash');
 const logger = require('debug');
 const path = require('path');
 
-const { PubMlst } = require('./mlst-database')
-const { makeBlastDb, BlastHitsStore } = require('./blast')
+const { PubMlst } = require('./src/mlst-database')
+const { makeBlastDb, BlastHitsStore } = require('./src/blast')
 const {
   getAlleleStreams, addHashesToHits, addMatchingAllelesToHits,
   startBlast, processBlastResultsStream, stopBlast, buildResults
-} = require('./mlst')
+} = require('./src/mlst')
 
-const DATA_DIR = '/tmp/pubmlst';
+const DATA_DIR = '/opt/mlst/databases';
 
 const [ TAXID, SAMPLE ] = process.argv.slice(2);
 

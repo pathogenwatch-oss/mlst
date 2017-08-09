@@ -5,11 +5,11 @@ const fs = require('fs');
 const logger = require('debug');
 const path = require('path');
 
-const { DeferredPromise } = require('./utils');
-const { PubMlst } = require('./mlst-database');
-const { buildTaxidSpeciesMap, TAXDUMP_HOST, TAXDUMP_REMOTE_PATH } = require('./ncbi-taxid-lookup');
+const { DeferredPromise } = require('./src/utils');
+const { PubMlst } = require('./src/mlst-database');
+const { buildTaxidSpeciesMap, TAXDUMP_HOST, TAXDUMP_REMOTE_PATH } = require('./src/ncbi-taxid-lookup');
 
-const DATA_DIR='/tmp/pubmlst'
+const DATA_DIR='/opt/mlst/databases'
 
 function matchTaxidsAndMlstSpecies(mlstMetadata, taxIdSpeciesMap) {
   const lookup = {}

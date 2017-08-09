@@ -17,7 +17,7 @@ const { parseString } = require('xml2js');
 
 const { DeferredPromise, AsyncQueue, pmap, splitResolveReject } = require('./utils');
 
-const MLST_DIR="/tmp/pubmlst"
+const MLST_DIR="/opt/mlst/databases"
 
 function parseAlleleName(allele) {
   try {
@@ -194,6 +194,7 @@ class PubMlst extends Metadata {
   constructor(dataDir=MLST_DIR) {
     super();
     const CONCURRENCY = 2;
+    this.PUBMLST_URL='https://pubmlst.org/data/dbases.xml';
     this.downloadTokens = new AsyncQueue({contents: _.range(CONCURRENCY)});
     this.dataDir = dataDir
     this.metadataPath = path.join(dataDir, 'metadata.json')

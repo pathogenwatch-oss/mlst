@@ -103,8 +103,8 @@ function mapTaxIdToSpecies(taxIdSpeciesList) {
 }
 
 function buildTaxidSpeciesMap(host, remotePath) {
-  // const download = ftpDownload(host, remotePath);
-  const download = fakeDownload('/tmp/names.tar.gz')
+  const download = ftpDownload(host, remotePath);
+  // const download = fakeDownload('/tmp/names.tar.gz')
   // const download = updateTaxDumpCache('/tmp/names.tar.gz', host, remotePath).then(fakeDownload)
   taxIdsSpeciesMap = download
     .then(extractNcbiNamesFile)
