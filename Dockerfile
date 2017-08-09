@@ -1,0 +1,21 @@
+FROM biocontainers/blast
+
+USER root
+RUN apt-get update && apt-get install -y wget tar
+RUN cd /tmp && wget https://nodejs.org/dist/v6.11.1/node-v6.11.1-linux-x64.tar.xz
+RUN mkdir -p /usr/local && cd /usr/local && tar -xf /tmp/node-v6.11.1-linux-x64.tar.xz && \
+    ln -s /usr/local/node-v6.11.1-linux-x64/bin/node /usr/local/bin && \
+    ln -s /usr/local/node-v6.11.1-linux-x64/bin/npm /usr/local/bin
+
+RUN mkdir -p /usr/local/mlst /opt/mlst/databases && chmod -R a+w /opt/mlst/databases
+COPY entrypoint.sh /entrypoint.sh
+COPY index.js update-databases.js package.json /usr/local/mlst/
+COPY src /usr/local/mlst/src/
+
+RUN cd /usr/local/mlst && \
+    /usr/local/bin/npm install && \
+    DEBUG='*' /usr/local/bin/node ./update-databases.js && \
+    chmod -R a+r /opt/mlst/databases
+
+USER biodocker
+CMD ["/entrypoint.sh"]
