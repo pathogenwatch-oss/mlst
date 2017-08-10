@@ -136,8 +136,6 @@ function stopBlast(options={}) {
 function buildResults(options={}) {
   const { bestHits, alleleLengths, genes, profiles, scheme, commonGeneLengths } = options;
 
-  // logger('tmp')(options);
-
   const hitToResult = hit => {
     const { sequence, start, end, reverse, gene, sequenceLength, alleleLength, hash, matchingAllele, matchingBases } = hit;
     const perfect = (!!matchingAllele && (sequenceLength == alleleLengths[matchingAllele]))
@@ -163,30 +161,36 @@ function buildResults(options={}) {
     }
   }
 
-  const alleles = {};
+  const alleles = _(genes).map(gene => [gene, []]).fromPairs().value();
   const raw = {};
 
   _.forEach(bestHits, hit => {
     const { gene } = hit;
     const result = hitToResult(hit);
     const { allele, hash, blastResult, length, modeGeneLength } = result;
+    const { contig, start, end, reverse } = blastResult;
+    const summary = {
+      id: allele || hash,
+      contig,
+      start: reverse ? end : start,
+      end: reverse ? start : end,
+    }
     if (allele) {
-      (alleles[gene] = alleles[gene] || []).push(allele);
+      alleles[gene].push(summary);
     } else if (blastResult.matchingBases > 0.8*modeGeneLength && length < 1.1*modeGeneLength) {
-      (alleles[gene] = alleles[gene] || []).push(hash);
+      alleles[gene].push(summary);
     }
     (raw[gene] = raw[gene] || []).push(result);
   })
 
   const results = {
-    alleles: _.zip(genes, _.map(genes, gene => {
-      return (alleles[gene] || []).join(',').toLowerCase()
-    })),
+    alleles: _.map(genes, gene => [gene, alleles[gene]]),
     raw,
   };
 
   const code = _.map(genes, gene => {
-    return (alleles[gene] || []).join(',');
+    const summaries = (alleles[gene] || []);
+    return _(summaries).map(summary => summary.id).value().sort().join(',');
   }).join('_').toLowerCase();
 
   const st = profiles[code] ? profiles[code] : hasha(code.toLowerCase(), {algorithm: 'sha1'})

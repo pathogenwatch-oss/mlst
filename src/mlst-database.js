@@ -137,7 +137,7 @@ class Metadata {
     return output
   }
 
-  buildMetadata(species, scheme, genes, allelePaths, profilesPath, retrieved) {
+  buildMetadata(species, scheme, genes, allelePaths, profilesPath, retrieved, url) {
     logger('debug:metadata:buildMetadata')(`Building metadata for ${species}`)
     const outputs = {
       species,
@@ -150,6 +150,7 @@ class Metadata {
       profilesPath,
       commonGeneLengths: new DeferredPromise(),
       retrieved,
+      url,
     }
     this._parseAlleleDetails(allelePaths)
       .then(({hashes, lengths }) => {
@@ -276,7 +277,7 @@ class PubMlst extends Metadata {
   }
 
   _updateSpecies(speciesData) {
-    const { species, scheme, genes, retrieved } = speciesData;
+    const { species, scheme, genes, retrieved, url } = speciesData;
     logger('debug:updateSpecies')(`Updating details for ${species}`);
     const downloadedFiles = this._downloadSpecies(speciesData, this.dataDir)
     const sortedFiles = downloadedFiles.then(({ species, allelePaths, profilesPath }) => {
@@ -286,7 +287,7 @@ class PubMlst extends Metadata {
         })
     })
     const metadata = sortedFiles.then(({species, allelePaths, profilesPath}) => {
-      return this._updateSpeciesMetadata(this.dataDir, species, scheme, genes, allelePaths, profilesPath, retrieved)
+      return this._updateSpeciesMetadata(this.dataDir, species, scheme, genes, allelePaths, profilesPath, retrieved, url)
     })
     return Promise.all([sortedFiles, metadata]).then(([{ species, allelePaths, profilesPath }, metadataPath]) => {
       return {
@@ -299,10 +300,10 @@ class PubMlst extends Metadata {
     })
   }
 
-  _updateSpeciesMetadata(dataDir, species, scheme, genes, allelePaths, profilesPath, retrieved) {
+  _updateSpeciesMetadata(dataDir, species, scheme, genes, allelePaths, profilesPath, retrieved, url) {
     const speciesDir = this._speciesDir(species, dataDir);
     const outpath = path.join(speciesDir, 'metadata.json');
-    return this.writeMetadata(outpath, species, scheme, genes, allelePaths, profilesPath, retrieved)
+    return this.writeMetadata(outpath, species, scheme, genes, allelePaths, profilesPath, retrieved, url)
       .then(() => outpath);
   }
 

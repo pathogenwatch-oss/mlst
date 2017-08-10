@@ -31,7 +31,7 @@ if (typeof(species) == 'undefined') {
 const alleleMetadata = new PubMlst(DATA_DIR).read(species);
 const alleleHashes = alleleMetadata['hashes'];
 const alleleLengths = alleleMetadata['lengths'];
-const { genes, profiles, allelePaths, scheme, commonGeneLengths } = alleleMetadata;
+const { genes, profiles, allelePaths, scheme, commonGeneLengths, url } = alleleMetadata;
 
 const NUMBER_OF_ALLELES=5;
 const alleleStreams = getAlleleStreams(allelePaths, NUMBER_OF_ALLELES)
@@ -190,6 +190,18 @@ const whenThirdRunResultsCalculated = whenThirdRunStopped
 whenThirdRunResultsCalculated
   .then(logger('hits:third'))
 
+function formatOutput(results) {
+  const { alleles, code, st } = results;
+  return {
+    alleles,
+    code,
+    st,
+    scheme,
+    url,
+  }
+}
+
 whenThirdRunResultsCalculated
+  .then(formatOutput)
   .then(JSON.stringify)
   .then(console.log)
