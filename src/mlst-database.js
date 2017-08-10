@@ -194,7 +194,7 @@ class Metadata {
 class PubMlst extends Metadata {
   constructor(dataDir=MLST_DIR) {
     super();
-    const CONCURRENCY = 2;
+    const CONCURRENCY = 5;
     this.PUBMLST_URL='https://pubmlst.org/data/dbases.xml';
     this.downloadTokens = new AsyncQueue({contents: _.range(CONCURRENCY)});
     this.dataDir = dataDir
@@ -338,7 +338,7 @@ class PubMlst extends Metadata {
         return new Promise((resolve, reject) => {
           setTimeout(() => {
             resolve(response)
-          }, 2000)
+          }, 1000)
         })
       })
       .then(({token, downloadPath}) => {
