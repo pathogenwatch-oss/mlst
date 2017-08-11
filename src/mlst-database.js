@@ -496,7 +496,7 @@ class PubMlst extends Metadata {
     function parseLocus(locusData) {
       const locus = locusData._.trim();
       const locusUrl = locusData.url[0];
-      return { locus, ur: locusUrl };
+      return { locus, url: locusUrl };
     }
 
     const loci = _.map(database.loci[0].locus, parseLocus);

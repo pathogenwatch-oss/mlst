@@ -28,7 +28,13 @@ function ftpDownload(host, remotePath) {
 // eslint-disable-next-line no-unused-vars
 function fakeDownload(cachePath) {
   logger("debug:cached")(`Using cached 'taxdump.tar.gz' from '${cachePath}'`);
-  return Promise.resolve(fs.createReadStream(cachePath));
+  const output = new DeferredPromise();
+  logger("debug:fakeDownload")(`Waiting to 'download' ${cachePath}`);
+  setTimeout(() => {
+    logger("debug:fakeDownload")(`Waited for 'download' from ${cachePath}`);
+    output.resolve(fs.createReadStream(cachePath));
+  }, 120000);
+  return output;
 }
 
 // eslint-disable-next-line no-unused-vars
