@@ -75,6 +75,20 @@ const whenBuiltTaxIdSpeciesMap = buildTaxidSpeciesMap(
   TAXDUMP_REMOTE_PATH
 );
 
+whenBuiltTaxIdSpeciesMap
+  .then(taxIdSpeciesMap => {
+    const output = new DeferredPromise();
+    const payload = JSON.stringify(taxIdSpeciesMap);
+    const outPath = path.join(DATA_DIR, "allTaxIds.json");
+    fs.writeFile(outPath, payload, err => {
+      if (err) output.reject(err);
+      output.resolve(outPath);
+    });
+    return output;
+  })
+  .then(logger("debug:allTaxIds"))
+  .catch(logger("error"));
+
 const whenMatchedTaxIdsToMlstSpecies = Promise.all([
   whenMetadataUpdated,
   whenBuiltTaxIdSpeciesMap
