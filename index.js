@@ -114,8 +114,8 @@ function findGenesWithImperfectResults(results) {
   return imperfectGenes;
 }
 
-function getAlleleStreamsForGenes() {
-  return _.map(genes, gene => alleleStreams[gene]);
+function getAlleleStreamsForGenes(imperfectGenes) {
+  return _.map(imperfectGenes, gene => alleleStreams[gene]);
 }
 
 function updateAlleleStreamLimits(streams, limit) {
@@ -127,6 +127,10 @@ function updateAlleleStreamLimits(streams, limit) {
 
 const whenSecondRunStreams = whenFirstRunResultCalculated
   .then(findGenesWithImperfectResults)
+  .then(imperfectGenes => {
+    logger("debug:secondRunGenes")(imperfectGenes);
+    return imperfectGenes;
+  })
   .then(getAlleleStreamsForGenes)
   .then(alleleStreamsWithoutPerfectResults =>
     updateAlleleStreamLimits(alleleStreamsWithoutPerfectResults, 50)
@@ -183,6 +187,10 @@ whenSecondRunResultsCalculated.then(logger("hits:second"));
 
 const whenThirdRunStreams = whenSecondRunResultsCalculated
   .then(findGenesWithImperfectResults)
+  .then(imperfectGenes => {
+    logger("debug:thirdRunGenes")(imperfectGenes);
+    return imperfectGenes;
+  })
   .then(getAlleleStreamsForGenes)
   .then(alleleStreamsWithoutPerfectResults =>
     updateAlleleStreamLimits(alleleStreamsWithoutPerfectResults, null)
