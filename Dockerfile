@@ -15,7 +15,7 @@ COPY src /usr/local/mlst/src/
 RUN cd /usr/local/mlst && \
     /usr/local/bin/npm install && \
     DEBUG='*' /usr/local/bin/node ./update-databases.js && \
-    chmod -R a+r /opt/mlst/databases
+    chmod -R a+r /opt/mlst/databases # Built 14 Aug 2017
 
 USER biodocker
 CMD ["/entrypoint.sh"]
