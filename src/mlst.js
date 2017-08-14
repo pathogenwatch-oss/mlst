@@ -220,7 +220,7 @@ function buildResults(options = {}) {
   });
 
   const results = {
-    alleles: _.map(genes, gene => [gene, alleles[gene]]),
+    alleles,
     raw
   };
 

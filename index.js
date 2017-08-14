@@ -252,7 +252,8 @@ function formatOutput(results) {
     code,
     st,
     scheme,
-    url
+    url,
+    genes
   };
 }
 
