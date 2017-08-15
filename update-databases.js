@@ -15,29 +15,18 @@ const DATA_DIR = "/opt/mlst/databases";
 
 function matchTaxidsAndMlstSpecies(mlstMetadata, taxIdSpeciesMap) {
   const lookup = {};
-  const hardCodedSynonyms = {
-    90370: "Salmonella enterica" // Typhi
-  };
   const mlstSpecies = _.keys(mlstMetadata);
   _.forIn(taxIdSpeciesMap, (species, taxid) => {
-    const hardCodedMlstSpecies = hardCodedSynonyms[Number(taxid)];
-    if (hardCodedMlstSpecies) {
-      lookup[taxid] = { species, mlstSpecies: hardCodedMlstSpecies };
-      logger("trace:match:hardCoded")({ species, hardCodedMlstSpecies });
-      return;
-    }
-
     if (mlstSpecies.includes(species)) {
-      lookup[taxid] = { species, mlstSpecies: species };
-      logger("trace:match:matched")({ species });
+      lookup[taxid] = species;
+      logger("trace:match:matched")(species);
       return;
     }
 
-    const genus = species.split(" ")[0];
-    const genusScheme = `${genus} spp.`;
+    const genusScheme = `${species} spp.`;
     if (mlstSpecies.includes(genusScheme)) {
-      lookup[taxid] = { species, mlstSpecies: genusScheme };
-      logger("trace:match:genus")({ species, genusScheme });
+      lookup[taxid] = genusScheme;
+      logger("trace:match:genus")(genusScheme);
       return;
     }
   });
@@ -112,10 +101,7 @@ const whenMatchedTaxIdsToMlstSpecies = Promise.all([
 
 Promise.all([whenMetadataUpdated, whenMatchedTaxIdsToMlstSpecies])
   .then(([mlstMetadata, matchedTaxIds]) => {
-    const matched = _(matchedTaxIds)
-      .values()
-      .map(({ mlstSpecies }) => mlstSpecies)
-      .value();
+    const matched = _.values(matchedTaxIds);
     const unmatched = _(mlstMetadata).keys().difference(matched).value();
     const unmatchedString = _.map(unmatched, species => `* ${species}`).join(
       "\n"

@@ -18,16 +18,43 @@ const {
 
 const DATA_DIR = "/opt/mlst/databases";
 
-const [TAXID, SAMPLE] = process.argv.slice(2);
+const SAMPLE = process.argv[1];
 
 const taxIdLookupData = require(path.join(DATA_DIR, "taxIdSpeciesMap.json"));
-const species = (taxIdLookupData[TAXID] || {}).mlstSpecies;
+const POSSIBLE_TAXID_ENVIRONMENT_VARIABLES = [
+  "WGSA_ORGANISM_TAXID",
+  "WGSA_SPECIES_TAXID",
+  "WGSA_GENUS_TAXID"
+];
+let species;
+let taxid;
+let taxidVariableName;
+_.forEach(POSSIBLE_TAXID_ENVIRONMENT_VARIABLES, variableName => {
+  taxid = process.env[variableName] || null;
+  species = taxIdLookupData[taxid];
+  if (species) {
+    taxidVariableName = variableName;
+    return false;
+  }
+  return null;
+});
 
-logger("params")({ TAXID, SAMPLE, species });
+logger("params")({ SAMPLE, species, taxidVariableName, taxid });
 
 if (typeof species === "undefined") {
+  const taxIdEnvironmentVariables = _.zip(
+    POSSIBLE_TAXID_ENVIRONMENT_VARIABLES,
+    _.map(
+      POSSIBLE_TAXID_ENVIRONMENT_VARIABLES,
+      variable => process.env[variable]
+    )
+  );
   console.log(
-    JSON.stringify({ error: `Could not find MLST scheme for ${TAXID}` })
+    JSON.stringify({
+      error: `Could not find MLST scheme:\n${JSON.stringify(
+        taxIdEnvironmentVariables
+      )}`
+    })
   );
   process.exit(1);
 }
