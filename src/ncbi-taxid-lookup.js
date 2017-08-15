@@ -73,7 +73,7 @@ function parseNcbiNamesFile(namesFileStream) {
   const output = new DeferredPromise();
   const taxIdSpeciesMap = [];
 
-  const taxIDSpeciesStreamInput = es.split()
+  const taxIDSpeciesStreamInput = es.split();
   const taxIDSpeciesStreamOutput = taxIDSpeciesStreamInput.pipe(
     // eslint-disable-next-line array-callback-return
     es.map((line, callback) => {
@@ -105,7 +105,9 @@ function mapTaxIdToSpecies(taxIdSpeciesList) {
 
   _.forEach(taxIdSpeciesList, ([taxId, species]) => {
     if (taxIdsMap[taxId]) {
-      throw new Error(`${species} and ${taxIdsMap[taxId]} both have TaxId '${taxId}'`);
+      throw new Error(
+        `${species} and ${taxIdsMap[taxId]} both have TaxId '${taxId}'`
+      );
     }
     taxIdsMap[taxId] = species;
   });

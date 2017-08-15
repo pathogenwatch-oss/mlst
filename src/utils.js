@@ -1,4 +1,5 @@
 const logger = require("debug");
+const fasta = require("bionode-fasta");
 
 const _ = require("lodash");
 const { Duplex } = require("stream");
@@ -179,10 +180,23 @@ class ObjectTap extends Duplex {
   }
 }
 
+function loadSequencesFromStream(inputStream) {
+  const fastaStream = fasta.obj();
+  const output = new DeferredPromise();
+  const sequences = {};
+  fastaStream.on("data", ({ id, seq }) => {
+    sequences[id] = seq;
+  });
+  fastaStream.on("end", () => output.resolve(sequences));
+  inputStream.pipe(fastaStream);
+  return output;
+}
+
 module.exports = {
   pmap,
   splitResolveReject,
   DeferredPromise,
   AsyncQueue,
-  ObjectTap
+  ObjectTap,
+  loadSequencesFromStream
 };

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
 
-cat - > /tmp/sequence.fa
+set -eu -o pipefail
 
-/usr/local/bin/node /usr/local/mlst/index.js /tmp/sequence.fa
+cat | /usr/local/bin/node /usr/local/mlst/index.js

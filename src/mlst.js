@@ -20,72 +20,52 @@ function getAlleleStreams(allelePaths, limit) {
   return streams;
 }
 
-function addHashesToHits(fastaPath, hits) {
-  logger("trace:hash")(
-    `About to add hashes to ${hits.length} hits using ${fastaPath}`
-  );
-
-  const output = new DeferredPromise();
+function addHashesToHits(sequences, hits) {
+  logger("trace:hash")(`About to add hashes to ${hits.length} hits`);
 
   const compliment = b => ({ t: "a", a: "t", c: "g", g: "c" }[b] || b);
 
-  const hashHit = (contig, hit) => {
+  const hashHit = (sequence, hit) => {
     const { start, end, reverse } = hit;
     let bases;
     if (reverse) {
-      bases = _(contig.seq.toLowerCase())
+      bases = _(sequence.toLowerCase())
         .slice(start - 1, end)
         .map(compliment)
         .reverse()
         .value()
         .join("");
     } else {
-      bases = _(contig.seq.toLowerCase())
-        .slice(start - 1, end)
-        .value()
-        .join("");
+      bases = _(sequence.toLowerCase()).slice(start - 1, end).value().join("");
     }
-    const hash = hasha(bases, { algorithm: "sha1" });
-    logger("trace:hash")([
-      contig.id,
-      hit.allele,
-      bases.slice(0, 10),
-      bases.slice(-10),
-      hash
-    ]);
-    return hash;
+    return hasha(bases, { algorithm: "sha1" });
   };
 
-  const seqStream = fasta.obj(fastaPath);
-  seqStream.on("data", contig => {
-    _.forEach(hits, (hit, idx) => {
-      if (hit.sequence !== contig.id) return;
-      const hash = hashHit(contig, hit);
-      hit.hash = hash; // eslint-disable-line no-param-reassign
-      logger("trace:hash")(`added hash '${hash}' to hit ${idx}`);
-    });
-  });
-
-  seqStream.on("end", () => {
-    const unhashedHits = _.filter(hits, hit => typeof hit.hash === "undefined");
-    if (unhashedHits.length > 0) {
-      const missingHitSequences = _.map(
-        unhashedHits,
-        hit => `* ${hit.sequence}`
-      );
-      logger("error")(
-        `Couldn't find the following in ${fastaPath}:\n${missingHitSequences.join(
-          "\n"
-        )}`
-      );
-      output.reject(`${unhashedHits.length} hits couldn't be hashed`);
-    } else {
-      logger("trace:hash")(`Finished adding hashes to hits using ${fastaPath}`);
-      output.resolve(hits);
+  const unhashedHits = [];
+  _.forEach(hits, (hit, idx) => {
+    const sequence = sequences[hit.sequence];
+    if (!sequence) {
+      unhashedHits.push(hit);
+      return;
     }
+    const hash = hashHit(sequence, hit);
+    hit.hash = hash; // eslint-disable-line no-param-reassign
+    logger("trace:hash")(`added hash '${hash}' to hit ${idx}`);
   });
 
-  return output;
+  if (unhashedHits.length > 0) {
+    const missingHitSequences = _.map(unhashedHits, hit => `* ${hit.sequence}`);
+    logger("error")(
+      `Couldn't find the following among the input sequences:\n${missingHitSequences.join(
+        "\n"
+      )}`
+    );
+    throw Error(`${unhashedHits.length} hits couldn't be hashed`);
+  } else {
+    logger("trace:hash")(`Finished adding hashes to hits`);
+  }
+
+  return hits;
 }
 
 function addMatchingAllelesToHits(alleleHashes, hits) {

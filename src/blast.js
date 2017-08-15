@@ -30,7 +30,7 @@ class RenameContigs extends Transform {
   }
 }
 
-function makeBlastDb(fastaPath) {
+function makeBlastDb(inputFileStream) {
   const whenContigNameMap = new DeferredPromise();
   const whenBlastDb = new DeferredPromise();
 
@@ -42,18 +42,17 @@ function makeBlastDb(fastaPath) {
   });
 
   const contigRenamer = new RenameContigs();
-  const renamedFasta = fasta
-    .obj(fastaPath)
+  const renamedFasta = inputFileStream
+    .pipe(fasta.obj())
     .pipe(contigRenamer)
     .pipe(new FastaString());
 
   whenBlastDirCreated.then(dir => {
     const databasePath = path.join(dir, "blast.db");
     const command =
-      `makeblastdb -title "${fastaPath}" -in - ` +
-      `-dbtype nucl -out ${databasePath}`;
+      `makeblastdb -title mlst -in - ` + `-dbtype nucl -out ${databasePath}`;
     logger("debug:blast:makeBlastDb")(
-      `Creating Blast database '${databasePath}' from ${fastaPath}`
+      `Creating Blast database '${databasePath}'`
     );
     logger("trace:blast:makeBlastDb")(`Running '${command}'`);
     const shell = spawn(command, { shell: true });
@@ -61,7 +60,7 @@ function makeBlastDb(fastaPath) {
     shell.on("exit", (code, signal) => {
       if (code === 0) {
         logger("debug:blast:makeBlastDb")(
-          `Created Blast database '${databasePath}' from ${fastaPath}`
+          `Created Blast database '${databasePath}'`
         );
         whenContigNameMap.resolve(contigRenamer.nameMap);
         whenBlastDb.resolve(databasePath);
