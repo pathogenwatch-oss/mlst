@@ -8,7 +8,6 @@ RUN mkdir -p /usr/local && cd /usr/local && tar -xf /tmp/node-v6.11.1-linux-x64.
     ln -s /usr/local/node-v6.11.1-linux-x64/bin/npm /usr/local/bin
 
 RUN mkdir -p /usr/local/mlst /opt/mlst/databases && chmod -R a+w /opt/mlst/databases
-COPY entrypoint.sh /entrypoint.sh
 COPY index.js update-databases.js package.json /usr/local/mlst/
 COPY src /usr/local/mlst/src/
 
@@ -18,4 +17,5 @@ RUN cd /usr/local/mlst && \
     chmod -R a+r /opt/mlst/databases # Built 14 Aug 2017
 
 USER biodocker
-CMD ["/entrypoint.sh"]
+
+CMD [ "/usr/local/bin/node", "/usr/local/mlst/index.js" ]
