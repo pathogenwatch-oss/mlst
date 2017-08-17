@@ -1,17 +1,21 @@
-FROM ubuntu:14.04
+FROM biocontainers/blast
 
-RUN apt-get update -qq && \
-    apt-get install -y wget ncbi-blast+ && \
-    apt-get install -y libmoo-perl liblist-moreutils-perl && \
-    apt-get install -y git
+USER root
+RUN apt-get update && apt-get install -y wget tar
+RUN cd /tmp && wget https://nodejs.org/dist/v6.11.1/node-v6.11.1-linux-x64.tar.xz
+RUN mkdir -p /usr/local && cd /usr/local && tar -xf /tmp/node-v6.11.1-linux-x64.tar.xz && \
+    ln -s /usr/local/node-v6.11.1-linux-x64/bin/node /usr/local/bin && \
+    ln -s /usr/local/node-v6.11.1-linux-x64/bin/npm /usr/local/bin
 
-RUN wget -O - https://nodejs.org/dist/v6.10.1/node-v6.10.1-linux-x64.tar.gz | \
-  tar -xzf - --strip-components=1 -C /usr
+RUN mkdir -p /usr/local/mlst /opt/mlst/databases && chmod -R a+w /opt/mlst/databases
+COPY index.js update-databases.js package.json /usr/local/mlst/
+COPY src /usr/local/mlst/src/
 
-RUN git clone https://github.com/tseemann/mlst.git
+RUN cd /usr/local/mlst && \
+    /usr/local/bin/npm install && \
+    DEBUG='*' /usr/local/bin/node ./update-databases.js && \
+    chmod -R a+r /opt/mlst/databases # Built 14 Aug 2017
 
-COPY ./entypoint.sh /entypoint.sh
-COPY ./parser.js /parser.js
-COPY ./node_modules /node_modules
+USER biodocker
 
-CMD ["/entypoint.sh"]
+CMD [ "/usr/local/bin/node", "/usr/local/mlst/index.js" ]
