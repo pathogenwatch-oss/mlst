@@ -102,7 +102,7 @@ class BlastHitsStore {
 
   update(hit) {
     if (!this.longEnough(hit.allele, hit.length)) return false;
-    const bin = this.getBin(hit.gene, hit.start, hit.end); // FIXME add a contig
+    const bin = this.getBin(hit.gene, hit.start, hit.end, hit.sequenceId);
     if (!this.closeEnough(hit.pident, bin)) return false;
     this.updateBin(bin, hit);
     return true;
@@ -164,9 +164,11 @@ class BlastHitsStore {
     return length >= this.alleleLengths[allele] * 0.8;
   }
 
-  getBin(gene, start, end) {
+  // eslint-disable-next-line max-params
+  getBin(gene, start, end, sequenceId) {
     const existingBin = _.find(this._bins, bin => {
       if (bin.gene !== gene) return false;
+      if (bin.sequenceId !== sequenceId) return false;
       if (bin.start <= start && bin.end >= end) return true;
       if (start <= bin.start && end >= bin.end) return true;
       if (bin.start <= start && end > bin.end) {
@@ -182,7 +184,7 @@ class BlastHitsStore {
     if (existingBin) {
       return existingBin;
     }
-    const newBin = { gene, start, end, hits: [], bestPIdent: 0 };
+    const newBin = { gene, start, end, sequenceId, hits: [], bestPIdent: 0 };
     this._bins.push(newBin);
     return newBin;
   }
