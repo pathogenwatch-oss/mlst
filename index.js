@@ -15,7 +15,6 @@ const {
   stopBlast,
   buildResults
 } = require("./src/mlst");
-const { loadSequencesFromStream } = require("./src/utils");
 
 const DATA_DIR = "/opt/mlst/databases";
 
@@ -74,8 +73,7 @@ const NUMBER_OF_ALLELES = 5;
 const alleleStreams = getAlleleStreams(allelePaths, NUMBER_OF_ALLELES);
 
 process.stdin.pause();
-const whenLoadedInputSequences = loadSequencesFromStream(process.stdin);
-const { whenContigNameMap, whenBlastDb } = makeBlastDb(process.stdin);
+const { whenContigNameMap, whenRenamedSequences, whenBlastDb } = makeBlastDb(process.stdin);
 process.stdin.resume();
 
 const whenHitsStore = whenContigNameMap.then(
@@ -109,10 +107,10 @@ const whenFirstRunStopped = Promise.all([
   .then(stopBlast);
 
 const whenFirstRunResultCalculated = whenFirstRunStopped
-  .then(() => Promise.all([whenLoadedInputSequences, whenHitsStore]))
-  .then(([inputSequences, hitsStore]) => [inputSequences, hitsStore.best()])
-  .then(([inputSequences, bestHits]) =>
-    addHashesToHits(inputSequences, bestHits)
+  .then(() => Promise.all([whenRenamedSequences, whenHitsStore]))
+  .then(([renamedSequences, hitsStore]) => [renamedSequences, hitsStore.best()])
+  .then(([renamedSequences, bestHits]) =>
+    addHashesToHits(renamedSequences, bestHits)
   )
   .then(bestHits => {
     addMatchingAllelesToHits(alleleHashes, bestHits);
@@ -196,10 +194,10 @@ const whenSecondRunStopped = Promise.all([
   .catch(logger("error"));
 
 const whenSecondRunResultsCalculated = whenSecondRunStopped
-  .then(() => Promise.all([whenLoadedInputSequences, whenHitsStore]))
-  .then(([inputSequences, hitsStore]) => [inputSequences, hitsStore.best()])
-  .then(([inputSequences, bestHits]) =>
-    addHashesToHits(inputSequences, bestHits)
+  .then(() => Promise.all([whenRenamedSequences, whenHitsStore]))
+  .then(([renamedSequences, hitsStore]) => [renamedSequences, hitsStore.best()])
+  .then(([renamedSequences, bestHits]) =>
+    addHashesToHits(renamedSequences, bestHits)
   )
   .then(bestHits => {
     addMatchingAllelesToHits(alleleHashes, bestHits);
@@ -258,10 +256,10 @@ const whenThirdRunStopped = Promise.all([
   .catch(logger("error"));
 
 const whenThirdRunResultsCalculated = whenThirdRunStopped
-  .then(() => Promise.all([whenLoadedInputSequences, whenHitsStore]))
-  .then(([inputSequences, hitsStore]) => [inputSequences, hitsStore.best()])
-  .then(([inputSequences, bestHits]) =>
-    addHashesToHits(inputSequences, bestHits)
+  .then(() => Promise.all([whenRenamedSequences, whenHitsStore]))
+  .then(([renamedSequences, hitsStore]) => [renamedSequences, hitsStore.best()])
+  .then(([renamedSequences, bestHits]) =>
+    addHashesToHits(renamedSequences, bestHits)
   )
   .then(bestHits => {
     addMatchingAllelesToHits(alleleHashes, bestHits);

@@ -10,7 +10,7 @@ const path = require("path");
 const { Transform } = require("stream");
 
 const { parseAlleleName, FastaString } = require("./mlst-database");
-const { DeferredPromise } = require("./utils");
+const { DeferredPromise, loadSequencesFromStream } = require("./utils");
 
 tmp.setGracefulCleanup();
 
@@ -32,6 +32,7 @@ class RenameContigs extends Transform {
 
 function makeBlastDb(inputFileStream) {
   const whenContigNameMap = new DeferredPromise();
+  const whenRenamedSequences = new DeferredPromise();
   const whenBlastDb = new DeferredPromise();
 
   const whenBlastDirCreated = new Promise((resolve, reject) => {
@@ -57,6 +58,8 @@ function makeBlastDb(inputFileStream) {
     logger("trace:blast:makeBlastDb")(`Running '${command}'`);
     const shell = spawn(command, { shell: true });
     renamedFasta.pipe(shell.stdin);
+    loadSequencesFromStream(renamedFasta)
+      .then(whenRenamedSequences.resolve.bind(whenRenamedSequences))
     shell.on("exit", (code, signal) => {
       if (code === 0) {
         logger("debug:blast:makeBlastDb")(
@@ -73,7 +76,7 @@ function makeBlastDb(inputFileStream) {
     });
   });
 
-  return { whenContigNameMap, whenBlastDb };
+  return { whenContigNameMap, whenRenamedSequences, whenBlastDb };
 }
 
 function createBlastProcess(db, wordSize = 11, percIdentity = 0) {

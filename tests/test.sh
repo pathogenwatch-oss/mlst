@@ -35,6 +35,7 @@ done <<- 'EOF'
   saureus_duplicate 'WGSA_SPECIES_TAXID=1280'
   saureus_missing 'WGSA_SPECIES_TAXID=1280'
   saureus_novel 'WGSA_SPECIES_TAXID=1280'
+  saureus_bad_names 'WGSA_SPECIES_TAXID=1280'
   typhi 'WGSA_SPECIES_TAXID=28901'
 EOF
 
