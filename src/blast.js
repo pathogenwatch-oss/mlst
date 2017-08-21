@@ -58,8 +58,9 @@ function makeBlastDb(inputFileStream) {
     logger("trace:blast:makeBlastDb")(`Running '${command}'`);
     const shell = spawn(command, { shell: true });
     renamedFasta.pipe(shell.stdin);
-    loadSequencesFromStream(renamedFasta)
-      .then(whenRenamedSequences.resolve.bind(whenRenamedSequences))
+    loadSequencesFromStream(renamedFasta).then(
+      whenRenamedSequences.resolve.bind(whenRenamedSequences)
+    );
     shell.on("exit", (code, signal) => {
       if (code === 0) {
         logger("debug:blast:makeBlastDb")(

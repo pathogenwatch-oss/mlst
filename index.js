@@ -73,7 +73,9 @@ const NUMBER_OF_ALLELES = 5;
 const alleleStreams = getAlleleStreams(allelePaths, NUMBER_OF_ALLELES);
 
 process.stdin.pause();
-const { whenContigNameMap, whenRenamedSequences, whenBlastDb } = makeBlastDb(process.stdin);
+const { whenContigNameMap, whenRenamedSequences, whenBlastDb } = makeBlastDb(
+  process.stdin
+);
 process.stdin.resume();
 
 const whenHitsStore = whenContigNameMap.then(
