@@ -24,7 +24,7 @@ const MLST_DIR = "/opt/mlst/databases";
 
 function parseAlleleName(allele) {
   try {
-    const matches = /([^0-9]*)[-_\.]([0-9]+)/.exec(allele);
+    const matches = /^(.+)[-_\.]([0-9]+)$/.exec(allele);
     const [gene, st] = matches.slice(1);
     return { gene, st: Number(st) };
   } catch (err) {

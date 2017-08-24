@@ -43,7 +43,7 @@ function addHashesToHits(sequences, hits) {
 
   const unhashedHits = [];
   _.forEach(hits, (hit, idx) => {
-    const sequence = sequences[hit.sequence];
+    const sequence = sequences[hit.sequenceId];
     if (!sequence) {
       unhashedHits.push(hit);
       return;
