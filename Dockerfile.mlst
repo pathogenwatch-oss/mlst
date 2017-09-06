@@ -13,7 +13,7 @@ COPY src /usr/local/mlst/src/
 
 RUN cd /usr/local/mlst && \
     /usr/local/bin/npm install && \
-    DEBUG='*' /usr/local/bin/node ./update-databases.js && \
+    DEBUG='*' /usr/local/bin/node --max-old-space-size=4096 ./update-mlst-databases.js && \
     chmod -R a+r /opt/mlst/databases # Built 14 Aug 2017
 
 USER biodocker

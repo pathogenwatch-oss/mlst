@@ -2,9 +2,8 @@
 
 const _ = require("lodash");
 const logger = require("debug");
-const path = require("path");
 
-const { PubMlst } = require("./src/mlst-database");
+const { PubMlstSevenGenomeSchemes, BigsDbSchemes } = require("./src/mlst-database");
 const { makeBlastDb, BlastHitsStore } = require("./src/blast");
 const {
   getAlleleStreams,
@@ -18,28 +17,36 @@ const {
 
 const DATA_DIR = "/opt/mlst/databases";
 
-const taxIdLookupData = require(path.join(DATA_DIR, "taxIdSpeciesMap.json"));
+const RUN_CORE_GENOME_MLST = (process.env.RUN_CORE_GENOME_MLST && true) || false;
+let metadataSchemes;
+
+if (RUN_CORE_GENOME_MLST) {
+  metadataSchemes = new BigsDbSchemes(DATA_DIR);
+} else {
+  metadataSchemes = new PubMlstSevenGenomeSchemes(DATA_DIR)
+}
+
 const POSSIBLE_TAXID_ENVIRONMENT_VARIABLES = [
   "WGSA_ORGANISM_TAXID",
   "WGSA_SPECIES_TAXID",
   "WGSA_GENUS_TAXID"
 ];
-let species;
 let taxid;
 let taxidVariableName;
+let alleleMetadata;
 _.forEach(POSSIBLE_TAXID_ENVIRONMENT_VARIABLES, variableName => {
   taxid = process.env[variableName] || null;
-  species = taxIdLookupData[taxid];
-  if (species) {
+  alleleMetadata = metadataSchemes.read(taxid);
+  if (alleleMetadata) {
     taxidVariableName = variableName;
     return false;
   }
-  return null;
+  return true;
 });
 
-logger("params")({ species, taxidVariableName, taxid });
+logger("params")({ taxidVariableName, taxid });
 
-if (typeof species === "undefined") {
+if (!alleleMetadata) {
   const taxIdEnvironmentVariables = _.zip(
     POSSIBLE_TAXID_ENVIRONMENT_VARIABLES,
     _.map(
@@ -57,7 +64,6 @@ if (typeof species === "undefined") {
   process.exit(1);
 }
 
-const alleleMetadata = new PubMlst(DATA_DIR).read(species);
 const alleleHashes = alleleMetadata.hashes;
 const alleleLengths = alleleMetadata.lengths;
 const {
@@ -218,67 +224,77 @@ const whenSecondRunResultsCalculated = whenSecondRunStopped
 
 whenSecondRunResultsCalculated.then(logger("hits:second"));
 
-const whenThirdRunStreams = whenSecondRunResultsCalculated
-  .then(findGenesWithImperfectResults)
-  .then(imperfectGenes => {
-    logger("debug:thirdRunGenes")(imperfectGenes);
-    return imperfectGenes;
-  })
-  .then(getAlleleStreamsForGenes)
-  .then(alleleStreamsWithoutPerfectResults =>
-    updateAlleleStreamLimits(alleleStreamsWithoutPerfectResults, null)
-  )
-  .catch(logger("error"));
+let whenFinalBlastResultsCalculated;
+if (RUN_CORE_GENOME_MLST) {
+  whenFinalBlastResultsCalculated = whenSecondRunResultsCalculated;
+} else {
+  // It would take too long to run Core Genome MLST using all of the
+  // alleles so we skip this third run of Blast.
+  const whenThirdRunStreams = whenSecondRunResultsCalculated
+    .then(findGenesWithImperfectResults)
+    .then(imperfectGenes => {
+      logger("debug:thirdRunGenes")(imperfectGenes);
+      return imperfectGenes;
+    })
+    .then(getAlleleStreamsForGenes)
+    .then(alleleStreamsWithoutPerfectResults =>
+      updateAlleleStreamLimits(alleleStreamsWithoutPerfectResults, null)
+    )
+    .catch(logger("error"));
 
-const whenThirdRunStarted = Promise.all([whenThirdRunStreams, whenBlastDb])
-  .then(([streams, db]) => ({ streams, db, wordSize: 11, pIdent: 0 }))
-  .then(startBlast)
-  .catch(logger("error"));
+  const whenThirdRunStarted = Promise.all([whenThirdRunStreams, whenBlastDb])
+    .then(([streams, db]) => ({ streams, db, wordSize: 11, pIdent: 0 }))
+    .then(startBlast)
+    .catch(logger("error"));
 
-const whenThirdRunProcessed = Promise.all([
-  whenHitsStore,
-  whenThirdRunStreams,
-  whenThirdRunStarted
-])
-  .then(([hitsStore, streams, { blast, blastResultsStream }]) => ({
-    hitsStore,
-    streams,
-    blast,
-    blastResultsStream
-  }))
-  .then(processBlastResultsStream)
-  .catch(logger("error"));
+  const whenThirdRunProcessed = Promise.all([
+    whenHitsStore,
+    whenThirdRunStreams,
+    whenThirdRunStarted
+  ])
+    .then(([hitsStore, streams, { blast, blastResultsStream }]) => ({
+      hitsStore,
+      streams,
+      blast,
+      blastResultsStream
+    }))
+    .then(processBlastResultsStream)
+    .catch(logger("error"));
 
-const whenThirdRunStopped = Promise.all([
-  whenThirdRunStarted,
-  whenThirdRunProcessed
-])
-  .then(([{ blast, blastInputStream }]) => ({ blast, blastInputStream }))
-  .then(stopBlast)
-  .catch(logger("error"));
+  const whenThirdRunStopped = Promise.all([
+    whenThirdRunStarted,
+    whenThirdRunProcessed
+  ])
+    .then(([{ blast, blastInputStream }]) => ({ blast, blastInputStream }))
+    .then(stopBlast)
+    .catch(logger("error"));
 
-const whenThirdRunResultsCalculated = whenThirdRunStopped
-  .then(() => Promise.all([whenRenamedSequences, whenHitsStore]))
-  .then(([renamedSequences, hitsStore]) => [renamedSequences, hitsStore.best()])
-  .then(([renamedSequences, bestHits]) =>
-    addHashesToHits(renamedSequences, bestHits)
-  )
-  .then(bestHits => {
-    addMatchingAllelesToHits(alleleHashes, bestHits);
-    return bestHits;
-  })
-  .then(bestHits => ({
-    bestHits,
-    alleleLengths,
-    genes,
-    profiles,
-    scheme,
-    commonGeneLengths
-  }))
-  .then(buildResults)
-  .catch(logger("error"));
+  whenFinalBlastResultsCalculated = whenThirdRunStopped
+    .then(() => Promise.all([whenRenamedSequences, whenHitsStore]))
+    .then(([renamedSequences, hitsStore]) => [
+      renamedSequences,
+      hitsStore.best()
+    ])
+    .then(([renamedSequences, bestHits]) =>
+      addHashesToHits(renamedSequences, bestHits)
+    )
+    .then(bestHits => {
+      addMatchingAllelesToHits(alleleHashes, bestHits);
+      return bestHits;
+    })
+    .then(bestHits => ({
+      bestHits,
+      alleleLengths,
+      genes,
+      profiles,
+      scheme,
+      commonGeneLengths
+    }))
+    .then(buildResults)
+    .catch(logger("error"));
 
-whenThirdRunResultsCalculated.then(logger("hits:third"));
+  whenFinalBlastResultsCalculated.then(logger("hits:third"));
+}
 
 function formatOutput(results) {
   const { alleles, code, st } = results;
@@ -292,7 +308,7 @@ function formatOutput(results) {
   };
 }
 
-whenThirdRunResultsCalculated
+whenFinalBlastResultsCalculated
   .then(formatOutput)
   .then(JSON.stringify)
   .then(console.log);

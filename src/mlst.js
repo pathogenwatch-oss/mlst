@@ -89,6 +89,7 @@ function startBlast(options = {}) {
 
   const blast = createBlastProcess(db, wordSize, pIdent);
   const blastInputStream = makeBlastInputStream();
+  blastInputStream.setMaxListeners(0);
   _.forEach(streams, stream => {
     stream.pipe(blastInputStream);
   });
