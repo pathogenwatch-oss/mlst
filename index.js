@@ -4,16 +4,16 @@ const _ = require("lodash");
 const logger = require("debug");
 
 const { PubMlstSevenGenomeSchemes, BigsDbSchemes } = require("./src/mlst-database");
-const { makeBlastDb, BlastHitsStore } = require("./src/blast");
+const { makeBlastDb } = require("./src/blast");
+const { HitsStore } = require("./src/matches");
 const {
   getAlleleStreams,
-  addHashesToHits,
-  addMatchingAllelesToHits,
   startBlast,
   processBlastResultsStream,
   stopBlast,
   buildResults
 } = require("./src/mlst");
+const { findExactHits } = require("./src/exactHits")
 
 const DATA_DIR = "/opt/mlst/databases";
 
@@ -64,9 +64,10 @@ if (!alleleMetadata) {
   process.exit(1);
 }
 
-const alleleHashes = alleleMetadata.hashes;
 const alleleLengths = alleleMetadata.lengths;
 const {
+  alleleLookup,
+  alleleLookupPrefixLength,
   genes,
   profiles,
   allelePaths,
@@ -83,14 +84,26 @@ const { whenContigNameMap, whenRenamedSequences, whenBlastDb } = makeBlastDb(
   process.stdin
 );
 process.stdin.resume();
+const whenExactHits = whenRenamedSequences.then(renamedSequences =>
+  findExactHits(renamedSequences, alleleLookup, alleleLookupPrefixLength)
+);
+
+whenExactHits
+  .then(hits => _.map(hits, ({ gene }) => gene))
+  .then(matchedGenes => _.uniq(matchedGenes))
+  .then(matchedGenes => logger("debug:exactHits")(`Found exact matches for ${matchedGenes.length} out of ${genes.length} genes`))
 
 const whenHitsStore = whenContigNameMap.then(
-  contigNameMap => new BlastHitsStore(alleleLengths, contigNameMap)
+  contigNameMap => new HitsStore(alleleLengths, contigNameMap)
 );
+
+const whenExactHitsAdded = Promise.all([whenHitsStore, whenExactHits]).then(([hitsStore, hits]) => {
+  _.forEach(hits, hit => hitsStore.add(hit));
+});
 
 const whenFirstRunStreams = _.values(alleleStreams);
 
-const whenFirstRunStart = Promise.all([whenFirstRunStreams, whenBlastDb])
+const whenFirstRunStart = Promise.all([whenFirstRunStreams, whenBlastDb, whenExactHitsAdded])
   .then(([streams, db]) => ({ streams, db, wordSize: 30, pIdent: 80 }))
   .then(startBlast);
 
@@ -115,27 +128,25 @@ const whenFirstRunStopped = Promise.all([
   .then(stopBlast);
 
 const whenFirstRunResultCalculated = whenFirstRunStopped
-  .then(() => Promise.all([whenRenamedSequences, whenHitsStore]))
-  .then(([renamedSequences, hitsStore]) => [renamedSequences, hitsStore.best()])
-  .then(([renamedSequences, bestHits]) =>
-    addHashesToHits(renamedSequences, bestHits)
-  )
-  .then(bestHits => {
-    addMatchingAllelesToHits(alleleHashes, bestHits);
-    return bestHits;
+  .then(() => Promise.all([whenHitsStore, whenRenamedSequences]))
+  .then(([hitsStore, renamedSequences]) => {
+    const bestHits = hitsStore.best();
+    return {
+      bestHits,
+      alleleLengths,
+      genes,
+      profiles,
+      scheme,
+      commonGeneLengths,
+      renamedSequences
+    }
   })
-  .then(bestHits => ({
-    bestHits,
-    alleleLengths,
-    genes,
-    profiles,
-    scheme,
-    commonGeneLengths
-  }))
   .then(buildResults)
   .catch(logger("error"));
 
-whenFirstRunResultCalculated.then(logger("hits:first"));
+whenFirstRunResultCalculated.then(results => {
+  logger("hits:first")(results);
+});
 
 function findGenesWithImperfectResults(results) {
   const perfectResultFilter = ([, [firstMatch, ...otherMatches]]) => {
@@ -165,7 +176,8 @@ function updateAlleleStreamLimits(streams, limit) {
 const whenSecondRunStreams = whenFirstRunResultCalculated
   .then(findGenesWithImperfectResults)
   .then(imperfectGenes => {
-    logger("debug:secondRunGenes")(imperfectGenes);
+    logger("debug:genes:secondRun")(`Rerunning blast on ${imperfectGenes.length} genes`);
+    logger("trace:genes:secondRun")(imperfectGenes);
     return imperfectGenes;
   })
   .then(getAlleleStreamsForGenes)
@@ -202,23 +214,19 @@ const whenSecondRunStopped = Promise.all([
   .catch(logger("error"));
 
 const whenSecondRunResultsCalculated = whenSecondRunStopped
-  .then(() => Promise.all([whenRenamedSequences, whenHitsStore]))
-  .then(([renamedSequences, hitsStore]) => [renamedSequences, hitsStore.best()])
-  .then(([renamedSequences, bestHits]) =>
-    addHashesToHits(renamedSequences, bestHits)
-  )
-  .then(bestHits => {
-    addMatchingAllelesToHits(alleleHashes, bestHits);
-    return bestHits;
+  .then(() => Promise.all([whenHitsStore, whenRenamedSequences]))
+  .then(([hitsStore, renamedSequences]) => {
+    const bestHits = hitsStore.best();
+    return {
+      bestHits,
+      alleleLengths,
+      genes,
+      profiles,
+      scheme,
+      commonGeneLengths,
+      renamedSequences
+    }
   })
-  .then(bestHits => ({
-    bestHits,
-    alleleLengths,
-    genes,
-    profiles,
-    scheme,
-    commonGeneLengths
-  }))
   .then(buildResults)
   .catch(logger("error"));
 
@@ -270,26 +278,19 @@ if (RUN_CORE_GENOME_MLST) {
     .catch(logger("error"));
 
   whenFinalBlastResultsCalculated = whenThirdRunStopped
-    .then(() => Promise.all([whenRenamedSequences, whenHitsStore]))
-    .then(([renamedSequences, hitsStore]) => [
-      renamedSequences,
-      hitsStore.best()
-    ])
-    .then(([renamedSequences, bestHits]) =>
-      addHashesToHits(renamedSequences, bestHits)
-    )
-    .then(bestHits => {
-      addMatchingAllelesToHits(alleleHashes, bestHits);
-      return bestHits;
+    .then(() => Promise.all([whenHitsStore, whenRenamedSequences]))
+    .then(([hitsStore, renamedSequences]) => {
+      const bestHits = hitsStore.best();
+      return {
+        bestHits,
+        alleleLengths,
+        genes,
+        profiles,
+        scheme,
+        commonGeneLengths,
+        renamedSequences
+      };
     })
-    .then(bestHits => ({
-      bestHits,
-      alleleLengths,
-      genes,
-      profiles,
-      scheme,
-      commonGeneLengths
-    }))
     .then(buildResults)
     .catch(logger("error"));
 
@@ -308,7 +309,14 @@ function formatOutput(results) {
   };
 }
 
-whenFinalBlastResultsCalculated
-  .then(formatOutput)
+Promise.all([whenFinalBlastResultsCalculated, whenHitsStore])
+  .then(([results, hitsStore]) => {
+    const output = formatOutput(results);
+    if (process.env.DEBUG) {
+      output.raw = results.raw;
+      output.bins = hitsStore._bins;
+    }
+    return output;
+  })
   .then(JSON.stringify)
   .then(console.log);

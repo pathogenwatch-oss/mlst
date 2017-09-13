@@ -13,9 +13,11 @@ COPY src /usr/local/mlst/src/
 
 RUN cd /usr/local/mlst && \
     /usr/local/bin/npm install && \
-    DEBUG='*' /usr/local/bin/node --max-old-space-size=4096 ./update-mlst-databases.js && \
+    DEBUG='*' /usr/local/bin/node --max-old-space-size=4096 ./update-cgMLST-databases.js && \
     chmod -R a+r /opt/mlst/databases # Built 13 September 2017
 
 USER biodocker
+
+ENV RUN_CORE_GENOME_MLST yes
 
 CMD [ "/usr/local/bin/node", "--max-old-space-size=4096", "/usr/local/mlst/index.js" ]

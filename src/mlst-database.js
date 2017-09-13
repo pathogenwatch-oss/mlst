@@ -13,20 +13,10 @@ const tmp = require("tmp");
 const { Transform } = require("stream");
 const { parseString } = require("xml2js");
 
-const { DeferredPromise, pmap, splitResolveReject } = require("./utils");
+const { DeferredPromise, pmap, splitResolveReject, parseAlleleName } = require("./utils");
 
 const MLST_DIR = "/opt/mlst/databases";
-
-function parseAlleleName(allele) {
-  try {
-    const matches = /^(.+)[-_\.]([0-9]+)$/.exec(allele);
-    const [gene, st] = matches.slice(1);
-    return { gene, st: Number(st) };
-  } catch (err) {
-    logger("error")(`Couldn't parse gene and st from ${allele}`);
-    throw err;
-  }
-}
+const ALLELE_LOOKUP_PREFIX_LENGTH = 20;
 
 function delay(wait) {
   return new Promise(resolve => {
@@ -66,8 +56,8 @@ class Metadata {
   _parseAlleleFile(alleleFilePath) {
     logger("trace:metadata:analyse")(`Analysing ${alleleFilePath}`);
     const seqStream = fasta.obj(alleleFilePath);
-    const lengths = {};
-    const hashes = {};
+    seqStream.pause()
+    const alleleLookup = {};
 
     const output = new DeferredPromise();
 
@@ -76,41 +66,71 @@ class Metadata {
       logger("trace:alleleDetails")(
         `Analysing ${allele} from ${alleleFilePath}`
       );
+      const sequence = seq.seq.toLowerCase();
       const length = seq.seq.length;
-      const hash = hasha(seq.seq.toLowerCase(), { algorithm: "sha1" });
+      const hash = hasha(sequence, { algorithm: "sha1" });
+      const prefix = sequence.slice(0, ALLELE_LOOKUP_PREFIX_LENGTH);
+      (alleleLookup[prefix] = alleleLookup[prefix] || []).push([allele, length, hash]);
 
-      lengths[allele] = length;
-      hashes[hash] = allele;
+      const reverseCompliment = _(sequence.split(""))
+        .reverse()
+        .map(b => ({ t: "a", a: "t", c: "g", g: "c" }[b] || b))
+        .value()
+        .join("");
+      const rcHash = hasha(reverseCompliment, { algorithm: "sha1" });
+      const rcPrefix = reverseCompliment.slice(0, ALLELE_LOOKUP_PREFIX_LENGTH);
+      (alleleLookup[rcPrefix] = alleleLookup[rcPrefix] || []).push([allele, length, rcHash]);
     });
 
     seqStream.on("end", () => {
       logger("debug:alleleDetails")(
-        `Finished reading ${_.keys(lengths)
-          .length} alleles from ${alleleFilePath}`
+        `Finished reading alleles from ${alleleFilePath}`
       );
-      output.resolve([lengths, hashes]);
+      output.resolve(alleleLookup);
     });
+    seqStream.resume()
 
     return output;
   }
 
   _parseAlleleDetails(allelePaths) {
-    const alleleFileResults = _.map(allelePaths, this._parseAlleleFile);
-    return Promise.all(alleleFileResults).then(results => {
+    const alleleLookups = _.map(allelePaths, this._parseAlleleFile);
+    return Promise.all(alleleLookups).then(results => {
+      const alleleLookup = {};
       const lengths = {};
-      const hashes = {};
 
-      _.forEach(results, result => {
-        const [singleGeneLengths, singleGeneHashes] = result;
-        _.assign(lengths, singleGeneLengths);
-        _.assign(hashes, singleGeneHashes);
+      // Results is a list of results from which look like:
+      // { prefixSequence: [[name, length, hash], [anotherName, length, hash]],
+      //   anotherPrefixSequence: [[name, length, hash]]}
+      // We want to join the results from each allele file so that given a bit
+      // of sequence, we can look up all of the alleles which it might match.
+      // The following line does this:
+      //
+      // > alleleLookup = {}
+      // {}
+      // > results = [{1: [2, 3]}, {4: [5]}, {1: [6,7], 8:[9]}]
+      // [ { '1': [ 2, 3 ] },
+      //   { '4': [ 5 ] },
+      //   { '1': [ 6, 7 ], '8': [ 9 ] } ]
+      // > ld.assignWith(alleleLookup, ...results, (a, b) => (a || []).concat(b))
+      // { '1': [ 2, 3, 6, 7 ], '4': [ 5 ], '8': [ 9 ] }
+
+      _.assignWith(alleleLookup, ...results, (a, b) => (a || []).concat(b));
+
+      // We then want to sort the alleleLookup so that longer alleles are
+      // listed first
+
+      _.forEach(_.keys(alleleLookup), allelePrefix => {
+        const alleleList = alleleLookup[allelePrefix];
+        _.forEach(alleleList, ([allele, length]) => (lengths[allele] = length));
+        alleleLookup[allelePrefix] = _.sortBy(alleleList, allele => -allele[1]);
       });
 
-      return { lengths, hashes };
+      return { alleleLookup, lengths };
     });
   }
 
-  _getMostCommonGeneLenghts(lengths) {
+  _getMostCommonGeneLengths(lengths) {
     const geneLengthCounts = {};
     _.forEach(_.toPairs(lengths), ([allele, length]) => {
       const { gene } = parseAlleleName(allele);
@@ -188,8 +208,9 @@ class Metadata {
       species,
       allelePaths,
       genes,
-      hashes: new DeferredPromise(),
       lengths: new DeferredPromise(),
+      alleleLookups: new DeferredPromise(),
+      alleleLookupPrefixLength: ALLELE_LOOKUP_PREFIX_LENGTH,
       profiles: this._getProfiles({ profilesPath, genes }),
       scheme,
       profilesPath,
@@ -198,18 +219,18 @@ class Metadata {
       url
     };
     this._parseAlleleDetails(allelePaths)
-      .then(({ hashes, lengths }) => {
+      .then(({ alleleLookups, lengths }) => {
         logger("trace:metadata:buildMetadata")(
           `Built hashes and lengths for ${species}`
         );
-        outputs.hashes.resolve(hashes);
+        outputs.alleleLookups.resolve(alleleLookups);
         outputs.lengths.resolve(lengths);
       })
       .catch("error:metadata:buildMetadata");
 
     const commonGeneLengths = outputs.commonGeneLengths;
     outputs.lengths
-      .then(this._getMostCommonGeneLenghts)
+      .then(this._getMostCommonGeneLengths)
       .then(commonGeneLengths.resolve.bind(commonGeneLengths))
       .then(() =>
         logger("trace:metadata:buildMetadata")(
@@ -221,6 +242,8 @@ class Metadata {
     // Some of the values of output are promises.  Instead,
     // we would like to return a Promise to an object which
     // doesn't have any Promises in it.
+    // i.e. turn {a: 1, b: Promise(2), c: Promise(3)}
+    //      into Promise({a: 1, b: 2, c: 3})
     return Promise.all(_.values(outputs)).then(values => {
       logger("trace:metadata:buildMetadata")(
         `Resolved promises for metadata for ${species}`
@@ -588,7 +611,8 @@ class PubMlstSevenGenomeSchemes extends Metadata {
 
     seqStream.on("data", seq => {
       seq.length = seq.seq.length; // eslint-disable-line no-param-reassign
-      sequences.push(seq);
+      // There's a Gono allele without any sequence data :( - ignore it
+      if (seq.length > 0) sequences.push(seq);
     });
 
     seqStream.on("end", () => {
