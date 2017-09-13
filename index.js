@@ -148,22 +148,22 @@ whenFirstRunResultCalculated.then(results => {
   logger("hits:first")(results);
 });
 
-function findGenesWithImperfectResults(results) {
-  const perfectResultFilter = ([, [firstMatch, ...otherMatches]]) => {
-    const perfect =
-      firstMatch && firstMatch.perfect && otherMatches.length === 0;
-    return !perfect;
+function findGenesWithInexactResults(results) {
+  const exactResultFilter = ([, [firstMatch, ...otherMatches]]) => {
+    const exact =
+      firstMatch && firstMatch.exact && otherMatches.length === 0;
+    return !exact;
   };
-  const imperfectGenes = _(results.raw)
+  const inexactGenes = _(results.raw)
     .toPairs()
-    .filter(perfectResultFilter)
+    .filter(exactResultFilter)
     .map(([gene]) => gene)
     .value();
-  return imperfectGenes;
+  return inexactGenes;
 }
 
-function getAlleleStreamsForGenes(imperfectGenes) {
-  return _.map(imperfectGenes, gene => alleleStreams[gene]);
+function getAlleleStreamsForGenes(inexactGenes) {
+  return _.map(inexactGenes, gene => alleleStreams[gene]);
 }
 
 function updateAlleleStreamLimits(streams, limit) {
@@ -174,15 +174,15 @@ function updateAlleleStreamLimits(streams, limit) {
 }
 
 const whenSecondRunStreams = whenFirstRunResultCalculated
-  .then(findGenesWithImperfectResults)
-  .then(imperfectGenes => {
-    logger("debug:genes:secondRun")(`Rerunning blast on ${imperfectGenes.length} genes`);
-    logger("trace:genes:secondRun")(imperfectGenes);
-    return imperfectGenes;
+  .then(findGenesWithInexactResults)
+  .then(inexactGenes => {
+    logger("debug:genes:secondRun")(`Rerunning blast on ${inexactGenes.length} genes`);
+    logger("trace:genes:secondRun")(inexactGenes);
+    return inexactGenes;
   })
   .then(getAlleleStreamsForGenes)
-  .then(alleleStreamsWithoutPerfectResults =>
-    updateAlleleStreamLimits(alleleStreamsWithoutPerfectResults, 50)
+  .then(alleleStreamsWithoutExactResults =>
+    updateAlleleStreamLimits(alleleStreamsWithoutExactResults, 50)
   )
   .catch(logger("error"));
 
@@ -239,14 +239,14 @@ if (RUN_CORE_GENOME_MLST) {
   // It would take too long to run Core Genome MLST using all of the
   // alleles so we skip this third run of Blast.
   const whenThirdRunStreams = whenSecondRunResultsCalculated
-    .then(findGenesWithImperfectResults)
-    .then(imperfectGenes => {
-      logger("debug:thirdRunGenes")(imperfectGenes);
-      return imperfectGenes;
+    .then(findGenesWithInexactResults)
+    .then(inexactGenes => {
+      logger("debug:thirdRunGenes")(inexactGenes);
+      return inexactGenes;
     })
     .then(getAlleleStreamsForGenes)
-    .then(alleleStreamsWithoutPerfectResults =>
-      updateAlleleStreamLimits(alleleStreamsWithoutPerfectResults, null)
+    .then(alleleStreamsWithoutExactResults =>
+      updateAlleleStreamLimits(alleleStreamsWithoutExactResults, null)
     )
     .catch(logger("error"));
 

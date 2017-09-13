@@ -3,8 +3,8 @@ const hasha = require("hasha");
 const logger = require("debug");
 
 function hashHit(hit, renamedSequences) {
-  const { contigStart, contigEnd, contigId, hash, perfect } = hit;
-  if (hash || perfect) return hit;
+  const { contigStart, contigEnd, contigId, hash, exact } = hit;
+  if (hash || exact) return hit;
   const sequence = renamedSequences[contigId].toLowerCase();
   const closestMatchingSequence = sequence.slice(contigStart, contigEnd + 1);
   hit.hash = hasha(closestMatchingSequence, { algorithm: "sha1" }); // eslint-disable-line no-param-reassign
@@ -29,13 +29,13 @@ class HitsStore {
       matchingBases,
       pident
     } = hit;
-    hit.perfect = // eslint-disable-line no-param-reassign
+    hit.exact = // eslint-disable-line no-param-reassign
       contigLength === this.alleleLengths[allele] &&
       contigLength === matchingBases;
     if (!this.longEnough(allele, contigLength)) return false;
     const bin = this.getBin(gene, contigStart, contigEnd, contigId);
     if (!this.closeEnough(pident, bin)) return false;
-    if (bin.perfect && !hit.perfect) return false;
+    if (bin.exact && !hit.exact) return false;
     this.updateBin(bin, hit);
     return true;
   }
@@ -112,7 +112,7 @@ class HitsStore {
     // A is a worse hit than B
     if (hitA.matchingBases < hitB.matchingBases) return true;
     // B matches the whole allele, which is better than a partial match
-    if (hitA.matchingBases === hitB.matchingBases && hitB.perfect) return true;
+    if (hitA.matchingBases === hitB.matchingBases && hitB.exact) return true;
     return false;
   }
 
@@ -121,11 +121,11 @@ class HitsStore {
     bin.contigStart = bin.contigStart < hit.contigStart ? bin.contigStart : hit.contigStart;
     bin.contigEnd = bin.contigEnd > hit.contigEnd ? bin.contigEnd : hit.contigEnd;
 
-    // If a bin has a perfect hit in it, we're only interested in other
-    // perfect hits.
-    if (hit.perfect && !bin.perfect) {
-      bin.perfect = true;
-      _.remove(bin.hits, h => !h.perfect);
+    // If a bin has a exact hit in it, we're only interested in other
+    // exact hits.
+    if (hit.exact && !bin.exact) {
+      bin.exact = true;
+      _.remove(bin.hits, h => !h.exact);
     }
 
     if (hit.pident > bin.bestPIdent) {

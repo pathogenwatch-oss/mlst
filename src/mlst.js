@@ -95,19 +95,19 @@ function buildResults(options = {}) {
       contigLength,
       gene,
       hash,
-      perfect,
+      exact,
       matchingBases,
       reverse,
       st
     } = hashHit(hit, renamedSequences);
     const modeGeneLength = Number(commonGeneLengths[gene]);
     const summary = {
-      id: perfect ? st : hash,
+      id: exact ? st : hash,
       contig,
       contigStart: reverse ? contigEnd : contigStart,
       contigEnd: reverse ? contigStart : contigEnd
     };
-    if (perfect) {
+    if (exact) {
       alleles[gene].push(summary);
     } else if (
       contigLength > 0.8 * alleleLengths[allele] &&
