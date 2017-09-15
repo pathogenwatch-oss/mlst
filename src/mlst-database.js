@@ -94,7 +94,11 @@ class Metadata {
   }
 
   _parseAlleleDetails(allelePaths) {
-    const lookupsForEachGene = _.map(allelePaths, this._parseAlleleFile);
+    let previous = Promise.resolve(null);
+    const lookupsForEachGene = _.map(allelePaths, path => {
+      previous = previous.then(() => this._parseAlleleFile(path))
+      return previous
+    });
     return Promise.all(lookupsForEachGene).then(results => {
       const alleleLookup = {};
       const lengths = {};
