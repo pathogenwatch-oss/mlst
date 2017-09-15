@@ -6,7 +6,7 @@ function hashHit(hit, renamedSequences) {
   const { contigStart, contigEnd, contigId, hash, exact } = hit;
   if (hash || exact) return hit;
   const sequence = renamedSequences[contigId].toLowerCase();
-  const closestMatchingSequence = sequence.slice(contigStart, contigEnd + 1);
+  const closestMatchingSequence = sequence.slice(contigStart - 1, contigEnd);
   hit.hash = hasha(closestMatchingSequence, { algorithm: "sha1" }); // eslint-disable-line no-param-reassign
   return hit
 }
