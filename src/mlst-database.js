@@ -94,8 +94,8 @@ class Metadata {
   }
 
   _parseAlleleDetails(allelePaths) {
-    const alleleLookups = _.map(allelePaths, this._parseAlleleFile);
-    return Promise.all(alleleLookups).then(results => {
+    const lookupsForEachGene = _.map(allelePaths, this._parseAlleleFile);
+    return Promise.all(lookupsForEachGene).then(results => {
       const alleleLookup = {};
       const lengths = {};
 
@@ -209,7 +209,7 @@ class Metadata {
       allelePaths,
       genes,
       lengths: new DeferredPromise(),
-      alleleLookups: new DeferredPromise(),
+      alleleLookup: new DeferredPromise(),
       alleleLookupPrefixLength: ALLELE_LOOKUP_PREFIX_LENGTH,
       profiles: this._getProfiles({ profilesPath, genes }),
       scheme,
@@ -219,11 +219,11 @@ class Metadata {
       url
     };
     this._parseAlleleDetails(allelePaths)
-      .then(({ alleleLookups, lengths }) => {
+      .then(({ alleleLookup, lengths }) => {
         logger("trace:metadata:buildMetadata")(
           `Built hashes and lengths for ${species}`
         );
-        outputs.alleleLookups.resolve(alleleLookups);
+        outputs.alleleLookup.resolve(alleleLookup);
         outputs.lengths.resolve(lengths);
       })
       .catch("error:metadata:buildMetadata");
