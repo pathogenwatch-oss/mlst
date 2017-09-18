@@ -1,1 +1,393 @@
-{"alleles":[["aroC","1"],["dnaN","1"],["hemD","1"],["hisD","1"],["purE","1"],["sucA","1"],["thrA","5"]],"raw":{"aroC":[{"blastResult":{"contig":"unitig_0|quiver","start":1487793,"end":1488293,"reverse":false,"matchingBases":501,"closestAllele":1,"closestAlleleLength":501},"exact":true,"length":501,"alleleLength":501,"hash":"5f2430b245982a5d656408130e427cce5170f0ab","allele":1,"modeGeneLength":501}],"dnaN":[{"blastResult":{"contig":"unitig_0|quiver","start":4791870,"end":4792370,"reverse":true,"matchingBases":501,"closestAllele":1,"closestAlleleLength":501},"exact":true,"length":501,"alleleLength":501,"hash":"bc4527c6363ba5242eacd156fd701eeba9188ff4","allele":1,"modeGeneLength":501}],"hemD":[{"blastResult":{"contig":"unitig_0|quiver","start":328467,"end":328898,"reverse":true,"matchingBases":432,"closestAllele":1,"closestAlleleLength":432},"exact":true,"length":432,"alleleLength":432,"hash":"d68d4d17ecd3e2676ffc22f2f5a3f34bbba4f119","allele":1,"modeGeneLength":432}],"hisD":[{"blastResult":{"contig":"unitig_0|quiver","start":1829007,"end":1829507,"reverse":true,"matchingBases":501,"closestAllele":1,"closestAlleleLength":501},"exact":true,"length":501,"alleleLength":501,"hash":"fb9a5694823ed17a775628d24ceca4f2aa91b188","allele":1,"modeGeneLength":501}],"purE":[{"blastResult":{"contig":"unitig_0|quiver","start":3333496,"end":3333894,"reverse":false,"matchingBases":399,"closestAllele":1,"closestAlleleLength":399},"exact":true,"length":399,"alleleLength":399,"hash":"e750009bc357a744ec10c32cb6d8fb9f55543d72","allele":1,"modeGeneLength":399}],"sucA":[{"blastResult":{"contig":"unitig_0|quiver","start":3146615,"end":3147115,"reverse":true,"matchingBases":501,"closestAllele":1,"closestAlleleLength":501},"exact":true,"length":501,"alleleLength":501,"hash":"bdbfc3704a1dfe743754115556f4fdf31643dea6","allele":1,"modeGeneLength":501}],"thrA":[{"blastResult":{"contig":"unitig_0|quiver","start":934194,"end":934694,"reverse":false,"matchingBases":497,"closestAllele":3,"closestAlleleLength":501},"exact":true,"length":501,"alleleLength":501,"hash":"9349b0b7c033e721aae9edfb7b633da7140b985e","allele":5,"modeGeneLength":501}]},"st":"1","code":"1_1_1_1_1_1_5","scheme":"senterica"}
+{
+  "alleles": {
+    "aroC": [
+      {
+        "id": 1,
+        "contig": "unitig_0|quiver",
+        "contigStart": 1487793,
+        "contigEnd": 1488293
+      }
+    ],
+    "dnaN": [
+      {
+        "id": 1,
+        "contig": "unitig_0|quiver",
+        "contigStart": 4792370,
+        "contigEnd": 4791870
+      }
+    ],
+    "hemD": [
+      {
+        "id": 1,
+        "contig": "unitig_0|quiver",
+        "contigStart": 328898,
+        "contigEnd": 328467
+      }
+    ],
+    "hisD": [
+      {
+        "id": 1,
+        "contig": "unitig_0|quiver",
+        "contigStart": 1829507,
+        "contigEnd": 1829007
+      }
+    ],
+    "purE": [
+      {
+        "id": 1,
+        "contig": "unitig_0|quiver",
+        "contigStart": 3333496,
+        "contigEnd": 3333894
+      }
+    ],
+    "sucA": [
+      {
+        "id": 1,
+        "contig": "unitig_0|quiver",
+        "contigStart": 3147115,
+        "contigEnd": 3146615
+      }
+    ],
+    "thrA": [
+      {
+        "id": 5,
+        "contig": "unitig_0|quiver",
+        "contigStart": 934194,
+        "contigEnd": 934694
+      }
+    ]
+  },
+  "code": "1_1_1_1_1_1_5",
+  "st": "1",
+  "scheme": "senterica",
+  "url": "http://mlst.warwick.ac.uk/mlst/dbs/Senterica",
+  "genes": [
+    "aroC",
+    "dnaN",
+    "hemD",
+    "hisD",
+    "purE",
+    "sucA",
+    "thrA"
+  ],
+  "raw": {
+    "hemD": [
+      {
+        "allele": "hemD-1",
+        "contigId": "contig_0",
+        "gene": "hemD",
+        "st": 1,
+        "alleleLength": 432,
+        "pident": 100,
+        "contigStart": 328467,
+        "contigEnd": 328898,
+        "alleleStart": 1,
+        "alleleEnd": 432,
+        "reverse": true,
+        "contigLength": 432,
+        "matchingBases": 432,
+        "exact": true,
+        "contig": "unitig_0|quiver"
+      }
+    ],
+    "thrA": [
+      {
+        "allele": "thrA-5",
+        "contigId": "contig_0",
+        "gene": "thrA",
+        "st": 5,
+        "alleleLength": 501,
+        "pident": 100,
+        "contigStart": 934194,
+        "contigEnd": 934694,
+        "contigLength": 501,
+        "matchingBases": 501,
+        "exact": true,
+        "contig": "unitig_0|quiver"
+      }
+    ],
+    "aroC": [
+      {
+        "allele": "aroC-1",
+        "contigId": "contig_0",
+        "gene": "aroC",
+        "st": 1,
+        "alleleLength": 501,
+        "pident": 100,
+        "contigStart": 1487793,
+        "contigEnd": 1488293,
+        "alleleStart": 1,
+        "alleleEnd": 501,
+        "reverse": false,
+        "contigLength": 501,
+        "matchingBases": 501,
+        "exact": true,
+        "contig": "unitig_0|quiver"
+      }
+    ],
+    "hisD": [
+      {
+        "allele": "hisD-1",
+        "contigId": "contig_0",
+        "gene": "hisD",
+        "st": 1,
+        "alleleLength": 501,
+        "pident": 100,
+        "contigStart": 1829007,
+        "contigEnd": 1829507,
+        "alleleStart": 1,
+        "alleleEnd": 501,
+        "reverse": true,
+        "contigLength": 501,
+        "matchingBases": 501,
+        "exact": true,
+        "contig": "unitig_0|quiver"
+      }
+    ],
+    "sucA": [
+      {
+        "allele": "sucA-1",
+        "contigId": "contig_0",
+        "gene": "sucA",
+        "st": 1,
+        "alleleLength": 501,
+        "pident": 100,
+        "contigStart": 3146615,
+        "contigEnd": 3147115,
+        "alleleStart": 1,
+        "alleleEnd": 501,
+        "reverse": true,
+        "contigLength": 501,
+        "matchingBases": 501,
+        "exact": true,
+        "contig": "unitig_0|quiver"
+      }
+    ],
+    "purE": [
+      {
+        "allele": "purE-1",
+        "contigId": "contig_0",
+        "gene": "purE",
+        "st": 1,
+        "alleleLength": 399,
+        "pident": 100,
+        "contigStart": 3333496,
+        "contigEnd": 3333894,
+        "alleleStart": 1,
+        "alleleEnd": 399,
+        "reverse": false,
+        "contigLength": 399,
+        "matchingBases": 399,
+        "exact": true,
+        "contig": "unitig_0|quiver"
+      }
+    ],
+    "dnaN": [
+      {
+        "allele": "dnaN-1",
+        "contigId": "contig_0",
+        "gene": "dnaN",
+        "st": 1,
+        "alleleLength": 501,
+        "pident": 100,
+        "contigStart": 4791870,
+        "contigEnd": 4792370,
+        "alleleStart": 1,
+        "alleleEnd": 501,
+        "reverse": true,
+        "contigLength": 501,
+        "matchingBases": 501,
+        "exact": true,
+        "contig": "unitig_0|quiver"
+      }
+    ]
+  },
+  "bins": [
+    {
+      "gene": "hemD",
+      "contigStart": 328467,
+      "contigEnd": 328898,
+      "contigId": "contig_0",
+      "hits": [
+        {
+          "allele": "hemD-1",
+          "contigId": "contig_0",
+          "gene": "hemD",
+          "st": 1,
+          "alleleLength": 432,
+          "pident": 100,
+          "contigStart": 328467,
+          "contigEnd": 328898,
+          "alleleStart": 1,
+          "alleleEnd": 432,
+          "reverse": true,
+          "contigLength": 432,
+          "matchingBases": 432,
+          "exact": true,
+          "contig": "unitig_0|quiver"
+        }
+      ],
+      "bestPIdent": 100,
+      "exact": true
+    },
+    {
+      "gene": "thrA",
+      "contigStart": 934194,
+      "contigEnd": 934694,
+      "contigId": "contig_0",
+      "hits": [
+        {
+          "allele": "thrA-5",
+          "contigId": "contig_0",
+          "gene": "thrA",
+          "st": 5,
+          "alleleLength": 501,
+          "pident": 100,
+          "contigStart": 934194,
+          "contigEnd": 934694,
+          "contigLength": 501,
+          "matchingBases": 501,
+          "exact": true,
+          "contig": "unitig_0|quiver"
+        }
+      ],
+      "bestPIdent": 100,
+      "exact": true
+    },
+    {
+      "gene": "aroC",
+      "contigStart": 1487793,
+      "contigEnd": 1488293,
+      "contigId": "contig_0",
+      "hits": [
+        {
+          "allele": "aroC-1",
+          "contigId": "contig_0",
+          "gene": "aroC",
+          "st": 1,
+          "alleleLength": 501,
+          "pident": 100,
+          "contigStart": 1487793,
+          "contigEnd": 1488293,
+          "alleleStart": 1,
+          "alleleEnd": 501,
+          "reverse": false,
+          "contigLength": 501,
+          "matchingBases": 501,
+          "exact": true,
+          "contig": "unitig_0|quiver"
+        }
+      ],
+      "bestPIdent": 100,
+      "exact": true
+    },
+    {
+      "gene": "hisD",
+      "contigStart": 1829007,
+      "contigEnd": 1829507,
+      "contigId": "contig_0",
+      "hits": [
+        {
+          "allele": "hisD-1",
+          "contigId": "contig_0",
+          "gene": "hisD",
+          "st": 1,
+          "alleleLength": 501,
+          "pident": 100,
+          "contigStart": 1829007,
+          "contigEnd": 1829507,
+          "alleleStart": 1,
+          "alleleEnd": 501,
+          "reverse": true,
+          "contigLength": 501,
+          "matchingBases": 501,
+          "exact": true,
+          "contig": "unitig_0|quiver"
+        }
+      ],
+      "bestPIdent": 100,
+      "exact": true
+    },
+    {
+      "gene": "sucA",
+      "contigStart": 3146615,
+      "contigEnd": 3147115,
+      "contigId": "contig_0",
+      "hits": [
+        {
+          "allele": "sucA-1",
+          "contigId": "contig_0",
+          "gene": "sucA",
+          "st": 1,
+          "alleleLength": 501,
+          "pident": 100,
+          "contigStart": 3146615,
+          "contigEnd": 3147115,
+          "alleleStart": 1,
+          "alleleEnd": 501,
+          "reverse": true,
+          "contigLength": 501,
+          "matchingBases": 501,
+          "exact": true,
+          "contig": "unitig_0|quiver"
+        }
+      ],
+      "bestPIdent": 100,
+      "exact": true
+    },
+    {
+      "gene": "purE",
+      "contigStart": 3333496,
+      "contigEnd": 3333894,
+      "contigId": "contig_0",
+      "hits": [
+        {
+          "allele": "purE-1",
+          "contigId": "contig_0",
+          "gene": "purE",
+          "st": 1,
+          "alleleLength": 399,
+          "pident": 100,
+          "contigStart": 3333496,
+          "contigEnd": 3333894,
+          "alleleStart": 1,
+          "alleleEnd": 399,
+          "reverse": false,
+          "contigLength": 399,
+          "matchingBases": 399,
+          "exact": true,
+          "contig": "unitig_0|quiver"
+        }
+      ],
+      "bestPIdent": 100,
+      "exact": true
+    },
+    {
+      "gene": "dnaN",
+      "contigStart": 4791870,
+      "contigEnd": 4792370,
+      "contigId": "contig_0",
+      "hits": [
+        {
+          "allele": "dnaN-1",
+          "contigId": "contig_0",
+          "gene": "dnaN",
+          "st": 1,
+          "alleleLength": 501,
+          "pident": 100,
+          "contigStart": 4791870,
+          "contigEnd": 4792370,
+          "alleleStart": 1,
+          "alleleEnd": 501,
+          "reverse": true,
+          "contigLength": 501,
+          "matchingBases": 501,
+          "exact": true,
+          "contig": "unitig_0|quiver"
+        }
+      ],
+      "bestPIdent": 100,
+      "exact": true
+    }
+  ]
+}
