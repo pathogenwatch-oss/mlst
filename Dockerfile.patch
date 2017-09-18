@@ -1,0 +1,11 @@
+FROM cgmlst:v5
+
+COPY patch-metadata.py /usr/local/mlst
+
+USER root
+
+RUN cd /usr/local/mlst && \
+    pip install biopython && \
+    python ./patch-metadata.py
+
+USER biodocker
