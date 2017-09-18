@@ -1,6 +1,6 @@
 ## Running MLST
 
-You can manually run seven genome as follows:
+You can manually run seven gene as follows:
 
 ```
 cat FILE_TO_BE_TYPED.fasta | docker run -i -e WGSA_ORGANISM_TAXID=ORGANISM_TAXID --rm mlst:VERSION
@@ -27,7 +27,7 @@ You can run Core Genome MLST by running the `cgmlst` container instead of the `m
 
 ## Building the containers
 
-7 genome MLST and Core Genome MLST use the same code but different databases 
+7 gene MLST and Core Genome MLST use the same code but different databases 
 which you build into two separate containers.  This means that you can 
 update the databases independently.  The following commands can be used 
 to build the containers.
@@ -66,7 +66,7 @@ Building the databases takes quite a long time so, if you don't need to test
 the database building code, it's better to pull a container with a database 
 and test the code there.
 
-To test 7 genome MLST:
+To test 7 gene MLST:
 
 ```
 docker run --rm -it -v $(pwd):/usr/local/mlst -w /usr/local/mlst/tests <EXISTING_DOCKER_CONTAINER> bash test.sh
