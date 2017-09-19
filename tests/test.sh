@@ -42,6 +42,16 @@ if [ -z "${RUN_CORE_GENOME_MLST:-}" ]; then
     saureus_novel 'WGSA_SPECIES_TAXID=1280'
     saureus_bad_names 'WGSA_SPECIES_TAXID=1280'
     typhi 'WGSA_SPECIES_TAXID=28901'
+    saureus_synthetic_ones 'WGSA_SPECIES_TAXID=1280'
+    saureus_synthetic_ones_duplicate 'WGSA_SPECIES_TAXID=1280'
+    saureus_synthetic_ones_duplicate_different_novel 'WGSA_SPECIES_TAXID=1280'
+    saureus_synthetic_ones_duplicate_identical_novel 'WGSA_SPECIES_TAXID=1280'
+    saureus_synthetic_ones_duplicate_one_novel 'WGSA_SPECIES_TAXID=1280'
+    saureus_synthetic_last 'WGSA_SPECIES_TAXID=1280'
+    saureus_synthetic_last_duplicate 'WGSA_SPECIES_TAXID=1280'
+    saureus_synthetic_last_duplicate_different_novel 'WGSA_SPECIES_TAXID=1280'
+    saureus_synthetic_last_duplicate_identical_novel 'WGSA_SPECIES_TAXID=1280'
+    saureus_synthetic_last_duplicate_one_novel 'WGSA_SPECIES_TAXID=1280'
 EOF
 
   find data/saureus_data/ -name '*.mlst.json' | while read results; do
