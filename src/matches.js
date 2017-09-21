@@ -1,14 +1,23 @@
 const _ = require("lodash");
 const hasha = require("hasha");
-const logger = require("debug");
+
+const { reverseCompliment } = require("./utils");
 
 function hashHit(hit, renamedSequences) {
-  const { contigStart, contigEnd, contigId, hash, exact } = hit;
+  const { contigStart, contigEnd, contigId, hash, exact, reverse } = hit;
   if (hash || exact) return hit;
   const sequence = renamedSequences[contigId].toLowerCase();
   const closestMatchingSequence = sequence.slice(contigStart - 1, contigEnd);
-  hit.hash = hasha(closestMatchingSequence, { algorithm: "sha1" }); // eslint-disable-line no-param-reassign
-  return hit
+  /* eslint-disable no-param-reassign */
+  if (reverse) {
+    hit.hash = hasha(reverseCompliment(closestMatchingSequence), {
+      algorithm: "sha1"
+    });
+  } else {
+    hit.hash = hasha(closestMatchingSequence, { algorithm: "sha1" });
+  }
+  /* eslint-enable no-param-reassign */
+  return hit;
 }
 
 class HitsStore {

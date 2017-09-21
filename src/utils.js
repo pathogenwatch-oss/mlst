@@ -203,6 +203,14 @@ function loadSequencesFromStream(inputStream) {
   return output;
 }
 
+function reverseCompliment(sequence) {
+  return _(sequence.split(""))
+    .reverse()
+    .map(b => ({ t: "a", a: "t", c: "g", g: "c" }[b] || b))
+    .value()
+    .join("");
+}
+
 module.exports = {
   parseAlleleName,
   pmap,
@@ -210,5 +218,6 @@ module.exports = {
   DeferredPromise,
   AsyncQueue,
   ObjectTap,
-  loadSequencesFromStream
+  loadSequencesFromStream,
+  reverseCompliment
 };

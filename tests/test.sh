@@ -35,13 +35,6 @@ if [ -z "${RUN_CORE_GENOME_MLST:-}" ]; then
       errors=$(($errors+1));
     fi
   done <<- 'EOF'
-    gono 'WGSA_GENUS_TAXID=482'
-    shaemolyticus 'WGSA_SPECIES_TAXID=1283'
-    saureus_duplicate 'WGSA_SPECIES_TAXID=1280'
-    saureus_missing 'WGSA_SPECIES_TAXID=1280'
-    saureus_novel 'WGSA_SPECIES_TAXID=1280'
-    saureus_bad_names 'WGSA_SPECIES_TAXID=1280'
-    typhi 'WGSA_SPECIES_TAXID=28901'
     saureus_synthetic_ones 'WGSA_SPECIES_TAXID=1280'
     saureus_synthetic_ones_duplicate 'WGSA_SPECIES_TAXID=1280'
     saureus_synthetic_ones_duplicate_different_novel 'WGSA_SPECIES_TAXID=1280'
@@ -52,6 +45,15 @@ if [ -z "${RUN_CORE_GENOME_MLST:-}" ]; then
     saureus_synthetic_last_duplicate_different_novel 'WGSA_SPECIES_TAXID=1280'
     saureus_synthetic_last_duplicate_identical_novel 'WGSA_SPECIES_TAXID=1280'
     saureus_synthetic_last_duplicate_one_novel 'WGSA_SPECIES_TAXID=1280'
+    saureus_synthetic_novel_reversed_duplicates 'WGSA_SPECIES_TAXID=1280'
+    saureus_synthetic_ones_reversed 'WGSA_SPECIES_TAXID=1280'
+    saureus_duplicate 'WGSA_SPECIES_TAXID=1280'
+    saureus_missing 'WGSA_SPECIES_TAXID=1280'
+    saureus_novel 'WGSA_SPECIES_TAXID=1280'
+    saureus_bad_names 'WGSA_SPECIES_TAXID=1280'
+    gono 'WGSA_GENUS_TAXID=482'
+    shaemolyticus 'WGSA_SPECIES_TAXID=1283'
+    typhi 'WGSA_SPECIES_TAXID=28901'
 EOF
 
   find data/saureus_data/ -name '*.mlst.json' | while read results; do

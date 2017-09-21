@@ -13,7 +13,7 @@ const tmp = require("tmp");
 const { Transform } = require("stream");
 const { parseString } = require("xml2js");
 
-const { DeferredPromise, pmap, splitResolveReject, parseAlleleName } = require("./utils");
+const { DeferredPromise, pmap, splitResolveReject, parseAlleleName, reverseCompliment } = require("./utils");
 
 const MLST_DIR = "/opt/mlst/databases";
 const ALLELE_LOOKUP_PREFIX_LENGTH = 20;
@@ -72,13 +72,9 @@ class Metadata {
       const prefix = sequence.slice(0, ALLELE_LOOKUP_PREFIX_LENGTH);
       (alleleLookup[prefix] = alleleLookup[prefix] || []).push([allele, length, hash]);
 
-      const reverseCompliment = _(sequence.split(""))
-        .reverse()
-        .map(b => ({ t: "a", a: "t", c: "g", g: "c" }[b] || b))
-        .value()
-        .join("");
-      const rcHash = hasha(reverseCompliment, { algorithm: "sha1" });
-      const rcPrefix = reverseCompliment.slice(0, ALLELE_LOOKUP_PREFIX_LENGTH);
+      const complimentarySequence = reverseCompliment(sequence);
+      const rcHash = hasha(complimentarySequence, { algorithm: "sha1" });
+      const rcPrefix = complimentarySequence.slice(0, ALLELE_LOOKUP_PREFIX_LENGTH);
       (alleleLookup[rcPrefix] = alleleLookup[rcPrefix] || []).push([allele, length, rcHash]);
     });
 
