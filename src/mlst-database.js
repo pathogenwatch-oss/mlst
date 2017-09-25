@@ -13,7 +13,7 @@ const tmp = require("tmp");
 const { Transform } = require("stream");
 const { parseString } = require("xml2js");
 
-const { DeferredPromise, pmap, splitResolveReject, parseAlleleName, reverseCompliment } = require("./utils");
+const { warn, fail, DeferredPromise, pmap, splitResolveReject, parseAlleleName, reverseCompliment } = require("./utils");
 
 const MLST_DIR = "/opt/mlst/databases";
 const ALLELE_LOOKUP_PREFIX_LENGTH = 20;
@@ -34,7 +34,9 @@ class SlowDownloader {
     logger("trace:SlowDownloader")(`Queueing ${options[0]}`);
     const response = this.latest.then(() => axios.get(...options));
     const wait = this.latest.then(() => delay(this.minWait));
-    response.then(() => logger("trace:SlowDownloader")(`Downloaded ${options[0]}`));
+    response
+      .then(() => logger("trace:SlowDownloader")(`Downloaded ${options[0]}`))
+      .catch(warn(`Problem downloading ${options[0]}`));
     this.latest = Promise.all([response, wait]);
     return response;
   }
@@ -226,7 +228,7 @@ class Metadata {
         outputs.alleleLookup.resolve(alleleLookup);
         outputs.lengths.resolve(lengths);
       })
-      .catch("error:metadata:buildMetadata");
+      .catch(warn(`Building metadata from ${species} / ${scheme} (parseAlleles)`));
 
     const commonGeneLengths = outputs.commonGeneLengths;
     outputs.lengths
@@ -237,7 +239,7 @@ class Metadata {
           `Found commonest gene lengths for ${species}`
         )
       )
-      .catch("error:metadata:buildMetadata");
+      .catch(warn(`Building metadata from ${species} / ${scheme} (commonGeneLengths)`));
 
     // Some of the values of output are promises.  Instead,
     // we would like to return a Promise to an object which
@@ -282,7 +284,7 @@ class PubMlstSevenGenomeSchemes extends Metadata {
     this.dataDir = dataDir;
     this.metadataPath = path.join(dataDir, "metadata.json");
     this.lock = new AsyncLock();
-    this.downloader = new SlowDownloader(1000);
+    this.downloader = new SlowDownloader(400);
   }
 
   read(taxid) {
@@ -332,8 +334,10 @@ class PubMlstSevenGenomeSchemes extends Metadata {
         logger("debug")(
           `Finished writing metadata for ${resolved.length} species`
         );
-        logger("error")(`There were ${rejected.length} errors`);
-        _.forEach(rejected, p => p.catch(logger("error")));
+        if (rejected.length > 0) {
+          _.forEach(rejected, p => p.catch(logger("error")));
+          Promise.resolve(`There were ${rejected.length} errors`).then(fail("Problems updating MLST databases"))
+        }
         return allSpeciesMlstMetadata;
       });
 
@@ -647,7 +651,7 @@ class BigsDbSchemes extends PubMlstSevenGenomeSchemes {
     super(dataDir);
     this.schemeDetailsPath = path.join(__dirname, "..", "cgMLST-schemes.json");
     this.metadataPath = path.join(dataDir, "metadataCore.json");
-    this.downloader = new SlowDownloader(1000);
+    this.downloader = new SlowDownloader(400);
   }
 
   update() {
@@ -771,7 +775,7 @@ class BigsDbSchemes extends PubMlstSevenGenomeSchemes {
         retrieved,
         schemeUrl
       )
-    );
+    ).catch(warn("Problem writing the metadata"));
 
     const whenWrittenMetadata = Promise.all([
       whenSchemeDetails,
