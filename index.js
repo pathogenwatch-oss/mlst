@@ -299,8 +299,13 @@ if (RUN_CORE_GENOME_MLST) {
 
 function formatOutput(results) {
   const { alleles, code, st } = results;
+  const sortedAlleles = _(alleles)
+    .toPairs()
+    .map(([gene, hits]) => [gene, _.sortBy(hits, "id")])
+    .fromPairs()
+    .value();
   return {
-    alleles,
+    alleles: sortedAlleles,
     code,
     st,
     scheme,
@@ -313,7 +318,12 @@ Promise.all([whenFinalBlastResultsCalculated, whenHitsStore])
   .then(([results, hitsStore]) => {
     const output = formatOutput(results);
     if (process.env.DEBUG) {
-      output.raw = results.raw;
+      const sortedRaw = _(results.raw)
+        .toPairs()
+        .map(([gene, hits]) => [gene, _.sortBy(hits, hit => hit.exact ? hit.st : hit.hash)])
+        .fromPairs()
+        .value();
+      output.raw = sortedRaw;
       output.bins = hitsStore._bins;
     }
     return output;

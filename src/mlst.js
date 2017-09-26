@@ -104,8 +104,8 @@ function buildResults(options = {}) {
     const summary = {
       id: exact ? st : hash,
       contig,
-      contigStart: reverse ? contigEnd : contigStart,
-      contigEnd: reverse ? contigStart : contigEnd
+      start: reverse ? contigEnd : contigStart,
+      end: reverse ? contigStart : contigEnd
     };
     if (exact) {
       alleles[gene].push(summary);

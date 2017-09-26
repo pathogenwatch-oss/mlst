@@ -2,12 +2,34 @@
 
 set -eu -o pipefail
 
-function getCode() {
-  cat | jq -r '.code'
-}
+function diffResults() {
+  original=$1
+  new=$2
+  original_st=$(echo "$original" | jq -r '.st')
+  new_st=$(echo "$new" | jq -r '.st')
+  if [[ "$original_st" != "$new_st" ]]; then
+    echo "Expected $original_st == $new_st" 1>&2
+    return 1
+  fi
 
-function getSt() {
-  cat | jq -r '.st'
+  original_code=$(echo "$original" | jq -r '.code')
+  new_code=$(echo "$new" | jq -r '.code')
+  if [[ "$original_code" != "$new_code" ]]; then
+    echo "Expected $original_code == $new_code" 1>&2
+    return 1
+  fi
+
+  original_alleles=$(echo "$original" | jq -r -S .alleles)
+  new_alleles=$(echo "$new" | jq -r -S .alleles)
+  differences=$(diff --suppress-common-lines --ignore-all-space --side-by-side <(echo "$original_alleles") <(echo "$new_alleles"))
+  differences_count=$(echo "$differences" | wc -l)
+  if [ "$differences_count" -gt 1 ]; then
+    echo "$differences_count differences between allele representation:" 1>&2
+    echo "$differences" | head -30 1>&2
+    return 1
+  fi
+
+  echo "Passed" 1>&2
 }
 
 function now() {
@@ -28,12 +50,10 @@ function runMlst() {
 errors=0
 if [ -z "${RUN_CORE_GENOME_MLST:-}" ]; then
   while read -r name arguments; do
-    actual_code=$(runMlst data/${name}.fasta $arguments | getCode);
-    expected_code=$(cat data/$name.json | getCode);
-    echo "[$(date)] $name $expected_code $actual_code";
-    if [[ "$actual_code" != "$expected_code" ]]; then
-      errors=$(($errors+1));
-    fi
+    echo "[$(date)] Testing $name" 2>&1;
+    results=$(runMlst data/${name}.fasta $arguments);
+    expected_results=$(cat data/$name.json);
+    diffResults "$expected_results" "$results" || errors=$(($errors+1))
   done <<- 'EOF'
     saureus_synthetic_ones 'WGSA_SPECIES_TAXID=1280'
     saureus_synthetic_ones_duplicate 'WGSA_SPECIES_TAXID=1280'
@@ -56,27 +76,21 @@ if [ -z "${RUN_CORE_GENOME_MLST:-}" ]; then
     typhi 'WGSA_SPECIES_TAXID=28901'
 EOF
 
-  find data/saureus_data/ -name '*.mlst.json' | while read results; do
-    sequence_name=$(basename $results '.mlst.json')
-    echo "[$(date)] Getting types for $sequence_name";
-    actual_st=$(runMlst data/saureus_data/$sequence_name 'WGSA_ORGANISM_TAXID=1280' | getSt);
-    expected_st=$(cat $results | getSt);
-    echo "[$(date)] $sequence_name $expected_st $actual_st";
-    if [[ "$actual_st" != "$expected_st" ]]; then
-      errors=$(($errors+1));
-    fi
+  find data/saureus_data/ -name '*.mlst.json' | while read results_path; do
+    sequence_name=$(basename $results_path '.mlst.json')
+    echo "[$(date)] Testing $sequence_name" 2>&1;
+    results=$(runMlst data/saureus_data/$sequence_name 'WGSA_ORGANISM_TAXID=1280');
+    expected_results=$(cat $results_path);
+    diffResults "$expected_results" "$results" || errors=$(($errors+1))
   done
   
 else
-  find data/saureus_data/ -name '*.cgMlst.json' | while read results; do
-    sequence_name=$(basename $results '.cgMlst.json')
-    echo "[$(date)] Getting types for $sequence_name";
-    actual_st=$(runMlst data/saureus_data/$sequence_name 'WGSA_ORGANISM_TAXID=1280 RUN_CORE_GENOME_MLST=yes' | getSt);
-    expected_st=$(cat $results | getSt);
-    echo "[$(date)] $sequence_name $expected_st $actual_st";
-    if [[ "$actual_st" != "$expected_st" ]]; then
-      errors=$(($errors+1));
-    fi
+  find data/saureus_data/ -name '*.cgMlst.json' | while read results_path; do
+    sequence_name=$(basename $results_path '.cgMlst.json')
+    echo "[$(date)] Testing $sequence_name" 2>&1;
+    results=$(runMlst data/saureus_data/$sequence_name 'WGSA_ORGANISM_TAXID=1280 RUN_CORE_GENOME_MLST=yes');
+    expected_results=$(cat $results_path);
+    diffResults "$expected_results" "$results" || errors=$(($errors+1))
   done
 fi
 
