@@ -85,6 +85,13 @@ EOF
   done
   
 else
+  name="saureus_synthetic_cg";
+  arguments='WGSA_ORGANISM_TAXID=1280 RUN_CORE_GENOME_MLST=yes';
+  echo "[$(date)] Testing $name" 2>&1;
+  results=$(runMlst data/${name}.fasta $arguments);
+  expected_results=$(cat data/$name.cgMlst.json);
+  diffResults "$expected_results" "$results" || errors=$(($errors+1))
+
   find data/saureus_data/ -name '*.cgMlst.json' | while read results_path; do
     sequence_name=$(basename $results_path '.cgMlst.json')
     echo "[$(date)] Testing $sequence_name" 2>&1;
