@@ -23884,6 +23884,7 @@
           "gene": "SAUR2863",
           "matchingBases": 1953,
           "pident": 100,
+          "reverse": false,
           "st": 1
         }
       ]
@@ -26689,6 +26690,7 @@
           "gene": "SAUR2492",
           "matchingBases": 810,
           "pident": 100,
+          "reverse": false,
           "st": 1
         }
       ]
@@ -27307,6 +27309,7 @@
           "gene": "SAUR1868",
           "matchingBases": 3825,
           "pident": 100,
+          "reverse": false,
           "st": 1
         }
       ]
@@ -28357,6 +28360,7 @@
           "gene": "SAUR2851",
           "matchingBases": 2622,
           "pident": 100,
+          "reverse": false,
           "st": 1
         }
       ]
@@ -31027,6 +31031,7 @@
           "gene": "SAUR2497",
           "matchingBases": 492,
           "pident": 100,
+          "reverse": false,
           "st": 1
         }
       ]
@@ -32698,6 +32703,7 @@
           "gene": "SAUR1855",
           "matchingBases": 2673,
           "pident": 100,
+          "reverse": true,
           "st": 1
         }
       ]
@@ -33532,6 +33538,7 @@
           "gene": "SAUR0238",
           "matchingBases": 104,
           "pident": 100,
+          "reverse": false,
           "st": 1
         }
       ]
@@ -35608,6 +35615,7 @@
           "gene": "SAUR1604",
           "matchingBases": 932,
           "pident": 100,
+          "reverse": false,
           "st": 1
         }
       ]
@@ -48267,6 +48275,7 @@
           "gene": "SAUR1839",
           "matchingBases": 1692,
           "pident": 100,
+          "reverse": false,
           "st": 438
         },
         {
@@ -50900,6 +50909,7 @@
           "gene": "SAUR0586",
           "matchingBases": 2721,
           "pident": 100,
+          "reverse": false,
           "st": 1
         }
       ]
@@ -58014,6 +58024,7 @@
           "gene": "SAUR2610",
           "matchingBases": 1548,
           "pident": 100,
+          "reverse": true,
           "st": 1
         },
         {
@@ -58027,6 +58038,7 @@
           "gene": "SAUR2610",
           "matchingBases": 1530,
           "pident": 100,
+          "reverse": true,
           "st": 535
         }
       ]
@@ -64693,6 +64705,7 @@
           "gene": "SAUR0710",
           "matchingBases": 1290,
           "pident": 100,
+          "reverse": false,
           "st": 103
         }
       ]
@@ -91003,6 +91016,7 @@
         "gene": "SAUR0238",
         "matchingBases": 104,
         "pident": 100,
+        "reverse": false,
         "st": 1
       }
     ],
@@ -96193,6 +96207,7 @@
         "gene": "SAUR0586",
         "matchingBases": 2721,
         "pident": 100,
+        "reverse": false,
         "st": 1
       }
     ],
@@ -98518,6 +98533,7 @@
         "gene": "SAUR0710",
         "matchingBases": 1290,
         "pident": 100,
+        "reverse": false,
         "st": 103
       }
     ],
@@ -112505,6 +112521,7 @@
         "gene": "SAUR1604",
         "matchingBases": 932,
         "pident": 100,
+        "reverse": false,
         "st": 1
       }
     ],
@@ -117274,6 +117291,7 @@
         "gene": "SAUR1855",
         "matchingBases": 2673,
         "pident": 100,
+        "reverse": true,
         "st": 1
       }
     ],
@@ -117513,6 +117531,7 @@
         "gene": "SAUR1868",
         "matchingBases": 3825,
         "pident": 100,
+        "reverse": false,
         "st": 1
       }
     ],
@@ -126171,6 +126190,7 @@
         "gene": "SAUR2492",
         "matchingBases": 810,
         "pident": 100,
+        "reverse": false,
         "st": 1
       }
     ],
@@ -126263,6 +126283,7 @@
         "gene": "SAUR2497",
         "matchingBases": 492,
         "pident": 100,
+        "reverse": false,
         "st": 1
       }
     ],
@@ -128358,6 +128379,7 @@
         "gene": "SAUR2610",
         "matchingBases": 1548,
         "pident": 100,
+        "reverse": true,
         "st": 1
       }
     ],
@@ -132599,6 +132621,7 @@
         "gene": "SAUR2851",
         "matchingBases": 2622,
         "pident": 100,
+        "reverse": false,
         "st": 1
       }
     ],
@@ -132823,6 +132846,7 @@
         "gene": "SAUR2863",
         "matchingBases": 1953,
         "pident": 100,
+        "reverse": false,
         "st": 1
       }
     ],
