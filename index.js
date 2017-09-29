@@ -301,7 +301,10 @@ function formatOutput(results) {
   const { alleles, code, st } = results;
   const sortedAlleles = _(alleles)
     .toPairs()
-    .map(([gene, hits]) => [gene, _.sortBy(hits, "id")])
+    .map(([gene, hits]) => [
+      gene,
+      _.sortBy(hits, [hit => String(hit.id), "contig", "start"])
+    ])
     .fromPairs()
     .value();
   return {
