@@ -2,6 +2,9 @@
 
 set -eu -o pipefail
 
+TEST_DIR="/tmp/mlst_test_results"
+mkdir -p $TEST_DIR
+
 function diffResults() {
   original=$1
   new=$2
@@ -54,6 +57,7 @@ if [ -z "${RUN_CORE_GENOME_MLST:-}" ]; then
     results=$(runMlst data/${name}.fasta $arguments);
     expected_results=$(cat data/$name.json);
     diffResults "$expected_results" "$results" || errors=$(($errors+1))
+    echo "$results" > "$TEST_DIR/$name.json"
   done <<- 'EOF'
     saureus_synthetic_ones 'WGSA_SPECIES_TAXID=1280'
     saureus_synthetic_ones_duplicate 'WGSA_SPECIES_TAXID=1280'
@@ -76,12 +80,14 @@ if [ -z "${RUN_CORE_GENOME_MLST:-}" ]; then
     typhi 'WGSA_SPECIES_TAXID=28901'
 EOF
 
+  mkdir -p "$TEST_DIR/saureus_data"
   find data/saureus_data/ -name '*.mlst.json' | while read results_path; do
     sequence_name=$(basename $results_path '.mlst.json')
     echo "[$(date)] Testing $sequence_name" 2>&1;
     results=$(runMlst data/saureus_data/$sequence_name 'WGSA_ORGANISM_TAXID=1280');
     expected_results=$(cat $results_path);
     diffResults "$expected_results" "$results" || errors=$(($errors+1))
+    echo "$results" > "$TEST_DIR/saureus_data/$sequence_name.mlst.json"
   done
   
 else
@@ -89,15 +95,18 @@ else
   arguments='WGSA_ORGANISM_TAXID=1280 RUN_CORE_GENOME_MLST=yes';
   echo "[$(date)] Testing $name" 2>&1;
   results=$(runMlst data/${name}.fasta $arguments);
-  expected_results=$(cat data/$name.cgMlst.json);
+  expected_results=$(cat data/$name.fasta.cgMlst.json);
   diffResults "$expected_results" "$results" || errors=$(($errors+1))
+  echo "$results" > "$TEST_DIR/$name.fasta.cgMlst.json"
 
+  mkdir -p "$TEST_DIR/saureus_data"
   find data/saureus_data/ -name '*.cgMlst.json' | while read results_path; do
     sequence_name=$(basename $results_path '.cgMlst.json')
     echo "[$(date)] Testing $sequence_name" 2>&1;
     results=$(runMlst data/saureus_data/$sequence_name 'WGSA_ORGANISM_TAXID=1280 RUN_CORE_GENOME_MLST=yes');
     expected_results=$(cat $results_path);
     diffResults "$expected_results" "$results" || errors=$(($errors+1))
+    echo "$results" > "$TEST_DIR/saureus_data/$sequence_name.cgMlst.json"
   done
 fi
 
