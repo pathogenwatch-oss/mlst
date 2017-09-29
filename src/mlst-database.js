@@ -72,12 +72,12 @@ class Metadata {
       const length = seq.seq.length;
       const hash = hasha(sequence, { algorithm: "sha1" });
       const prefix = sequence.slice(0, ALLELE_LOOKUP_PREFIX_LENGTH);
-      (alleleLookup[prefix] = alleleLookup[prefix] || []).push([allele, length, hash]);
+      (alleleLookup[prefix] = alleleLookup[prefix] || []).push([allele, length, hash, false]);
 
       const complimentarySequence = reverseCompliment(sequence);
       const rcHash = hasha(complimentarySequence, { algorithm: "sha1" });
       const rcPrefix = complimentarySequence.slice(0, ALLELE_LOOKUP_PREFIX_LENGTH);
-      (alleleLookup[rcPrefix] = alleleLookup[rcPrefix] || []).push([allele, length, rcHash]);
+      (alleleLookup[rcPrefix] = alleleLookup[rcPrefix] || []).push([allele, length, rcHash, true]);
     });
 
     seqStream.on("end", () => {
