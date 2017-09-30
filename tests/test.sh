@@ -56,7 +56,7 @@ if [ -z "${RUN_CORE_GENOME_MLST:-}" ]; then
     echo "[$(date)] Testing $name" 2>&1;
     results=$(runMlst data/${name}.fasta $arguments);
     expected_results=$(cat data/$name.json);
-    diffResults "$expected_results" "$results" || errors=$(($errors+1))
+    { diffResults "$expected_results" "$results"; } || { errors=$(($errors+1)) && echo "$errors errors so far"; }
     echo "$results" > "$TEST_DIR/$name.json"
   done <<- 'EOF'
     saureus_synthetic_ones 'WGSA_SPECIES_TAXID=1280'
@@ -86,7 +86,7 @@ EOF
     echo "[$(date)] Testing $sequence_name" 2>&1;
     results=$(runMlst data/saureus_data/$sequence_name 'WGSA_ORGANISM_TAXID=1280');
     expected_results=$(cat $results_path);
-    diffResults "$expected_results" "$results" || errors=$(($errors+1))
+    { diffResults "$expected_results" "$results"; } || { errors=$(($errors+1)) && echo "$errors errors so far"; }
     echo "$results" > "$TEST_DIR/saureus_data/$sequence_name.mlst.json"
   done
   
@@ -96,7 +96,7 @@ else
   echo "[$(date)] Testing $name" 2>&1;
   results=$(runMlst data/${name}.fasta $arguments);
   expected_results=$(cat data/$name.fasta.cgMlst.json);
-  diffResults "$expected_results" "$results" || errors=$(($errors+1))
+  { diffResults "$expected_results" "$results"; } || { errors=$(($errors+1)) && echo "$errors errors so far"; }
   echo "$results" > "$TEST_DIR/$name.fasta.cgMlst.json"
 
   mkdir -p "$TEST_DIR/saureus_data"
@@ -105,7 +105,7 @@ else
     echo "[$(date)] Testing $sequence_name" 2>&1;
     results=$(runMlst data/saureus_data/$sequence_name 'WGSA_ORGANISM_TAXID=1280 RUN_CORE_GENOME_MLST=yes');
     expected_results=$(cat $results_path);
-    diffResults "$expected_results" "$results" || errors=$(($errors+1))
+    { diffResults "$expected_results" "$results"; } || { errors=$(($errors+1)) && echo "$errors errors so far"; }
     echo "$results" > "$TEST_DIR/saureus_data/$sequence_name.cgMlst.json"
   done
 fi
