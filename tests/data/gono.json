@@ -3,25 +3,25 @@
     "abcZ": [
       {
         "contig": "ERR1549755.17328_4_44.4 Top Hit:WHO_V Neisseria gonorrhoeae WHO V",
-        "end": 10360,
+        "end": 9928,
         "id": 59,
-        "start": 9928
+        "start": 10360
       }
     ],
     "adk": [
       {
         "contig": "ERR1549755.17328_4_44.3 Top Hit:WHO_G Neisseria gonorrhoeae WHO G",
-        "end": 65279,
+        "end": 64815,
         "id": 39,
-        "start": 64815
+        "start": 65279
       }
     ],
     "aroE": [
       {
         "contig": "ERR1549755.17328_4_44.16 Top Hit:WHO_L Neisseria gonorrhoeae WHO L",
-        "end": 26028,
+        "end": 25539,
         "id": 67,
-        "start": 25539
+        "start": 26028
       }
     ],
     "fumC": [
@@ -35,9 +35,9 @@
     "gdh": [
       {
         "contig": "ERR1549755.17328_4_44.1 Top Hit:WHO_G Neisseria gonorrhoeae WHO G",
-        "end": 32139,
+        "end": 31639,
         "id": 148,
-        "start": 31639
+        "start": 32139
       }
     ],
     "pdhC": [
@@ -57,176 +57,7 @@
       }
     ]
   },
-  "bins": [
-    {
-      "bestPIdent": 100,
-      "contigEnd": 32139,
-      "contigId": "contig_0",
-      "contigStart": 31639,
-      "exact": true,
-      "gene": "gdh",
-      "hits": [
-        {
-          "allele": "gdh_148",
-          "alleleLength": 501,
-          "contig": "ERR1549755.17328_4_44.1 Top Hit:WHO_G Neisseria gonorrhoeae WHO G",
-          "contigEnd": 32139,
-          "contigId": "contig_0",
-          "contigLength": 501,
-          "contigStart": 31639,
-          "exact": true,
-          "gene": "gdh",
-          "matchingBases": 501,
-          "pident": 100,
-          "st": 148
-        }
-      ]
-    },
-    {
-      "bestPIdent": 100,
-      "contigEnd": 201756,
-      "contigId": "contig_0",
-      "contigStart": 201277,
-      "exact": true,
-      "gene": "pdhC",
-      "hits": [
-        {
-          "allele": "pdhC_153",
-          "alleleLength": 480,
-          "contig": "ERR1549755.17328_4_44.1 Top Hit:WHO_G Neisseria gonorrhoeae WHO G",
-          "contigEnd": 201756,
-          "contigId": "contig_0",
-          "contigLength": 480,
-          "contigStart": 201277,
-          "exact": true,
-          "gene": "pdhC",
-          "matchingBases": 480,
-          "pident": 100,
-          "st": 153
-        }
-      ]
-    },
-    {
-      "bestPIdent": 100,
-      "contigEnd": 65279,
-      "contigId": "contig_1",
-      "contigStart": 64815,
-      "exact": true,
-      "gene": "adk",
-      "hits": [
-        {
-          "allele": "adk_39",
-          "alleleLength": 465,
-          "contig": "ERR1549755.17328_4_44.3 Top Hit:WHO_G Neisseria gonorrhoeae WHO G",
-          "contigEnd": 65279,
-          "contigId": "contig_1",
-          "contigLength": 465,
-          "contigStart": 64815,
-          "exact": true,
-          "gene": "adk",
-          "matchingBases": 465,
-          "pident": 100,
-          "st": 39
-        }
-      ]
-    },
-    {
-      "bestPIdent": 100,
-      "contigEnd": 89016,
-      "contigId": "contig_1",
-      "contigStart": 88567,
-      "exact": true,
-      "gene": "pgm",
-      "hits": [
-        {
-          "allele": "pgm_65",
-          "alleleLength": 450,
-          "contig": "ERR1549755.17328_4_44.3 Top Hit:WHO_G Neisseria gonorrhoeae WHO G",
-          "contigEnd": 89016,
-          "contigId": "contig_1",
-          "contigLength": 450,
-          "contigStart": 88567,
-          "exact": true,
-          "gene": "pgm",
-          "matchingBases": 450,
-          "pident": 100,
-          "st": 65
-        }
-      ]
-    },
-    {
-      "bestPIdent": 100,
-      "contigEnd": 10360,
-      "contigId": "contig_4",
-      "contigStart": 9928,
-      "exact": true,
-      "gene": "abcZ",
-      "hits": [
-        {
-          "allele": "abcZ_59",
-          "alleleLength": 433,
-          "contig": "ERR1549755.17328_4_44.4 Top Hit:WHO_V Neisseria gonorrhoeae WHO V",
-          "contigEnd": 10360,
-          "contigId": "contig_4",
-          "contigLength": 433,
-          "contigStart": 9928,
-          "exact": true,
-          "gene": "abcZ",
-          "matchingBases": 433,
-          "pident": 100,
-          "st": 59
-        }
-      ]
-    },
-    {
-      "bestPIdent": 100,
-      "contigEnd": 70616,
-      "contigId": "contig_5",
-      "contigStart": 70152,
-      "exact": true,
-      "gene": "fumC",
-      "hits": [
-        {
-          "allele": "fumC_78",
-          "alleleLength": 465,
-          "contig": "ERR1549755.17328_4_44.7 Top Hit:WHO_K Neisseria gonorrhoeae WHO K",
-          "contigEnd": 70616,
-          "contigId": "contig_5",
-          "contigLength": 465,
-          "contigStart": 70152,
-          "exact": true,
-          "gene": "fumC",
-          "matchingBases": 465,
-          "pident": 100,
-          "st": 78
-        }
-      ]
-    },
-    {
-      "bestPIdent": 100,
-      "contigEnd": 26028,
-      "contigId": "contig_24",
-      "contigStart": 25539,
-      "exact": true,
-      "gene": "aroE",
-      "hits": [
-        {
-          "allele": "aroE_67",
-          "alleleLength": 490,
-          "contig": "ERR1549755.17328_4_44.16 Top Hit:WHO_L Neisseria gonorrhoeae WHO L",
-          "contigEnd": 26028,
-          "contigId": "contig_24",
-          "contigLength": 490,
-          "contigStart": 25539,
-          "exact": true,
-          "gene": "aroE",
-          "matchingBases": 490,
-          "pident": 100,
-          "st": 67
-        }
-      ]
-    }
-  ],
+  "bins": [],
   "code": "59_39_67_78_148_153_65",
   "genes": [
     "abcZ",
@@ -251,6 +82,7 @@
         "gene": "abcZ",
         "matchingBases": 433,
         "pident": 100,
+        "reverse": true,
         "st": 59
       }
     ],
@@ -267,6 +99,7 @@
         "gene": "adk",
         "matchingBases": 465,
         "pident": 100,
+        "reverse": true,
         "st": 39
       }
     ],
@@ -283,6 +116,7 @@
         "gene": "aroE",
         "matchingBases": 490,
         "pident": 100,
+        "reverse": true,
         "st": 67
       }
     ],
@@ -299,6 +133,7 @@
         "gene": "fumC",
         "matchingBases": 465,
         "pident": 100,
+        "reverse": false,
         "st": 78
       }
     ],
@@ -315,6 +150,7 @@
         "gene": "gdh",
         "matchingBases": 501,
         "pident": 100,
+        "reverse": true,
         "st": 148
       }
     ],
@@ -331,6 +167,7 @@
         "gene": "pdhC",
         "matchingBases": 480,
         "pident": 100,
+        "reverse": false,
         "st": 153
       }
     ],
@@ -347,6 +184,7 @@
         "gene": "pgm",
         "matchingBases": 450,
         "pident": 100,
+        "reverse": false,
         "st": 65
       }
     ]
