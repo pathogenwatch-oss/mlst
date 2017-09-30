@@ -2,7 +2,7 @@ const _ = require("lodash");
 const logger = require("debug");
 
 const { BigsDbSchemes } = require("./src/mlst-database");
-const { fail } = require("./src/utils");
+const { warn } = require("./src/utils");
 
 const DATA_DIR = "/opt/mlst/databases";
 
@@ -17,4 +17,4 @@ CgMlstMetadata.update()
     console.log(`\nUpdated the following cgMLST schemes:\n${schemeNameString}`);
     return data;
   })
-  .catch(fail("Problem updating the metadata"));
+  .catch(warn("Problem updating the metadata"));

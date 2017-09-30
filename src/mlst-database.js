@@ -336,7 +336,7 @@ class PubMlstSevenGenomeSchemes extends Metadata {
         );
         if (rejected.length > 0) {
           _.forEach(rejected, p => p.catch(logger("error")));
-          Promise.resolve(`There were ${rejected.length} errors`).then(fail("Problems updating MLST databases"))
+          Promise.resolve(`There were ${rejected.length} errors`).then(warn("Problems updating MLST databases"))
         }
         return allSpeciesMlstMetadata;
       });

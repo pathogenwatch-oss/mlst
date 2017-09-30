@@ -7,7 +7,7 @@ const {
   TAXDUMP_HOST,
   TAXDUMP_REMOTE_PATH
 } = require("./src/ncbi-taxid-lookup");
-const { fail } = require("./src/utils");
+const { warn } = require("./src/utils");
 
 const DATA_DIR = "/opt/mlst/databases";
 
@@ -29,4 +29,4 @@ whenBuiltSpeciesTaxidsMap
     console.log(`\nUpdated the following species:\n${speciesString}`);
     return data;
   })
-  .catch(fail("Problem updating the metadata"));
+  .catch(warn("Problem updating the metadata"));
