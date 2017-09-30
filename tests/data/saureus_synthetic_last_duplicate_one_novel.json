@@ -3,15 +3,15 @@
     "arcC": [
       {
         "contig": "37b7e5c90180eb187fd3662f89365adf0ddbcfb6and502_645_585_326_520_492_582",
-        "end": 3722,
-        "id": 502,
-        "start": 3267
-      },
-      {
-        "contig": "37b7e5c90180eb187fd3662f89365adf0ddbcfb6and502_645_585_326_520_492_582",
         "end": 466,
         "id": "37b7e5c90180eb187fd3662f89365adf0ddbcfb6",
         "start": 11
+      },
+      {
+        "contig": "37b7e5c90180eb187fd3662f89365adf0ddbcfb6and502_645_585_326_520_492_582",
+        "end": 3722,
+        "id": 502,
+        "start": 3267
       }
     ],
     "aroE": [
