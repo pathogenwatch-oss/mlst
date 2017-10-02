@@ -4,6 +4,30 @@ const fasta = require("bionode-fasta");
 const _ = require("lodash");
 const { Duplex } = require("stream");
 
+function warn(message) {
+  return err => {
+    logger("warning")(`${message}\n${err}`);
+  };
+}
+
+function fail(message) {
+  return err => {
+    logger("error")(`${message}\n${err}`);
+    process.exit(10);
+  };
+}
+
+function parseAlleleName(allele) {
+  try {
+    const matches = /^(.+)[-_\.]([0-9]+)$/.exec(allele);
+    const [gene, st] = matches.slice(1);
+    return { gene, st: Number(st) };
+  } catch (err) {
+    logger("error")(`Couldn't parse gene and st from ${allele}`);
+    throw err;
+  }
+}
+
 function pmap(promises, fn) {
   return _.map(promises, p => p.then(fn));
 }
@@ -192,11 +216,23 @@ function loadSequencesFromStream(inputStream) {
   return output;
 }
 
+function reverseCompliment(sequence) {
+  return _(sequence.split(""))
+    .reverse()
+    .map(b => ({ t: "a", a: "t", c: "g", g: "c" }[b] || b))
+    .value()
+    .join("");
+}
+
 module.exports = {
+  warn,
+  fail,
+  parseAlleleName,
   pmap,
   splitResolveReject,
   DeferredPromise,
   AsyncQueue,
   ObjectTap,
-  loadSequencesFromStream
+  loadSequencesFromStream,
+  reverseCompliment
 };

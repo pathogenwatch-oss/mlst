@@ -79,7 +79,9 @@ function parseNcbiNamesFile(namesFileStream) {
     es.map((line, callback) => {
       const row = _(line).split("|").map(_.trim).value();
       const [taxid, species, __, rowType] = row.slice(0, 4); // eslint-disable-line no-unused-vars
-      if (rowType === "scientific name") {
+      if (
+        _.includes(["equivalent name", "genbank synonym", "scientific name", "synonym"], rowType)
+      ) {
         callback(null, [taxid, species]);
       } else {
         callback();
@@ -97,33 +99,28 @@ function parseNcbiNamesFile(namesFileStream) {
   return output;
 }
 
-function mapTaxIdToSpecies(taxIdSpeciesList) {
-  logger("debug:mapTaxIdToSpecies")(
+function mapSpeciesToTaxids(taxIdSpeciesList) {
+  logger("debug:mapSpeciesToTaxid")(
     `Looking for duplicates among ${taxIdSpeciesList.length} species`
   );
-  const taxIdsMap = {};
+  const speciesTaxidMap = {};
 
   _.forEach(taxIdSpeciesList, ([taxId, species]) => {
-    if (taxIdsMap[taxId]) {
-      throw new Error(
-        `${species} and ${taxIdsMap[taxId]} both have TaxId '${taxId}'`
-      );
-    }
-    taxIdsMap[taxId] = species;
+    (speciesTaxidMap[species] = speciesTaxidMap[species] || []).push(taxId);
   });
 
-  return taxIdsMap;
+  return speciesTaxidMap;
 }
 
-function buildTaxidSpeciesMap(host, remotePath) {
+function buildSpeciesTaxidMap(host, remotePath) {
   const download = ftpDownload(host, remotePath);
   // const download = fakeDownload("/tmp/names.tar.gz");
   // const download = updateTaxDumpCache('/tmp/names.tar.gz', host, remotePath).then(fakeDownload)
-  const taxIdsSpeciesMap = download
+  const speciesTaxIdsMap = download
     .then(extractNcbiNamesFile)
     .then(parseNcbiNamesFile)
-    .then(mapTaxIdToSpecies);
-  return taxIdsSpeciesMap;
+    .then(mapSpeciesToTaxids);
+  return speciesTaxIdsMap;
 }
 
-module.exports = { buildTaxidSpeciesMap, TAXDUMP_HOST, TAXDUMP_REMOTE_PATH };
+module.exports = { buildSpeciesTaxidMap, TAXDUMP_HOST, TAXDUMP_REMOTE_PATH };

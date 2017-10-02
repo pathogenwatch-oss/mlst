@@ -13,23 +13,32 @@ const tmp = require("tmp");
 const { Transform } = require("stream");
 const { parseString } = require("xml2js");
 
-const {
-  DeferredPromise,
-  AsyncQueue,
-  pmap,
-  splitResolveReject
-} = require("./utils");
+const { warn, fail, DeferredPromise, pmap, splitResolveReject, parseAlleleName, reverseCompliment } = require("./utils");
 
 const MLST_DIR = "/opt/mlst/databases";
+const ALLELE_LOOKUP_PREFIX_LENGTH = 20;
 
-function parseAlleleName(allele) {
-  try {
-    const matches = /^(.+)[-_\.]([0-9]+)$/.exec(allele);
-    const [gene, st] = matches.slice(1);
-    return { gene, st: Number(st) };
-  } catch (err) {
-    logger("error")(`Couldn't parse gene and st from ${allele}`);
-    throw err;
+function delay(wait) {
+  return new Promise(resolve => {
+    setTimeout(resolve, wait);
+  });
+}
+
+class SlowDownloader {
+  constructor(minWait = 1000) {
+    this.minWait = minWait; // ms
+    this.latest = Promise.resolve(null);
+  }
+
+  get(...options) {
+    logger("trace:SlowDownloader")(`Queueing ${options[0]}`);
+    const response = this.latest.then(() => axios.get(...options));
+    const wait = this.latest.then(() => delay(this.minWait));
+    response
+      .then(() => logger("trace:SlowDownloader")(`Downloaded ${options[0]}`))
+      .catch(warn(`Problem downloading ${options[0]}`));
+    this.latest = Promise.all([response, wait]);
+    return response;
   }
 }
 
@@ -49,8 +58,8 @@ class Metadata {
   _parseAlleleFile(alleleFilePath) {
     logger("trace:metadata:analyse")(`Analysing ${alleleFilePath}`);
     const seqStream = fasta.obj(alleleFilePath);
-    const lengths = {};
-    const hashes = {};
+    seqStream.pause()
+    const alleleLookup = {};
 
     const output = new DeferredPromise();
 
@@ -59,41 +68,71 @@ class Metadata {
       logger("trace:alleleDetails")(
         `Analysing ${allele} from ${alleleFilePath}`
       );
+      const sequence = seq.seq.toLowerCase();
       const length = seq.seq.length;
-      const hash = hasha(seq.seq.toLowerCase(), { algorithm: "sha1" });
+      const hash = hasha(sequence, { algorithm: "sha1" });
+      const prefix = sequence.slice(0, ALLELE_LOOKUP_PREFIX_LENGTH);
+      (alleleLookup[prefix] = alleleLookup[prefix] || []).push([allele, length, hash, false]);
 
-      lengths[allele] = length;
-      hashes[hash] = allele;
+      const complimentarySequence = reverseCompliment(sequence);
+      const rcHash = hasha(complimentarySequence, { algorithm: "sha1" });
+      const rcPrefix = complimentarySequence.slice(0, ALLELE_LOOKUP_PREFIX_LENGTH);
+      (alleleLookup[rcPrefix] = alleleLookup[rcPrefix] || []).push([allele, length, rcHash, true]);
     });
 
     seqStream.on("end", () => {
       logger("debug:alleleDetails")(
-        `Finished reading ${_.keys(lengths)
-          .length} alleles from ${alleleFilePath}`
+        `Finished reading alleles from ${alleleFilePath}`
       );
-      output.resolve([lengths, hashes]);
+      output.resolve(alleleLookup);
     });
+    seqStream.resume()
 
     return output;
   }
 
   _parseAlleleDetails(allelePaths) {
-    const alleleFileResults = _.map(allelePaths, this._parseAlleleFile);
-    return Promise.all(alleleFileResults).then(results => {
+    let previous = Promise.resolve(null);
+    const lookupsForEachGene = _.map(allelePaths, path => {
+      previous = previous.then(() => this._parseAlleleFile(path))
+      return previous
+    });
+    return Promise.all(lookupsForEachGene).then(results => {
+      const alleleLookup = {};
       const lengths = {};
-      const hashes = {};
 
-      _.forEach(results, result => {
-        const [singleGeneLengths, singleGeneHashes] = result;
-        _.assign(lengths, singleGeneLengths);
-        _.assign(hashes, singleGeneHashes);
+      // Results is a list of results from which look like:
+      // { prefixSequence: [[name, length, hash], [anotherName, length, hash]],
+      //   anotherPrefixSequence: [[name, length, hash]]}
+      // We want to join the results from each allele file so that given a bit
+      // of sequence, we can look up all of the alleles which it might match.
+      // The following line does this:
+      //
+      // > alleleLookup = {}
+      // {}
+      // > results = [{1: [2, 3]}, {4: [5]}, {1: [6,7], 8:[9]}]
+      // [ { '1': [ 2, 3 ] },
+      //   { '4': [ 5 ] },
+      //   { '1': [ 6, 7 ], '8': [ 9 ] } ]
+      // > ld.assignWith(alleleLookup, ...results, (a, b) => (a || []).concat(b))
+      // { '1': [ 2, 3, 6, 7 ], '4': [ 5 ], '8': [ 9 ] }
+
+      _.assignWith(alleleLookup, ...results, (a, b) => (a || []).concat(b));
+
+      // We then want to sort the alleleLookup so that longer alleles are
+      // listed first
+
+      _.forEach(_.keys(alleleLookup), allelePrefix => {
+        const alleleList = alleleLookup[allelePrefix];
+        _.forEach(alleleList, ([allele, length]) => (lengths[allele] = length));
+        alleleLookup[allelePrefix] = _.sortBy(alleleList, allele => -allele[1]);
       });
 
-      return { lengths, hashes };
+      return { alleleLookup, lengths };
     });
   }
 
-  _getMostCommonGeneLenghts(lengths) {
+  _getMostCommonGeneLengths(lengths) {
     const geneLengthCounts = {};
     _.forEach(_.toPairs(lengths), ([allele, length]) => {
       const { gene } = parseAlleleName(allele);
@@ -171,8 +210,9 @@ class Metadata {
       species,
       allelePaths,
       genes,
-      hashes: new DeferredPromise(),
       lengths: new DeferredPromise(),
+      alleleLookup: new DeferredPromise(),
+      alleleLookupPrefixLength: ALLELE_LOOKUP_PREFIX_LENGTH,
       profiles: this._getProfiles({ profilesPath, genes }),
       scheme,
       profilesPath,
@@ -181,29 +221,31 @@ class Metadata {
       url
     };
     this._parseAlleleDetails(allelePaths)
-      .then(({ hashes, lengths }) => {
+      .then(({ alleleLookup, lengths }) => {
         logger("trace:metadata:buildMetadata")(
           `Built hashes and lengths for ${species}`
         );
-        outputs.hashes.resolve(hashes);
+        outputs.alleleLookup.resolve(alleleLookup);
         outputs.lengths.resolve(lengths);
       })
-      .catch("error:metadata:buildMetadata");
+      .catch(warn(`Building metadata from ${species} / ${scheme} (parseAlleles)`));
 
     const commonGeneLengths = outputs.commonGeneLengths;
     outputs.lengths
-      .then(this._getMostCommonGeneLenghts)
+      .then(this._getMostCommonGeneLengths)
       .then(commonGeneLengths.resolve.bind(commonGeneLengths))
       .then(() =>
         logger("trace:metadata:buildMetadata")(
           `Found commonest gene lengths for ${species}`
         )
       )
-      .catch("error:metadata:buildMetadata");
+      .catch(warn(`Building metadata from ${species} / ${scheme} (commonGeneLengths)`));
 
     // Some of the values of output are promises.  Instead,
     // we would like to return a Promise to an object which
     // doesn't have any Promises in it.
+    // i.e. turn {a: 1, b: Promise(2), c: Promise(3)}
+    //      into Promise({a: 1, b: 2, c: 3})
     return Promise.all(_.values(outputs)).then(values => {
       logger("trace:metadata:buildMetadata")(
         `Resolved promises for metadata for ${species}`
@@ -219,35 +261,43 @@ class Metadata {
         `Writing metadata for ${species} to ${outPath}`
       );
       const jsonData = JSON.stringify(data);
-      fs.writeFile(outPath, jsonData, err => {
-        if (err) logger("error")(err);
-        logger("debug:metadata:write")(
-          `Wrote metadata for ${species} to ${outPath}`
-        );
+      return new Promise((resolve, reject) => {
+        fs.writeFile(outPath, jsonData, { mode: 0o644 }, err => {
+          if (err) {
+            logger("error")(err);
+            reject(err);
+          }
+          logger("debug:metadata:write")(
+            `Wrote metadata for ${species} to ${outPath}`
+          );
+          resolve(data);
+        });
       });
-      return data;
     });
   }
 }
 
-class PubMlst extends Metadata {
+class PubMlstSevenGenomeSchemes extends Metadata {
   constructor(dataDir = MLST_DIR) {
     super();
-    const CONCURRENCY = 5;
     this.PUBMLST_URL = "https://pubmlst.org/data/dbases.xml";
-    this.downloadTokens = new AsyncQueue({ contents: _.range(CONCURRENCY) });
     this.dataDir = dataDir;
     this.metadataPath = path.join(dataDir, "metadata.json");
     this.lock = new AsyncLock();
+    this.downloader = new SlowDownloader(400);
   }
 
-  read(speciesName) {
+  read(taxid) {
     const rootMetadata = require(this.metadataPath);
-    const speciesMetadataPath = rootMetadata[speciesName].metadataPath;
-    return require(speciesMetadataPath);
+    try {
+      const speciesMetadataPath = rootMetadata[String(taxid)].metadataPath;
+      return require(speciesMetadataPath);
+    } catch (err) {
+      return undefined;
+    }
   }
 
-  update() {
+  update(speciesTaxIdsMap = {}) {
     const allSpeciesMlstMetadata = {};
     return this._getPubMlstMetadata(this.PUBMLST_URL).then(pubMlstMetadata => {
       const latestMetadata = this._latestMetadata(pubMlstMetadata);
@@ -258,11 +308,24 @@ class PubMlst extends Metadata {
       const writtenMetadata = pmap(updatedMetadata, data =>
         this.lock.acquire(this.metadataPath, () => {
           const { species } = data;
-          allSpeciesMlstMetadata[species] = data;
-          return this._writeRootMetadata(
-            allSpeciesMlstMetadata,
-            this.metadataPath
-          );
+          let taxids;
+          if (species.slice(-5) === " spp.") {
+            const genus = species.slice(0,-5);
+            taxids = speciesTaxIdsMap[genus];
+          } else {
+            taxids = speciesTaxIdsMap[species];
+          }
+          if (taxids && taxids.length > 0) {
+            _.forEach(taxids, taxid => {
+              data.taxid = taxid; // eslint-disable-line no-param-reassign
+              allSpeciesMlstMetadata[taxid] = data;
+            });
+            return this._writeRootMetadata(
+              allSpeciesMlstMetadata,
+              this.metadataPath
+            );
+          }
+          return Promise.reject(`Could not find taxid for ${species}`);
         })
       );
 
@@ -271,8 +334,10 @@ class PubMlst extends Metadata {
         logger("debug")(
           `Finished writing metadata for ${resolved.length} species`
         );
-        logger("error")(`There were ${rejected.length} errors`);
-        _.forEach(rejected, p => p.catch(logger("error")));
+        if (rejected.length > 0) {
+          _.forEach(rejected, p => p.catch(logger("error")));
+          Promise.resolve(`There were ${rejected.length} errors`).then(warn("Problems updating MLST databases"))
+        }
         return allSpeciesMlstMetadata;
       });
 
@@ -312,7 +377,7 @@ class PubMlst extends Metadata {
   _writeRootMetadata(metadata, outPath) {
     const jsonData = JSON.stringify(metadata);
     const output = new DeferredPromise();
-    fs.writeFile(outPath, jsonData, err => {
+    fs.writeFile(outPath, jsonData, { mode: 0o644 }, err => {
       if (err) output.reject(err);
       logger("debug:metadataWrite")(`Wrote metadata to ${outPath}`);
       output.resolve(outPath);
@@ -389,40 +454,19 @@ class PubMlst extends Metadata {
     logger("trace:pubmlst:download")(
       `In queue to download ${url} to ${downloadPath}`
     );
-    return this.downloadTokens
-      .shift()
-      .then(token => {
-        logger("trace:pubmlst:download")(
-          `Downloading ${url} to ${downloadPath} (${token})`
-        );
-        return axios
-          .get(url, { responseType: "stream" })
-          .then(response => ({ token, response }));
-      })
-      .then(({ token, response }) => {
+    return this.downloader.get(url, { responseType: "stream" })
+      .then(response => {
         const outstream = fs.createWriteStream(downloadPath, { mode: 0o644 });
         response.data.pipe(outstream);
         return new Promise(resolve => {
           outstream.on("close", () => {
-            logger("trace:pubmlst:download")(
-              `Downloaded ${url} to ${downloadPath} (${token})`
+            logger("trace:pubmlst:downloaded")(
+              `Downloaded ${url} to ${downloadPath})`
             );
-            resolve({ token, downloadPath });
+            resolve(downloadPath);
           });
         });
       })
-      .then(
-        response =>
-          new Promise(resolve => {
-            setTimeout(() => {
-              resolve(response);
-            }, 1000);
-          })
-      )
-      .then(({ token }) => {
-        this.downloadTokens.push(token);
-        return downloadPath;
-      });
   }
 
   _downloadSpecies(speciesMetadata, dataDir) {
@@ -469,8 +513,7 @@ class PubMlst extends Metadata {
   }
 
   _getPubMlstMetadata(url) {
-    return axios
-      .get(url)
+    return this.downloader.get(url)
       .then(
         response =>
           new Promise((resolve, reject) => {
@@ -572,7 +615,8 @@ class PubMlst extends Metadata {
 
     seqStream.on("data", seq => {
       seq.length = seq.seq.length; // eslint-disable-line no-param-reassign
-      sequences.push(seq);
+      // There's a Gono allele without any sequence data :( - ignore it
+      if (seq.length > 0) sequences.push(seq);
     });
 
     seqStream.on("end", () => {
@@ -580,7 +624,7 @@ class PubMlst extends Metadata {
         // eslint-disable-line max-params
         if (err) output.reject(err);
         const { sortedSequences } = sortSequences();
-        const tempOutputfile = fs.createWriteStream(tempFastaPath);
+        const tempOutputfile = fs.createWriteStream(tempFastaPath, { mode: 0o644 });
         const fastaStream = new FastaString();
         fastaStream.pipe(tempOutputfile);
         _.forEach(sortedSequences, s => {
@@ -602,4 +646,185 @@ class PubMlst extends Metadata {
   }
 }
 
-module.exports = { parseAlleleName, PubMlst, FastaString };
+class BigsDbSchemes extends PubMlstSevenGenomeSchemes {
+  constructor(dataDir = MLST_DIR) {
+    super(dataDir);
+    this.schemeDetailsPath = path.join(__dirname, "..", "cgMLST-schemes.json");
+    this.metadataPath = path.join(dataDir, "metadataCore.json");
+    this.downloader = new SlowDownloader(400);
+  }
+
+  update() {
+    let schemeDetails;
+    try {
+      schemeDetails = require(this.schemeDetailsPath);
+    } catch (err) {
+      logger('debug')(`Couldn't load details of Core Genome MLST schemes from ${this.schemeDetailsPath}`);
+      return Promise.resolve({});
+    }
+
+    const allSpeciesMlstMetadata = this._getExistingMetadata();
+    const existingUrlMap = _(allSpeciesMlstMetadata)
+      .toPairs()
+      .map(([taxid, { url }]) => [url, Number(taxid)])
+      .uniqBy(([url]) => url)
+      .fromPairs()
+      .value();
+
+    let previousSchemeUpdated = Promise.resolve(null);
+    _.forEach(schemeDetails, ({ taxid, url }) => {
+      const schemeName = `cgMLST_${taxid}`;
+      previousSchemeUpdated = previousSchemeUpdated.then(() => {
+        const identicalSchemeTaxid = existingUrlMap[url];
+        if (identicalSchemeTaxid) {
+          return this._linkToExistingMetadata(
+            schemeName,
+            taxid,
+            identicalSchemeTaxid
+          );
+        }
+        return this._updateScheme(schemeName, taxid, url).then(response => {
+          existingUrlMap[url] = taxid;
+          return response;
+        });
+      });
+    });
+    return previousSchemeUpdated.then(() => this._getExistingMetadata());
+  }
+
+  _getExistingMetadata() {
+    try {
+      return require(this.metadataPath);
+    } catch (err) {
+      logger('debug')(`Couldn't load metdata from ${this.metadataPath}:\n${err}`)
+      return {};
+    }
+  }
+
+  _linkToExistingMetadata(name, taxid, identicalSchemeTaxid) {
+    const allSpeciesMlstMetadata = this._getExistingMetadata();
+    const schemeData = allSpeciesMlstMetadata[String(identicalSchemeTaxid)];
+    const existingMetadataPath = schemeData.metadataPath;
+    const speciesMetadata = require(existingMetadataPath);
+    speciesMetadata.species = name;
+    speciesMetadata.scheme = name;
+    const speciesDir = this._speciesDir(name, this.dataDir);
+    const speciesDataPath = path.join(speciesDir, "metadata.json");
+
+    const whenSpeciesDir = mkdirp(speciesDir, { mode: 0o755 });
+    const whenWrittenSpeciesData = whenSpeciesDir.then(
+      () =>
+        new Promise((resolve, reject) => {
+          const jsonData = JSON.stringify(speciesMetadata);
+          fs.writeFile(speciesDataPath, jsonData, { mode: 0o644 }, err => {
+            if (err) reject(err);
+            resolve();
+          });
+        })
+    );
+
+    const whenWrittenMetadata = whenWrittenSpeciesData
+      .then(() => {
+        const newSchemeData = _.cloneDeep(schemeData);
+        newSchemeData.name = name; // eslint-disable-line no-param-reassign
+        newSchemeData.metadataPath = speciesDataPath; // eslint-disable-line no-param-reassign
+        allSpeciesMlstMetadata[taxid] = newSchemeData;
+        return this._writeRootMetadata(
+          allSpeciesMlstMetadata,
+          this.metadataPath
+        );
+      })
+    .then(allSpeciesMlstMetadata);
+
+    return whenWrittenMetadata
+  }
+
+  _updateScheme(name, taxid, schemeUrl) {
+    const whenSchemeDetails = this.downloader.get(schemeUrl)
+      .then(r => r.data)
+      .then(data => {
+        data.url = schemeUrl; // eslint-disable-line no-param-reassign
+        return data;
+      });
+    const whenDownloadedAlleles = whenSchemeDetails.then(schemeData =>
+      this._downloadScheme(name, schemeData, this.dataDir)
+    );
+    const whenGenes = whenSchemeDetails.then(schemeData =>
+      _.map(schemeData.loci, url => url.split("/").pop())
+    );
+    const whenSortedAlleles = whenDownloadedAlleles.then(allelePaths =>
+      Promise.all(this._sortAlleleSequences(allelePaths)).then(allelePaths)
+    );
+
+    const speciesDir = this._speciesDir(name, this.dataDir);
+    const speciesDataPath = path.join(speciesDir, "metadata.json");
+    const profilesPath = null;
+    const retrieved = new Date();
+
+    const whenWrittenSpeciesData = Promise.all([
+      whenGenes,
+      whenSortedAlleles
+    ]).then(([genes, allelePaths]) =>
+      this.writeMetadata(
+        speciesDataPath,
+        name,
+        name,
+        genes,
+        allelePaths,
+        profilesPath,
+        retrieved,
+        schemeUrl
+      )
+    ).catch(warn("Problem writing the metadata"));
+
+    const whenWrittenMetadata = Promise.all([
+      whenSchemeDetails,
+      whenWrittenSpeciesData
+    ]).then(([schemeData]) => {
+      const allSpeciesMlstMetadata = this._getExistingMetadata();
+      schemeData.name = name; // eslint-disable-line no-param-reassign
+      schemeData.metadataPath = speciesDataPath; // eslint-disable-line no-param-reassign
+      allSpeciesMlstMetadata[taxid] = schemeData;
+      return this._writeRootMetadata(
+        allSpeciesMlstMetadata,
+        this.metadataPath
+      );
+    })
+    .then(whenSchemeDetails);
+
+    return whenWrittenMetadata
+  }
+
+  _speciesDir(name, dataDir) {
+    const speciesDir = name.replace(/[^a-zA-Z0-9]+/g, "_").replace(/_+$/, "");
+    const outDir = path.join(dataDir, speciesDir);
+    return outDir;
+  }
+
+  _downloadScheme(name, schemeData, dataDir) {
+    const speciesDir = this._speciesDir(name, dataDir);
+    const alleleDir = path.join(speciesDir, "alleles");
+    const loci = _.map(schemeData.loci, url => {
+      const locus = url.split("/").pop();
+      return { locus, url: `${url}/alleles_fasta` };
+    });
+    const whenAllelesDownloaded = mkdirp(alleleDir, { mode: 0o755 }).then(() =>
+      Promise.all(
+        _.map(loci, ({ locus, url }) => {
+          const downloadPath = `${path.join(alleleDir, locus)}.tfa`;
+          return this._downloadFile(url, downloadPath);
+        })
+      )
+    );
+    whenAllelesDownloaded.then(filePath =>
+      logger("debug:allelePaths")(`${name} => ${filePath}`)
+    );
+    return whenAllelesDownloaded;
+  }
+
+  _getProfiles() {
+    return Promise.resolve({});
+  }
+}
+
+module.exports = { parseAlleleName, PubMlstSevenGenomeSchemes, BigsDbSchemes, FastaString };
