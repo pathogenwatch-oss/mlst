@@ -285,6 +285,10 @@ class PubMlstSevenGenomeSchemes extends Metadata {
     this.metadataPath = path.join(dataDir, "metadata.json");
     this.lock = new AsyncLock();
     this.downloader = new SlowDownloader(400);
+
+    this.schemeAliases = {
+      1336: 40041 // If we don't find a Streptococcus equi scheme (1336), re-use Streptococcus zooepidemicus (40041)
+    };
   }
 
   read(taxid) {
@@ -310,7 +314,7 @@ class PubMlstSevenGenomeSchemes extends Metadata {
           const { species } = data;
           let taxids;
           if (species.slice(-5) === " spp.") {
-            const genus = species.slice(0,-5);
+            const genus = species.slice(0, -5);
             taxids = speciesTaxIdsMap[genus];
           } else {
             taxids = speciesTaxIdsMap[species];
@@ -330,18 +334,53 @@ class PubMlstSevenGenomeSchemes extends Metadata {
       );
 
       const resolvedRejected = splitResolveReject(writtenMetadata);
-      const output = resolvedRejected.then(({ resolved, rejected }) => {
-        logger("debug")(
-          `Finished writing metadata for ${resolved.length} species`
-        );
-        if (rejected.length > 0) {
-          _.forEach(rejected, p => p.catch(logger("error")));
-          Promise.resolve(`There were ${rejected.length} errors`).then(warn("Problems updating MLST databases"))
-        }
-        return allSpeciesMlstMetadata;
-      });
+
+      const output = resolvedRejected
+        .then(() =>
+          this._updateMetadataWithAliases(
+            allSpeciesMlstMetadata,
+            this.schemeAliases
+          )
+        )
+        .then(() =>
+          this._writeRootMetadata(allSpeciesMlstMetadata, this.metadataPath)
+        )
+        .then(() => resolvedRejected)
+        .then(({ resolved, rejected }) => {
+          logger("debug")(
+            `Finished writing metadata for ${resolved.length} species`
+          );
+          if (rejected.length > 0) {
+            _.forEach(rejected, p => p.catch(logger("error")));
+            Promise.resolve(`There were ${rejected.length} errors`).then(warn("Problems updating MLST databases"))
+          }
+          return allSpeciesMlstMetadata;
+        });
 
       return output;
+    });
+  }
+
+  _updateMetadataWithAliases(speciesMetadata, schemeAliases) {
+    _.forEach(schemeAliases, (synonymousSchemeTaxId, schemeTaxId) => {
+      const schemeAlreadyExists =
+        typeof speciesMetadata[schemeTaxId] !== "undefined";
+      const synonymousSchemeAvailable =
+        typeof speciesMetadata[synonymousSchemeTaxId] !== "undefined";
+      if (synonymousSchemeAvailable && !schemeAlreadyExists) {
+        logger("info")(
+          `Reusing ${speciesMetadata[synonymousSchemeTaxId].scheme} for ${schemeTaxId}`
+        );
+        speciesMetadata[schemeTaxId] = speciesMetadata[synonymousSchemeTaxId]; // eslint-disable-line no-param-reassign
+      } else if (schemeAlreadyExists) {
+        logger("info")(
+          `Scheme ${speciesMetadata[schemeTaxId].scheme} already exists for ${schemeTaxId}`
+        );
+      } else if (!synonymousSchemeAvailable) {
+        logger("warning")(
+          `Scheme ${synonymousSchemeTaxId} couldn't be copied for ${schemeTaxId}`
+        );
+      }
     });
   }
 

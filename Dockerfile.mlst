@@ -14,7 +14,7 @@ COPY src /usr/local/mlst/src/
 RUN cd /usr/local/mlst && \
     /usr/local/bin/npm install && \
     DEBUG='*,-follow-redirects,-trace*' /usr/local/bin/node --max-old-space-size=4096 ./update-mlst-databases.js && \
-    chmod -R a+r /opt/mlst/databases # Built 19 September 2017
+    chmod -R a+r /opt/mlst/databases # Built 20 October 2017
 
 USER biodocker
 
