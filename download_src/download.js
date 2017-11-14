@@ -22,7 +22,7 @@ const BIGSDB_SCHEME_METADATA_PATH = path.join(
 const TAXDUMP_HOST = "ftp.ncbi.nih.gov";
 const TAXDUMP_REMOTE_PATH = "/pub/taxonomy/taxdump.tar.gz";
 
-const CACHE_DIR = path.join(__dirname, 'scheme_cache');
+const CACHE_DIR = path.join(__dirname, "scheme_cache");
 
 function urlToPath(url) {
   const urlObj = new URL(url);
@@ -37,7 +37,9 @@ function urlToPath(url) {
     ? hasha(urlObj.search, { algorithm: "sha1" })
     : null;
   const searchSuffix = searchHash ? `-${searchHash}` : "";
-  return path.join(CACHE_DIR, hostnameBitOfPath, ...middleBitOfPath) + searchSuffix;
+  return (
+    path.join(CACHE_DIR, hostnameBitOfPath, ...middleBitOfPath) + searchSuffix
+  );
 }
 
 async function createWriteStreamIfNotExists(outputPath) {
@@ -147,8 +149,8 @@ function extractUrlsForPubMlstSevenGenes(metadata) {
   return _.flatMap(speciesData, getSpeciesUrls);
 }
 
-async function readJson(path) {
-  const jsonString = await promisify(fs.readFile)(path);
+async function readJson(inputPath) {
+  const jsonString = await promisify(fs.readFile)(inputPath);
   return JSON.parse(jsonString);
 }
 
@@ -210,7 +212,8 @@ async function downloadNcbiTaxDump() {
     // File isn't already downloaded
   }
 
-  let onStreamingStart, onStreamError;
+  let onStreamingStart;
+  let onStreamError;
   const whenStreaming = new Promise((resolve, reject) => {
     onStreamingStart = resolve;
     onStreamError = reject;
@@ -219,7 +222,9 @@ async function downloadNcbiTaxDump() {
   const ftp = new Client();
   ftp.on("error", onStreamError);
   ftp.on("ready", () => {
-    logger("debug:ftpDownload")(`Dowloading '${TAXDUMP_REMOTE_PATH}' from ${TAXDUMP_HOST}`);
+    logger("debug:ftpDownload")(
+      `Dowloading '${TAXDUMP_REMOTE_PATH}' from ${TAXDUMP_HOST}`
+    );
     ftp.get(TAXDUMP_REMOTE_PATH, (err, stream) => {
       if (err) onStreamError(err);
       stream.once("close", () => ftp.end());
@@ -242,7 +247,9 @@ async function downloadNcbiTaxDump() {
 
   const whenDownloadComplete = new Promise(resolve => {
     outstream.on("close", () => {
-      logger("debug:ftpDownload")(`Downloaded 'taxdump.tar.gz' to '${taxdumpPath}'`);
+      logger("debug:ftpDownload")(
+        `Downloaded 'taxdump.tar.gz' to '${taxdumpPath}'`
+      );
       resolve(taxdumpPath);
     });
   });

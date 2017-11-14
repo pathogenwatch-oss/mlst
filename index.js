@@ -3,7 +3,10 @@
 const _ = require("lodash");
 const logger = require("debug");
 
-const { PubMlstSevenGenomeSchemes, BigsDbSchemes } = require("./src/mlst-database");
+const {
+  PubMlstSevenGenomeSchemes,
+  BigsDbSchemes
+} = require("./src/mlst-database");
 const { makeBlastDb } = require("./src/blast");
 const { HitsStore } = require("./src/matches");
 const {
@@ -13,17 +16,18 @@ const {
   stopBlast,
   buildResults
 } = require("./src/mlst");
-const { findExactHits } = require("./src/exactHits")
+const { findExactHits } = require("./src/exactHits");
 
 const DATA_DIR = "/opt/mlst/databases";
 
-const RUN_CORE_GENOME_MLST = (process.env.RUN_CORE_GENOME_MLST && true) || false;
+const RUN_CORE_GENOME_MLST =
+  (process.env.RUN_CORE_GENOME_MLST && true) || false;
 let metadataSchemes;
 
 if (RUN_CORE_GENOME_MLST) {
   metadataSchemes = new BigsDbSchemes(DATA_DIR);
 } else {
-  metadataSchemes = new PubMlstSevenGenomeSchemes(DATA_DIR)
+  metadataSchemes = new PubMlstSevenGenomeSchemes(DATA_DIR);
 }
 
 const POSSIBLE_TAXID_ENVIRONMENT_VARIABLES = [
@@ -91,19 +95,30 @@ const whenExactHits = whenRenamedSequences.then(renamedSequences =>
 whenExactHits
   .then(hits => _.map(hits, ({ gene }) => gene))
   .then(matchedGenes => _.uniq(matchedGenes))
-  .then(matchedGenes => logger("debug:exactHits")(`Found exact matches for ${matchedGenes.length} out of ${genes.length} genes`))
+  .then(matchedGenes =>
+    logger("debug:exactHits")(
+      `Found exact matches for ${matchedGenes.length} out of ${genes.length} genes`
+    )
+  );
 
 const whenHitsStore = whenContigNameMap.then(
   contigNameMap => new HitsStore(alleleLengths, contigNameMap)
 );
 
-const whenExactHitsAdded = Promise.all([whenHitsStore, whenExactHits]).then(([hitsStore, hits]) => {
+const whenExactHitsAdded = Promise.all([
+  whenHitsStore,
+  whenExactHits
+]).then(([hitsStore, hits]) => {
   _.forEach(hits, hit => hitsStore.add(hit));
 });
 
 const whenFirstRunStreams = _.values(alleleStreams);
 
-const whenFirstRunStart = Promise.all([whenFirstRunStreams, whenBlastDb, whenExactHitsAdded])
+const whenFirstRunStart = Promise.all([
+  whenFirstRunStreams,
+  whenBlastDb,
+  whenExactHitsAdded
+])
   .then(([streams, db]) => ({ streams, db, wordSize: 30, pIdent: 80 }))
   .then(startBlast);
 
@@ -139,7 +154,7 @@ const whenFirstRunResultCalculated = whenFirstRunStopped
       scheme,
       commonGeneLengths,
       renamedSequences
-    }
+    };
   })
   .then(buildResults)
   .catch(logger("error"));
@@ -150,8 +165,7 @@ whenFirstRunResultCalculated.then(results => {
 
 function findGenesWithInexactResults(results) {
   const exactResultFilter = ([, [firstMatch, ...otherMatches]]) => {
-    const exact =
-      firstMatch && firstMatch.exact && otherMatches.length === 0;
+    const exact = firstMatch && firstMatch.exact && otherMatches.length === 0;
     return !exact;
   };
   const inexactGenes = _(results.raw)
@@ -176,7 +190,9 @@ function updateAlleleStreamLimits(streams, limit) {
 const whenSecondRunStreams = whenFirstRunResultCalculated
   .then(findGenesWithInexactResults)
   .then(inexactGenes => {
-    logger("debug:genes:secondRun")(`Rerunning blast on ${inexactGenes.length} genes`);
+    logger("debug:genes:secondRun")(
+      `Rerunning blast on ${inexactGenes.length} genes`
+    );
     logger("trace:genes:secondRun")(inexactGenes);
     return inexactGenes;
   })
@@ -225,7 +241,7 @@ const whenSecondRunResultsCalculated = whenSecondRunStopped
       scheme,
       commonGeneLengths,
       renamedSequences
-    }
+    };
   })
   .then(buildResults)
   .catch(logger("error"));
@@ -323,7 +339,10 @@ Promise.all([whenFinalBlastResultsCalculated, whenHitsStore])
     if (process.env.DEBUG) {
       const sortedRaw = _(results.raw)
         .toPairs()
-        .map(([gene, hits]) => [gene, _.sortBy(hits, hit => hit.exact ? hit.st : hit.hash)])
+        .map(([gene, hits]) => [
+          gene,
+          _.sortBy(hits, hit => (hit.exact ? hit.st : hit.hash))
+        ])
         .fromPairs()
         .value();
       output.raw = sortedRaw;

@@ -13,7 +13,11 @@ const Promise = require("bluebird");
 const { Transform } = require("stream");
 const { parseString } = require("xml2js");
 
-const { warn, fail, DeferredPromise, pmap, splitResolveReject, parseAlleleName, reverseCompliment } = require("./utils");
+const {
+  DeferredPromise,
+  parseAlleleName,
+  reverseCompliment
+} = require("./utils");
 const { urlToPath } = require("../download_src/download");
 
 const MLST_DIR = "/opt/mlst/databases";
@@ -31,16 +35,16 @@ class FastaString extends Transform {
   }
 }
 
-async function readJson(path) {
-  const jsonString = await promisify(fs.readFile)(path);
+async function readJson(inputPath) {
+  const jsonString = await promisify(fs.readFile)(inputPath);
   return JSON.parse(jsonString);
 }
 
-async function writeJson(path, data, options) {
+async function writeJson(outputPath, data, options) {
   const jsonData = JSON.stringify(data);
-  await promisify(fs.writeFile)(path, jsonData, options);
-  logger("debug:writeJson")(`Wrote data to ${path}`);
-  return path
+  await promisify(fs.writeFile)(outputPath, jsonData, options);
+  logger("debug:writeJson")(`Wrote data to ${outputPath}`);
+  return outputPath;
 }
 
 class Metadata {
@@ -78,12 +82,25 @@ class Metadata {
       const length = seq.seq.length;
       const hash = hasha(sequence, { algorithm: "sha1" });
       const prefix = sequence.slice(0, ALLELE_LOOKUP_PREFIX_LENGTH);
-      (alleleLookup[prefix] = alleleLookup[prefix] || []).push([allele, length, hash, false]);
+      (alleleLookup[prefix] = alleleLookup[prefix] || []).push([
+        allele,
+        length,
+        hash,
+        false
+      ]);
 
       const complimentarySequence = reverseCompliment(sequence);
       const rcHash = hasha(complimentarySequence, { algorithm: "sha1" });
-      const rcPrefix = complimentarySequence.slice(0, ALLELE_LOOKUP_PREFIX_LENGTH);
-      (alleleLookup[rcPrefix] = alleleLookup[rcPrefix] || []).push([allele, length, rcHash, true]);
+      const rcPrefix = complimentarySequence.slice(
+        0,
+        ALLELE_LOOKUP_PREFIX_LENGTH
+      );
+      (alleleLookup[rcPrefix] = alleleLookup[rcPrefix] || []).push([
+        allele,
+        length,
+        rcHash,
+        true
+      ]);
 
       (sequencesByLength[length] = sequencesByLength[length] || []).push(seq);
     });
@@ -94,7 +111,7 @@ class Metadata {
       );
       whenSequencesRead.resolve(alleleLookup);
     });
-    seqStream.resume()
+    seqStream.resume();
 
     await whenSequencesRead;
     const sortedSequences = this._sortSequences(sequencesByLength);
@@ -117,9 +134,12 @@ class Metadata {
   }
 
   async _indexAlleles(inputAllelePaths, genes, schemeDir) {
-    const alleleDir = path.join(schemeDir, 'alleles');
-    await mkdirp(alleleDir, {mode: 0o755});
-    const allelePaths = _.map(genes, gene => path.join(alleleDir, gene) + '.tfa');
+    const alleleDir = path.join(schemeDir, "alleles");
+    await mkdirp(alleleDir, { mode: 0o755 });
+    const allelePaths = _.map(
+      genes,
+      gene => `${path.join(alleleDir, gene)}.tfa`
+    );
 
     const alleleLookup = {};
     const lengths = {};
@@ -149,7 +169,10 @@ class Metadata {
       { concurrency: 3 }
     );
     _.forEach(_.keys(alleleLookup), allelePrefix => {
-      alleleLookup[allelePrefix] = _.sortBy(alleleLookup[allelePrefix], allele => -allele[1]);
+      alleleLookup[allelePrefix] = _.sortBy(
+        alleleLookup[allelePrefix],
+        allele => -allele[1]
+      );
     });
     return { alleleLookup, lengths, allelePaths };
   }
@@ -228,20 +251,28 @@ class Metadata {
     url
   ) {
     logger("debug:metadata:indexScheme")(`Building metadata for ${species}`);
-    
-    const schemeDir = path.join(this.dataDir, slugify(species), slugify(scheme));
-    await mkdirp(schemeDir, {mode: 0o755});
 
-    const { alleleLookup, lengths, allelePaths } = await this._indexAlleles(inputAllelePaths, genes, schemeDir);
+    const schemeDir = path.join(
+      this.dataDir,
+      slugify(species),
+      slugify(scheme)
+    );
+    await mkdirp(schemeDir, { mode: 0o755 });
+
+    const { alleleLookup, lengths, allelePaths } = await this._indexAlleles(
+      inputAllelePaths,
+      genes,
+      schemeDir
+    );
     logger("trace:metadata:indexScheme")(
       `Built hashes and lengths for ${species}`
     );
     const commonGeneLengths = this._getMostCommonGeneLengths(lengths);
     logger("trace:metadata:indexScheme")(
       `Found commonest gene lengths for ${species}`
-    )
+    );
     const profiles = await this._getProfiles({ profilesPath, genes });
-    
+
     const metadata = {
       species,
       allelePaths,
@@ -257,15 +288,15 @@ class Metadata {
       url
     };
 
-    const metadataPath = path.join(schemeDir, 'metadata.json')
+    const metadataPath = path.join(schemeDir, "metadata.json");
     logger("debug:metadata:write")(
       `Writing metadata for ${species} to ${metadataPath}`
     );
-    await writeJson(metadataPath, metadata, { mode: 0o644 })
+    await writeJson(metadataPath, metadata, { mode: 0o644 });
     logger("debug:metadata:write")(
       `Wrote metadata for ${species} to ${metadataPath}`
     );
-    return {metadata, metadataPath}
+    return { metadata, metadataPath };
   }
 }
 
@@ -295,7 +326,9 @@ class PubMlstSevenGenomeSchemes extends Metadata {
   async update(speciesTaxIdsMap = {}) {
     const allSpeciesMlstMetadata = {};
     const missingTaxids = [];
-    const pubMlstMetadata = await this._parsePubMlstMetadata(this.rawMetadataPath);
+    const pubMlstMetadata = await this._parsePubMlstMetadata(
+      this.rawMetadataPath
+    );
     const latestMetadata = this._latestMetadata(pubMlstMetadata);
 
     const writtenMetadata = await Promise.map(
@@ -326,10 +359,15 @@ class PubMlstSevenGenomeSchemes extends Metadata {
 
     this._updateMetadataWithAliases(allSpeciesMlstMetadata, this.schemeAliases);
     await writeJson(this.metadataPath, allSpeciesMlstMetadata, { mode: 0o644 });
-    logger("debug")(`Finished writing metadata for ${_.keys(allSpeciesMlstMetadata).length} species`);
+    logger("debug")(
+      `Finished writing metadata for ${_.keys(allSpeciesMlstMetadata)
+        .length} species`
+    );
     if (missingTaxids) {
-      logger('warn:update:missingTaxid')(`Could not find taxids for:`)
-      _.forEach(missingTaxids, species => logger('warn:update:missingTaxid')(species));
+      logger("warn:update:missingTaxid")(`Could not find taxids for:`);
+      _.forEach(missingTaxids, species =>
+        logger("warn:update:missingTaxid")(species)
+      );
     }
     return allSpeciesMlstMetadata;
   }
@@ -342,12 +380,14 @@ class PubMlstSevenGenomeSchemes extends Metadata {
         typeof speciesMetadata[synonymousSchemeTaxId] !== "undefined";
       if (synonymousSchemeAvailable && !schemeAlreadyExists) {
         logger("info")(
-          `Reusing ${speciesMetadata[synonymousSchemeTaxId].scheme} for ${schemeTaxId}`
+          `Reusing ${speciesMetadata[synonymousSchemeTaxId]
+            .scheme} for ${schemeTaxId}`
         );
         speciesMetadata[schemeTaxId] = speciesMetadata[synonymousSchemeTaxId]; // eslint-disable-line no-param-reassign
       } else if (schemeAlreadyExists) {
         logger("info")(
-          `Scheme ${speciesMetadata[schemeTaxId].scheme} already exists for ${schemeTaxId}`
+          `Scheme ${speciesMetadata[schemeTaxId]
+            .scheme} already exists for ${schemeTaxId}`
         );
       } else if (!synonymousSchemeAvailable) {
         logger("warning")(
@@ -459,23 +499,39 @@ class BigsDbSchemes extends Metadata {
     try {
       schemeDetails = await readJson(this.schemeDetailsPath);
     } catch (err) {
-      logger('debug')(`Couldn't load details of Core Genome MLST schemes from ${this.schemeDetailsPath}`);
+      logger("debug")(
+        `Couldn't load details of Core Genome MLST schemes from ${this
+          .schemeDetailsPath}`
+      );
       return Promise.resolve({});
     }
 
     const allSpeciesMlstMetadata = {};
-    await Promise.map(schemeDetails, async ({ taxid, url }) => {
-      const scheme = `cgMLST_${taxid}`;
-      const schemeMetadataPath = urlToPath(url);
-      allSpeciesMlstMetadata[taxid] = await this._updateScheme({scheme, taxid, schemeMetadataPath, url});
-      await writeJson(this.metadataPath, allSpeciesMlstMetadata, { mode: 0o644 });
-    }, {concurrency: 1})
+    await Promise.map(
+      schemeDetails,
+      async ({ taxid, url }) => {
+        const scheme = `cgMLST_${taxid}`;
+        const schemeMetadataPath = urlToPath(url);
+        allSpeciesMlstMetadata[taxid] = await this._updateScheme({
+          scheme,
+          taxid,
+          schemeMetadataPath,
+          url
+        });
+        await writeJson(this.metadataPath, allSpeciesMlstMetadata, {
+          mode: 0o644
+        });
+      },
+      { concurrency: 1 }
+    );
     return allSpeciesMlstMetadata;
   }
 
   async _updateScheme(schemeDetails) {
     const { scheme, url, schemeMetadataPath } = schemeDetails;
-    logger('debug:updateScheme')(`Updating the ${scheme} with data from ${url}`);
+    logger("debug:updateScheme")(
+      `Updating the ${scheme} with data from ${url}`
+    );
     const schemeMetadata = await readJson(schemeMetadataPath);
     schemeMetadata.url = url;
     const genes = [];
@@ -489,7 +545,7 @@ class BigsDbSchemes extends Metadata {
     const profilesPath = null;
     const retrieved = new Date();
 
-    const { metadata, metadataPath } = await this.indexScheme(
+    const { metadataPath } = await this.indexScheme(
       scheme,
       scheme,
       genes,
@@ -507,4 +563,9 @@ class BigsDbSchemes extends Metadata {
   }
 }
 
-module.exports = { parseAlleleName, PubMlstSevenGenomeSchemes, BigsDbSchemes, FastaString };
+module.exports = {
+  parseAlleleName,
+  PubMlstSevenGenomeSchemes,
+  BigsDbSchemes,
+  FastaString
+};

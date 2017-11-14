@@ -1,5 +1,4 @@
 const _ = require("lodash");
-const logger = require("debug");
 
 const { BigsDbSchemes } = require("./src/mlst-database");
 const { warn } = require("./src/utils");

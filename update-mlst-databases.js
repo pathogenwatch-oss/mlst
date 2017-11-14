@@ -1,5 +1,4 @@
 const _ = require("lodash");
-const logger = require("debug");
 
 const { PubMlstSevenGenomeSchemes } = require("./src/mlst-database");
 const { loadSpeciesTaxidMap } = require("./src/ncbi-taxid-lookup");
