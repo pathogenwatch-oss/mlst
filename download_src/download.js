@@ -1,6 +1,7 @@
 const axios = require("axios");
 const logger = require("debug");
 const fs = require("fs");
+const Client = require("ftp");
 const hasha = require("hasha");
 const _ = require("lodash");
 const mkdirp = require("mkdirp-promise");
@@ -18,7 +19,26 @@ const BIGSDB_SCHEME_METADATA_PATH = path.join(
   "..",
   "cgMLST-schemes.json"
 );
+const TAXDUMP_HOST = "ftp.ncbi.nih.gov";
+const TAXDUMP_REMOTE_PATH = "/pub/taxonomy/taxdump.tar.gz";
+
 const CACHE_DIR = path.join(__dirname, 'scheme_cache');
+
+function urlToPath(url) {
+  const urlObj = new URL(url);
+  const normalise = part => part.toLowerCase().replace(/[^a-z0-9.]+/g, "_");
+  const hostnameBitOfPath = normalise(urlObj.hostname);
+  const middleBitOfPath = _(urlObj.pathname)
+    .split("/")
+    .filter(el => el !== "")
+    .map(normalise)
+    .value();
+  const searchHash = urlObj.search
+    ? hasha(urlObj.search, { algorithm: "sha1" })
+    : null;
+  const searchSuffix = searchHash ? `-${searchHash}` : "";
+  return path.join(CACHE_DIR, hostnameBitOfPath, ...middleBitOfPath) + searchSuffix;
+}
 
 async function createWriteStreamIfNotExists(outputPath) {
   const fd = await promisify(fs.open)(outputPath, "wx", 0o544);
@@ -38,22 +58,6 @@ function delay(wait) {
   return new Promise(resolve => {
     setTimeout(resolve, wait);
   });
-}
-
-function urlToPath(url) {
-  const urlObj = new URL(url);
-  const normalise = part => part.toLowerCase().replace(/[^a-z0-9.]+/g, "_");
-  const hostnameBitOfPath = normalise(urlObj.hostname);
-  const middleBitOfPath = _(urlObj.pathname)
-    .split("/")
-    .filter(el => el !== "")
-    .map(normalise)
-    .value();
-  const searchHash = urlObj.search
-    ? hasha(urlObj.search, { algorithm: "sha1" })
-    : null;
-  const searchSuffix = searchHash ? `-${searchHash}` : "";
-  return path.join(CACHE_DIR, hostnameBitOfPath, ...middleBitOfPath) + searchSuffix;
 }
 
 class SlowDownloader {
@@ -143,8 +147,8 @@ function extractUrlsForPubMlstSevenGenes(metadata) {
   return _.flatMap(speciesData, getSpeciesUrls);
 }
 
-async function readJsonFile(jsonPath) {
-  const jsonString = await promisify(fs.readFile)(jsonPath);
+async function readJson(path) {
+  const jsonString = await promisify(fs.readFile)(path);
   return JSON.parse(jsonString);
 }
 
@@ -167,14 +171,14 @@ async function downloadPubMlstSevenGenes() {
 }
 
 async function downloadBigsDbSchemes() {
-  const schemeMetadata = require(BIGSDB_SCHEME_METADATA_PATH);
+  const schemeMetadata = await readJson(BIGSDB_SCHEME_METADATA_PATH);
   const schemeDetailsDownloads = _.map(
     schemeMetadata,
     async ({ url }) => await downloadFile(url)
   );
   const schemeDetails = _.map(
     schemeDetailsDownloads,
-    async downloadPath => await readJsonFile(await downloadPath)
+    async downloadPath => await readJson(await downloadPath)
   );
   const schemeAlleleUrls = _.map(schemeDetails, async schemeData =>
     _.map((await schemeData).loci, url => `${url}/alleles_fasta`)
@@ -192,10 +196,73 @@ async function downloadBigsDbSchemes() {
   return [...schemePaths, ...allelePaths];
 }
 
-downloadPubMlstSevenGenes()
-  .then(logger("debug"))
-  .catch(logger("error"));
+async function downloadNcbiTaxDump() {
+  const taxdumpUrl = `ftp://${TAXDUMP_HOST}${TAXDUMP_REMOTE_PATH}`;
+  const taxdumpPath = urlToPath(taxdumpUrl);
+  const dirname = path.dirname(taxdumpPath);
+  await mkdirp(dirname, { mode: 0o755 });
 
-downloadBigsDbSchemes()
-  .then(logger("debug"))
-  .catch(logger("error"));
+  try {
+    // Don't start a download if we already have a copy of the file
+    await promisify(fs.access)(taxdumpPath, fs.constants.F_OK);
+    logger("trace:SlowDownloader")(`${taxdumpPath} already exists, skipping`);
+    return taxdumpPath;
+  } catch (err) {
+    // File isn't already downloaded
+  }
+
+  let onStreamingStart, onStreamError;
+  const whenStreaming = new Promise((resolve, reject) => {
+    onStreamingStart = resolve;
+    onStreamError = reject;
+  });
+
+  const ftp = new Client();
+  ftp.on("error", onStreamError);
+  ftp.on("ready", () => {
+    logger("debug:ftpDownload")(`Dowloading '${TAXDUMP_REMOTE_PATH}' from ${TAXDUMP_HOST}`);
+    ftp.get(TAXDUMP_REMOTE_PATH, (err, stream) => {
+      if (err) onStreamError(err);
+      stream.once("close", () => ftp.end());
+      onStreamingStart(stream);
+    });
+  });
+  ftp.connect({ host: TAXDUMP_HOST });
+  const taxdumpStream = await whenStreaming;
+
+  let outstream;
+  try {
+    outstream = await createWriteStreamIfNotExists(taxdumpPath);
+  } catch (err) {
+    if (err.code === "EEXIST") {
+      logger("trace:ftpDownload")(`${taxdumpPath} already exists, skipping`);
+      return taxdumpPath;
+    }
+    throw err;
+  }
+
+  const whenDownloadComplete = new Promise(resolve => {
+    outstream.on("close", () => {
+      logger("debug:ftpDownload")(`Downloaded 'taxdump.tar.gz' to '${taxdumpPath}'`);
+      resolve(taxdumpPath);
+    });
+  });
+  taxdumpStream.pipe(outstream);
+  return whenDownloadComplete;
+}
+
+module.exports = { urlToPath };
+
+if (require.main === module) {
+  downloadPubMlstSevenGenes()
+    .then(logger("debug"))
+    .catch(logger("error"));
+
+  downloadBigsDbSchemes()
+    .then(logger("debug"))
+    .catch(logger("error"));
+
+  downloadNcbiTaxDump()
+    .then(logger("debug"))
+    .catch(logger("error"));
+}
