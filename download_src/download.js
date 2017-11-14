@@ -17,7 +17,7 @@ const PUBMLST_SEVEN_GENOMES_METADATA_URL =
 const BIGSDB_SCHEME_METADATA_PATH = path.join(
   __dirname,
   "..",
-  "cgMLST-schemes.json"
+  "bigsDb-schemes.json"
 );
 const TAXDUMP_HOST = "ftp.ncbi.nih.gov";
 const TAXDUMP_REMOTE_PATH = "/pub/taxonomy/taxdump.tar.gz";
