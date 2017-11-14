@@ -155,7 +155,6 @@ async function readJson(path) {
 async function downloadPubMlstSevenGenes() {
   const metadataUrl = PUBMLST_SEVEN_GENOMES_METADATA_URL;
   const metadataPath = await downloadFile(metadataUrl);
-  logger("tmp")(metadataPath);
   const metadataContent = await readFileAsync(metadataPath);
   const metadata = await parseXml(metadataContent);
   const urls = extractUrlsForPubMlstSevenGenes(metadata);

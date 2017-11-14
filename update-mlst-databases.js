@@ -2,19 +2,12 @@ const _ = require("lodash");
 const logger = require("debug");
 
 const { PubMlstSevenGenomeSchemes } = require("./src/mlst-database");
-const {
-  buildSpeciesTaxidMap,
-  TAXDUMP_HOST,
-  TAXDUMP_REMOTE_PATH
-} = require("./src/ncbi-taxid-lookup");
+const { loadSpeciesTaxidMap } = require("./src/ncbi-taxid-lookup");
 const { warn } = require("./src/utils");
 
 const DATA_DIR = "/opt/mlst/databases";
 
-const whenBuiltSpeciesTaxidsMap = buildSpeciesTaxidMap(
-  TAXDUMP_HOST,
-  TAXDUMP_REMOTE_PATH
-);
+const whenBuiltSpeciesTaxidsMap = loadSpeciesTaxidMap();
 
 const sevenGenomeMlstMetadata = new PubMlstSevenGenomeSchemes(DATA_DIR);
 
