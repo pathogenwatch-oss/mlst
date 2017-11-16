@@ -56,7 +56,7 @@ function urlToPath(url) {
 }
 
 async function createWriteStreamIfNotExists(outputPath) {
-  const fd = await promisify(fs.open)(outputPath, "wx", 0o544);
+  const fd = await promisify(fs.open)(outputPath, "wx", 0o644);
   return fs.createWriteStream("", { fd });
 }
 
@@ -101,7 +101,7 @@ class SlowDownloader {
     return response;
   }
 
-  async downloadFile(url, downloadPath) {
+  async downloadFile(url, downloadPath, options = {}) {
     const dirname = path.dirname(downloadPath);
     await mkdirp(dirname, { mode: 0o755 });
     try {
@@ -114,7 +114,8 @@ class SlowDownloader {
     } catch (err) {
       // File isn't already downloaded
     }
-    const response = await this.get(url, { responseType: "stream" });
+    options.responseType = "stream"; // eslint-disable-line no-param-reassign
+    const response = await this.get(url, options);
     let outstream;
     try {
       outstream = await createWriteStreamIfNotExists(downloadPath);
@@ -135,19 +136,21 @@ class SlowDownloader {
       });
     });
     response.data.pipe(outstream);
-    return whenOutputFileClosed;
+    await whenOutputFileClosed;
+    await promisify(fs.chmod)(downloadPath, 0o444);
+    return downloadPath;
   }
 }
 
 const downloaders = {};
-async function downloadFile(url) {
+async function downloadFile(url, options = {}) {
   const urlObj = new URL(url);
   if (!_.has(downloaders, urlObj.hostname)) {
     downloaders[urlObj.hostname] = new SlowDownloader(1000);
   }
   const downloader = downloaders[urlObj.hostname];
   const downloadPath = urlToPath(url);
-  return await downloader.downloadFile(url, downloadPath);
+  return await downloader.downloadFile(url, downloadPath, options);
 }
 
 function extractUrlsForPubMlstSevenGenes(metadata) {
