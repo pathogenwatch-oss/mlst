@@ -1,22 +1,28 @@
-FROM biocontainers/blast
+FROM ubuntu as blast_build
 
-USER root
-RUN apt-get update && apt-get install -y wget tar jq vim
-RUN cd /tmp && wget https://nodejs.org/dist/v8.4.0/node-v8.4.0-linux-x64.tar.xz
-RUN mkdir -p /usr/local && cd /usr/local && tar -xf /tmp/node-v8.4.0-linux-x64.tar.xz && \
-    ln -s /usr/local/node-v8.4.0-linux-x64/bin/node /usr/local/bin && \
-    ln -s /usr/local/node-v8.4.0-linux-x64/bin/npm /usr/local/bin
+RUN apt-get update && apt-get install -y wget tar
+RUN wget ftp://ftp.ncbi.nlm.nih.gov/blast/executables/LATEST/ncbi-blast-2.7.1+-x64-linux.tar.gz
+RUN tar xzvf ncbi-blast-2.7.1+-x64-linux.tar.gz
+RUN cp ncbi-blast-2.7.1+/bin/blastn /
 
-RUN mkdir -p /usr/local/mlst /opt/mlst/databases && chmod -R a+w /opt/mlst/databases
-COPY index.js update-cgMLST-databases.js package.json cgMLST-schemes.json /usr/local/mlst/
-COPY src /usr/local/mlst/src/
+FROM node:8 as index_build
 
-RUN cd /usr/local/mlst && \
-    /usr/local/bin/npm install && \
-    DEBUG='*,-follow-redirects,-trace*' /usr/local/bin/node --max-old-space-size=4096 ./update-cgMLST-databases.js && \
-    chmod -R a+r /opt/mlst/databases # Built 19 September 2017
+WORKDIR /usr/local/mlst
+COPY    data/cache /opt/mlst/cache
+RUN     mkdir -p /usr/local/mlst /opt/mlst/databases && \
+        chmod -R a+w /opt/mlst/databases
+COPY    index.js update-mlst-databases.js update-cgMLST-databases.js package.json /usr/local/mlst/
+COPY    src /usr/local/mlst/src/
+RUN     npm install
+RUN     DEBUG='*,-follow-redirects' node ./update-cgMLST-databases.js && \
+        chmod -R a+r /opt/mlst/databases 
 
-USER biodocker
+FROM node:8
+
+COPY    --from=blast_build /blastn /usr/local/bin
+COPY    --from=index_build /opt/mlst/databases /opt/mlst/databases
+COPY    --from=index_build /usr/local/mlst /usr/local/mlst/
+WORKDIR /usr/local/mlst
 
 ENV RUN_CORE_GENOME_MLST yes
 
