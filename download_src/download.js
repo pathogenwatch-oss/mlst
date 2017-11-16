@@ -12,6 +12,11 @@ const { parseString } = require("xml2js");
 
 const readFileAsync = promisify(fs.readFile);
 
+const CACHE_DIR = "/opt/mlst/cache";
+
+axios.defaults.headers.common["User-Agent"] =
+  "mlst-downloader (https://gist.github.com/bewt85/16f2b7b9c3b331f751ce40273240a2eb)";
+
 const PUBMLST_SEVEN_GENOMES_METADATA_URL =
   "https://pubmlst.org/data/dbases.xml";
 const BIGSDB_SCHEME_METADATA_PATH = path.join(
@@ -31,8 +36,6 @@ const ENTEROBASE_SCHEME_METADATA_PATH = path.join(
 );
 const TAXDUMP_HOST = "ftp.ncbi.nih.gov";
 const TAXDUMP_REMOTE_PATH = "/pub/taxonomy/taxdump.tar.gz";
-
-const CACHE_DIR = path.join(__dirname, "scheme_cache");
 
 function urlToPath(url) {
   const urlObj = new URL(url);
