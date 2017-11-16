@@ -97,9 +97,11 @@ class SlowDownloader {
   constructor(minWait = 1000) {
     this.minWait = minWait; // ms
     this.nextRequestAllowed = Promise.resolve(null);
+    this.queueLength = 0;
   }
 
   async get(...options) {
+    this.queueLength += 1;
     let onOurRequestComplete;
     logger("trace:SlowDownloader")(`Queueing ${options[0]}`);
     const whenOurRequestComplete = new Promise(resolve => {
@@ -115,6 +117,7 @@ class SlowDownloader {
     ]);
     await whenWeCanMakeRequest;
     const response = await axios.get(...options);
+    this.queueLength -= 1;
     onOurRequestComplete();
     return response;
   }
@@ -157,12 +160,17 @@ class SlowDownloader {
 const downloaders = {};
 async function downloadFile(url, options = {}) {
   const urlObj = new URL(url);
-  if (!_.has(downloaders, urlObj.hostname)) {
-    downloaders[urlObj.hostname] = new SlowDownloader(1000);
+  const { hostname } = urlObj;
+  if (!_.has(downloaders, hostname)) {
+    downloaders[hostname] = new SlowDownloader(1000);
   }
-  const downloader = downloaders[urlObj.hostname];
+  const downloader = downloaders[hostname];
   const downloadPath = urlToPath(url);
-  return await downloader.downloadFile(url, downloadPath, options);
+  const response = await downloader.downloadFile(url, downloadPath, options);
+  logger("trace:downloadFile")(
+    `${downloader.queueLength} files left in ${hostname} queue`
+  );
+  return response;
 }
 
 function extractUrlsForPubMlstSevenGenes(metadata) {
@@ -188,13 +196,7 @@ async function downloadPubMlstSevenGenes() {
   const metadataContent = await readFileAsync(metadataPath);
   const metadata = await parseXml(metadataContent);
   const urls = extractUrlsForPubMlstSevenGenes(metadata);
-  const downloads = _.map(urls, async (url, idx) => {
-    const downloadPath = await downloadFile(url);
-    logger("trace:downloadPubMlstSevenGenes")(
-      `Downloaded ${idx + 1} of ${urls.length} files`
-    );
-    return downloadPath;
-  });
+  const downloads = _.map(urls, async url => await downloadFile(url));
   const downloadPaths = await Promise.all(downloads);
   return [metadataPath, ...downloadPaths];
 }
@@ -213,13 +215,10 @@ async function downloadBigsDbSchemes() {
     _.map((await schemeData).loci, url => `${url}/alleles_fasta`)
   );
   const alleleUrls = _.flatten(await Promise.all(schemeAlleleUrls));
-  const alleleDownloads = _.map(alleleUrls, async (url, idx) => {
-    const downloadPath = await downloadFile(url);
-    logger("trace:downloadBigsDbSchemes")(
-      `Downloaded ${idx + 1} of ${alleleUrls.length} files`
-    );
-    return downloadPath;
-  });
+  const alleleDownloads = _.map(
+    alleleUrls,
+    async url => await downloadFile(url)
+  );
   const allelePaths = await Promise.all(alleleDownloads);
   const schemePaths = await Promise.all(schemeDetailsDownloads);
   return [...schemePaths, ...allelePaths];
@@ -258,12 +257,7 @@ async function downloadEnterobaseSchemes() {
   });
   await Promise.all(schemeDownloads);
   await Promise.all(
-    _.map(alleleUrls, async (url, idx) => {
-      await downloadFile(url, downloadOptions);
-      logger("trace:downloadEntrobaseSchemes")(
-        `Downloaded ${idx + 1} of ${alleleUrls.length} files`
-      );
-    })
+    _.map(alleleUrls, async url => await downloadFile(url, downloadOptions))
   );
   return _.concat(schemeUrls, alleleUrls);
 }
