@@ -1,31 +1,56 @@
 [
   {
+    "taxid": 573,
+    "url": "http://api.bigsdb.pasteur.fr/db/pubmlst_klebsiella_seqdef_public/schemes/3",
+    "species": "Klebsiella pneumoniae",
+    "description": "scgMLST634"
+  },
+  {
+    "taxid": 1463165,
+    "url": "http://api.bigsdb.pasteur.fr/db/pubmlst_klebsiella_seqdef_public/schemes/3",
+    "species": "Klebsiella quasipneumoniae",
+    "description": "scgMLST634"
+  },
+  {
+    "taxid": 244366,
+    "url": "http://api.bigsdb.pasteur.fr/db/pubmlst_klebsiella_seqdef_public/schemes/3",
+    "species": "Klebsiella variicola",
+    "description": "scgMLST634"
+  },
+  {
     "taxid": 1637,
-    "url": "http://api.bigsdb.pasteur.fr/db/pubmlst_listeria_seqdef_public/schemes/3"
+    "url": "http://api.bigsdb.pasteur.fr/db/pubmlst_listeria_seqdef_public/schemes/3",
+    "genus": "Listeria",
+    "description": "cgMLST1748"
   },
   {
     "taxid": 197,
     "url": "http://rest.pubmlst.org/db/pubmlst_campylobacter_seqdef/schemes/4",
+    "species": "Campylobacter jejuni",
     "description": "C. jejuni / C. coli cgMLST v1.0"
   },
   {
     "taxid": 195,
     "url": "http://rest.pubmlst.org/db/pubmlst_campylobacter_seqdef/schemes/4",
+    "species": "Campylobacter coli",
     "description": "C. jejuni / C. coli cgMLST v1.0"
   },
   {
     "taxid": 487,
     "url": "http://rest.pubmlst.org/db/pubmlst_neisseria_seqdef/schemes/47",
+    "species": "Neisseria meningitidis",
     "description": "N. meningitidis cgMLST v1.0"
   },
   {
     "taxid": 485,
     "url": "http://rest.pubmlst.org/db/pubmlst_neisseria_seqdef/schemes/62",
+    "species": "Neisseria gonorrhoeae",
     "description": "N. gonorrhoeae cgMLST v1.0"
   },
   {
     "taxid": 1280,
     "url": "http://rest.pubmlst.org/db/pubmlst_saureus_seqdef/schemes/2",
+    "species": "Staphylococcus aureus",
     "description": "Core 2208"
   }
 ]

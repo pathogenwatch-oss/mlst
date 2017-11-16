@@ -19,6 +19,16 @@ const BIGSDB_SCHEME_METADATA_PATH = path.join(
   "..",
   "bigsDb-schemes.json"
 );
+const RIDOM_SCHEME_METADATA_PATH = path.join(
+  __dirname,
+  "..",
+  "ridom-schemes.json"
+);
+const ENTEROBASE_SCHEME_METADATA_PATH = path.join(
+  __dirname,
+  "..",
+  "enterobase-schemes.json"
+);
 const TAXDUMP_HOST = "ftp.ncbi.nih.gov";
 const TAXDUMP_REMOTE_PATH = "/pub/taxonomy/taxdump.tar.gz";
 
@@ -197,6 +207,49 @@ async function downloadBigsDbSchemes() {
   return [...schemePaths, ...allelePaths];
 }
 
+async function downloadRidomSchemes() {
+  const schemeMetadata = await readJson(RIDOM_SCHEME_METADATA_PATH);
+  const alleleDownloads = _.map(
+    schemeMetadata,
+    async ({ url }) => await downloadFile(url)
+  );
+  return Promise.all(alleleDownloads);
+}
+
+async function downloadEnterobaseSchemes() {
+  if (typeof process.env.ENTEROBASE_API_KEY === "undefined") {
+    return Promise.reject("Please set ENTEROBASE_API_KEY environment variable");
+  }
+  const downloadOptions = {
+    auth: { username: process.env.ENTEROBASE_API_KEY, password: "" }
+  };
+  const schemeMetadata = await readJson(ENTEROBASE_SCHEME_METADATA_PATH);
+  const alleleUrls = [];
+  const schemeUrls = [];
+  const schemeDownloads = _.map(schemeMetadata, async ({ url }) => {
+    let nextUrl = url;
+    while (typeof nextUrl !== "undefined") {
+      schemeUrls.push(nextUrl);
+      const nextPath = await downloadFile(nextUrl, downloadOptions);
+      const nextData = await readJson(nextPath);
+      _.forEach(nextData.loci || [], ({ download_alleles_link }) =>
+        alleleUrls.push(download_alleles_link)
+      );
+      nextUrl = _.get(nextData, "links.paging.next");
+    }
+  });
+  await Promise.all(schemeDownloads);
+  await Promise.all(
+    _.map(alleleUrls, async (url, idx) => {
+      await downloadFile(url, downloadOptions);
+      logger("trace:downloadEntrobaseSchemes")(
+        `Downloaded ${idx + 1} of ${alleleUrls.length} files`
+      );
+    })
+  );
+  return _.concat(schemeUrls, alleleUrls);
+}
+
 async function downloadNcbiTaxDump() {
   const taxdumpUrl = `ftp://${TAXDUMP_HOST}${TAXDUMP_REMOTE_PATH}`;
   const taxdumpPath = urlToPath(taxdumpUrl);
@@ -259,16 +312,18 @@ async function downloadNcbiTaxDump() {
 
 module.exports = { urlToPath };
 
+async function downloadAll() {
+  return _.concat(
+    await downloadPubMlstSevenGenes(),
+    await downloadBigsDbSchemes(),
+    await downloadRidomSchemes(),
+    await downloadEnterobaseSchemes(),
+    await downloadNcbiTaxDump()
+  );
+}
+
 if (require.main === module) {
-  downloadPubMlstSevenGenes()
-    .then(logger("debug"))
-    .catch(logger("error"));
-
-  downloadBigsDbSchemes()
-    .then(logger("debug"))
-    .catch(logger("error"));
-
-  downloadNcbiTaxDump()
-    .then(logger("debug"))
+  downloadAll()
+    .then(downloads => logger("debug")(`${downloads.length} downloads cached`))
     .catch(logger("error"));
 }

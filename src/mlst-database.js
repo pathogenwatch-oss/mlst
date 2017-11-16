@@ -1,3 +1,5 @@
+const Promise = require("bluebird");
+const es = require("event-stream");
 const _ = require("lodash");
 const fasta = require("bionode-fasta");
 const fs = require("fs");
@@ -7,8 +9,9 @@ const hasha = require("hasha");
 const logger = require("debug");
 const readline = require("readline");
 const slugify = require("slugify");
+const tmp = require("tmp");
 const { promisify } = require("util");
-const Promise = require("bluebird");
+const { Unzip } = require("zlib");
 
 const { Transform } = require("stream");
 const { parseString } = require("xml2js");
@@ -487,10 +490,9 @@ class PubMlstSevenGenomeSchemes extends Metadata {
   }
 }
 
-class BigsDbSchemes extends Metadata {
+class cgMlstMetadata extends Metadata {
   constructor(dataDir = MLST_DIR) {
     super(dataDir);
-    this.schemeDetailsPath = path.join(__dirname, "..", "bigsDb-schemes.json");
     this.metadataPath = path.join(dataDir, "metadataCore.json");
   }
 
@@ -499,22 +501,27 @@ class BigsDbSchemes extends Metadata {
     try {
       schemeDetails = await readJson(this.schemeDetailsPath);
     } catch (err) {
-      logger("debug")(
-        `Couldn't load details of Core Genome MLST schemes from ${this
-          .schemeDetailsPath}`
-      );
-      return Promise.resolve({});
+      const message = `Couldn't load details of Core Genome MLST schemes from ${this
+        .schemeDetailsPath}`;
+      logger("debug")(message);
+      return Promise.reject(message);
     }
 
-    const allSpeciesMlstMetadata = {};
+    let allSpeciesMlstMetadata;
+    try {
+      allSpeciesMlstMetadata = await readJson(this.metadataPath);
+    } catch (err) {
+      allSpeciesMlstMetadata = {};
+    }
     await Promise.map(
       schemeDetails,
-      async ({ taxid, url }) => {
+      async ({ taxid, url, description }) => {
         const scheme = `cgMLST_${taxid}`;
         const schemeMetadataPath = urlToPath(url);
         allSpeciesMlstMetadata[taxid] = await this._updateScheme({
           scheme,
           taxid,
+          description,
           schemeMetadataPath,
           url
         });
@@ -525,6 +532,21 @@ class BigsDbSchemes extends Metadata {
       { concurrency: 1 }
     );
     return allSpeciesMlstMetadata;
+  }
+
+  async _updateScheme() {
+    throw Error("Not implemented");
+  }
+
+  _getProfiles() {
+    return Promise.resolve({});
+  }
+}
+
+class BigsDbSchemes extends cgMlstMetadata {
+  constructor(dataDir = MLST_DIR) {
+    super(dataDir);
+    this.schemeDetailsPath = path.join(__dirname, "..", "bigsDb-schemes.json");
   }
 
   async _updateScheme(schemeDetails) {
@@ -557,9 +579,160 @@ class BigsDbSchemes extends Metadata {
     schemeMetadata.metadataPath = metadataPath;
     return schemeMetadata;
   }
+}
 
-  _getProfiles() {
-    return Promise.resolve({});
+class RidomSchemes extends cgMlstMetadata {
+  constructor(dataDir = MLST_DIR) {
+    super(dataDir);
+    this.schemeDetailsPath = path.join(__dirname, "..", "ridom-schemes.json");
+    this.metadataPath = path.join(dataDir, "metadataCore.json");
+  }
+
+  async _parseZippedXmfa(allelesDownloadPath) {
+    logger("trace:RidomSchemes:parsing")(`Parsing ${allelesDownloadPath}`);
+    const genes = [];
+    const inputAllelePaths = [];
+    const alleleFileStream = fs.createReadStream(allelesDownloadPath);
+
+    const tempAlleleDir = await promisify(tmp.dir)({
+      mode: "0750",
+      prefix: "mlst_ridom_index_",
+      unsafeCleanup: true
+    });
+
+    const unzippedAlleles = alleleFileStream.pipe(new Unzip());
+    const lines = es.split();
+
+    let currentGene;
+    let currentAlleleFile;
+    const whenAlleleFileClosed = new DeferredPromise();
+
+    lines.on("data", line => {
+      if (line.startsWith("#")) {
+        currentGene = line.slice(2);
+        genes.push(currentGene);
+        const allelePath = path.join(tempAlleleDir, `${currentGene}.tfa`);
+        logger("trace:RidomSchemes")(`Writing alleles to ${allelePath}`);
+        inputAllelePaths.push(allelePath);
+        if (typeof currentAlleleFile !== "undefined") {
+          currentAlleleFile.end();
+        }
+        currentAlleleFile = fs.createWriteStream(allelePath);
+      } else if (line.startsWith(">")) {
+        const allele = line.slice(1);
+        currentAlleleFile.write(`>${currentGene}_${allele}\n`);
+      } else if (line !== "" || !line.startsWith("=")) {
+        currentAlleleFile.write(`${line}\n`);
+      }
+    });
+    lines.on("close", () => whenAlleleFileClosed.resolve());
+
+    unzippedAlleles.pipe(lines);
+    await whenAlleleFileClosed;
+
+    logger("trace:RidomSchemes")(
+      `Found ${genes.length} genes in ${allelesDownloadPath}`
+    );
+    return { genes, inputAllelePaths };
+  }
+
+  async _updateScheme(schemeDetails) {
+    const { scheme, url, schemeMetadataPath } = schemeDetails;
+    logger("debug:updateScheme")(
+      `Updating the ${scheme} with data from ${url}`
+    );
+    const { genes, inputAllelePaths } = await this._parseZippedXmfa(
+      schemeMetadataPath
+    );
+    const profilesPath = null;
+    const retrieved = new Date();
+
+    const { metadataPath } = await this.indexScheme(
+      scheme,
+      scheme,
+      genes,
+      inputAllelePaths,
+      profilesPath,
+      retrieved,
+      url
+    );
+    schemeDetails.metadataPath = metadataPath; // eslint-disable-line no-param-reassign
+    return schemeDetails;
+  }
+}
+
+class EnterobaseSchemes extends cgMlstMetadata {
+  constructor(dataDir = MLST_DIR) {
+    super(dataDir);
+    this.schemeDetailsPath = path.join(
+      __dirname,
+      "..",
+      "enterobase-schemes.json"
+    );
+  }
+
+  async _unzip(inputPath, outputPath) {
+    const whenUnzipComplete = new DeferredPromise();
+    const unzippedAlleleFile = fs.createWriteStream(outputPath, {
+      mode: 0o644
+    });
+    const zippedAlleleFile = fs.createReadStream(inputPath);
+    unzippedAlleleFile.on("close", () => whenUnzipComplete.resolve(outputPath));
+    zippedAlleleFile.pipe(new Unzip()).pipe(unzippedAlleleFile);
+    return whenUnzipComplete;
+  }
+
+  async _updateScheme(schemeDetails) {
+    const { scheme, url, schemeMetadataPath } = schemeDetails;
+    logger("debug:updateScheme")(
+      `Updating the ${scheme} with data from ${url}`
+    );
+
+    const tempAlleleDir = await promisify(tmp.dir)({
+      mode: "0750",
+      prefix: "mlst_enterobase_index_",
+      unsafeCleanup: true
+    });
+
+    const genes = [];
+    const inputAllelePaths = [];
+    let nextSchemePath = schemeMetadataPath;
+    while (nextSchemePath) {
+      const { loci, links } = await readJson(nextSchemePath);
+      await Promise.map(
+        loci,
+        async ({ download_alleles_link, locus }) => {
+          if (genes.indexOf(locus) === -1) {
+            genes.push(locus);
+            const zippedAllelesPath = urlToPath(download_alleles_link);
+            const unzippedAllelesPath = path.join(
+              tempAlleleDir,
+              `${locus}.tfa`
+            );
+            inputAllelePaths.push(unzippedAllelesPath);
+            return await this._unzip(zippedAllelesPath, unzippedAllelesPath);
+          }
+          return Promise.resolve();
+        },
+        { concurrency: 3 }
+      );
+      const nextUrl = _.get(links, "paging.next", null);
+      nextSchemePath = nextUrl ? urlToPath(nextUrl) : null;
+    }
+    const profilesPath = null;
+    const retrieved = new Date();
+
+    const { metadataPath } = await this.indexScheme(
+      scheme,
+      scheme,
+      genes,
+      inputAllelePaths,
+      profilesPath,
+      retrieved,
+      url
+    );
+    schemeDetails.metadataPath = metadataPath; // eslint-disable-line no-param-reassign
+    return schemeDetails;
   }
 }
 
@@ -567,5 +740,7 @@ module.exports = {
   parseAlleleName,
   PubMlstSevenGenomeSchemes,
   BigsDbSchemes,
+  RidomSchemes,
+  EnterobaseSchemes,
   FastaString
 };

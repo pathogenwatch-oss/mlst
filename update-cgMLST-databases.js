@@ -1,19 +1,24 @@
 const _ = require("lodash");
 
-const { BigsDbSchemes } = require("./src/mlst-database");
+const { BigsDbSchemes, RidomSchemes, EnterobaseSchemes } = require("./src/mlst-database");
 const { warn } = require("./src/utils");
 
 const DATA_DIR = "/opt/mlst/databases";
 
-const CgMlstMetadata = new BigsDbSchemes(DATA_DIR);
-CgMlstMetadata.update()
-  .then(data => {
-    const schemeNameString = _(data)
-      .values()
-      .map(scheme => `* ${scheme.name} (${scheme.description})`)
-      .value()
-      .join("\n");
-    console.log(`\nUpdated the following cgMLST schemes:\n${schemeNameString}`);
-    return data;
-  })
-  .catch(warn("Problem updating the metadata"));
+async function updateAllSchemes() {
+  const bigsDbMetadata = await new BigsDbSchemes(DATA_DIR).update();
+  const ridomMetadata = await new RidomSchemes(DATA_DIR).update();
+  const enterobaseMetadata = await new EnterobaseSchemes(DATA_DIR).update();
+  const schemesUpdated = _.concat(
+    _.values(bigsDbMetadata),
+    _.values(ridomMetadata),
+    _.values(enterobaseMetadata)
+  );
+  const schemeString = _.map(
+    schemesUpdated,
+    ({ scheme, description }) => `* ${scheme} (${description})`
+  );
+  console.log(`\nUpdated the following cgMLST schemes:\n${schemeString}`);
+}
+
+updateAllSchemes().catch(warn("Problem updating the metadata"));

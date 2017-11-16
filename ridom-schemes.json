@@ -1,0 +1,38 @@
+[
+  { 
+    "taxid": 470,
+    "url": "http://www.cgmlst.org/ncs/schema/3956907/alleles/",
+    "species": "Acinetobacter baumannii",
+    "description": "Acinetobacter baumannii"
+  },
+  { 
+    "taxid": 1352,
+    "url": "http://www.cgmlst.org/ncs/schema/991893/alleles/",
+    "species": "Enterococcus faecium",
+    "description": "Enterococcus faecium"
+  },
+  {
+    "taxid": 1773,
+    "url": "http://www.cgmlst.org/ncs/schema/741110/alleles/",
+    "species": "Mycobacterium tuberculosis",
+    "description": "Mycobacterium tuberculosis/bovis/africanum/canettii"
+  },
+  {
+    "taxid": 1765,
+    "url": "http://www.cgmlst.org/ncs/schema/741110/alleles/",
+    "species": "Mycobacterium bovis",
+    "description": "Mycobacterium tuberculosis/bovis/africanum/canettii"
+  },
+  {
+    "taxid": 33894,
+    "url": "http://www.cgmlst.org/ncs/schema/741110/alleles/",
+    "species": "Mycobacterium africanum",
+    "description": "Mycobacterium tuberculosis/bovis/africanum/canettii"
+  },
+  {
+    "taxid": 78331,
+    "url": "http://www.cgmlst.org/ncs/schema/741110/alleles/",
+    "species": "Mycobacterium canettii",
+    "description": "Mycobacterium tuberculosis/bovis/africanum/canettii"
+  }
+]
