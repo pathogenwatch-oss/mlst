@@ -1,4 +1,5 @@
 const axios = require("axios");
+const Promise = require("bluebird");
 const logger = require("debug");
 const fs = require("fs");
 const Client = require("ftp");
@@ -203,34 +204,39 @@ async function downloadPubMlstSevenGenes() {
 
 async function downloadBigsDbSchemes() {
   const schemeMetadata = await readJson(BIGSDB_SCHEME_METADATA_PATH);
-  const schemeDetailsDownloads = _.map(
-    schemeMetadata,
-    async ({ url }) => await downloadFile(url)
+  const schemeUrls = _(schemeMetadata)
+    .map(({ url }) => url)
+    .uniq()
+    .value();
+  const schemePaths = await Promise.map(
+    schemeUrls,
+    async url => await downloadFile(url)
   );
-  const schemeDetails = _.map(
-    schemeDetailsDownloads,
-    async downloadPath => await readJson(await downloadPath)
+  const schemeDetails = await Promise.map(
+    schemePaths,
+    async downloadPath => await readJson(downloadPath)
   );
-  const schemeAlleleUrls = _.map(schemeDetails, async schemeData =>
-    _.map((await schemeData).loci, url => `${url}/alleles_fasta`)
-  );
-  const alleleUrls = _.flatten(await Promise.all(schemeAlleleUrls));
-  const alleleDownloads = _.map(
+  const alleleUrls = _(schemeDetails)
+    .flatMap(schemeData =>
+      _.map(schemeData.loci, url => `${url}/alleles_fasta`)
+    )
+    .uniq()
+    .value();
+  const allelePaths = await Promise.map(
     alleleUrls,
     async url => await downloadFile(url)
   );
-  const allelePaths = await Promise.all(alleleDownloads);
-  const schemePaths = await Promise.all(schemeDetailsDownloads);
   return [...schemePaths, ...allelePaths];
 }
 
 async function downloadRidomSchemes() {
   const schemeMetadata = await readJson(RIDOM_SCHEME_METADATA_PATH);
-  const alleleDownloads = _.map(
+  const alleleDownloads = Promise.map(
     schemeMetadata,
-    async ({ url }) => await downloadFile(url)
+    async ({ url }) => await downloadFile(url),
+    { concurrency: 1 }
   );
-  return Promise.all(alleleDownloads);
+  return Promise.all(alleleDownloads); // Scheme might be shared between species
 }
 
 async function downloadEnterobaseSchemes() {
@@ -243,19 +249,23 @@ async function downloadEnterobaseSchemes() {
   const schemeMetadata = await readJson(ENTEROBASE_SCHEME_METADATA_PATH);
   const alleleUrls = [];
   const schemeUrls = [];
-  const schemeDownloads = _.map(schemeMetadata, async ({ url }) => {
-    let nextUrl = url;
-    while (typeof nextUrl !== "undefined") {
-      schemeUrls.push(nextUrl);
-      const nextPath = await downloadFile(nextUrl, downloadOptions);
-      const nextData = await readJson(nextPath);
-      _.forEach(nextData.loci || [], ({ download_alleles_link }) =>
-        alleleUrls.push(download_alleles_link)
-      );
-      nextUrl = _.get(nextData, "links.paging.next");
-    }
-  });
-  await Promise.all(schemeDownloads);
+  await Promise.map(
+    schemeMetadata,
+    async ({ url }) => {
+      let nextUrl = url;
+      while (typeof nextUrl !== "undefined") {
+        if (schemeUrls.indexOf(nextUrl) === -1) schemeUrls.push(nextUrl); // Scheme might be shared between species
+        const nextPath = await downloadFile(nextUrl, downloadOptions);
+        const nextData = await readJson(nextPath);
+        _.forEach(nextData.loci || [], ({ download_alleles_link }) => {
+          if (alleleUrls.indexOf(download_alleles_link) === -1)
+            alleleUrls.push(download_alleles_link); // Might be a duplicate from another scheme
+        });
+        nextUrl = _.get(nextData, "links.paging.next");
+      }
+    },
+    { concurrency: 1 } // Scheme might be shared between species
+  );
   await Promise.all(
     _.map(alleleUrls, async url => await downloadFile(url, downloadOptions))
   );
