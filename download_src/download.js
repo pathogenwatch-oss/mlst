@@ -6,6 +6,7 @@ const hasha = require("hasha");
 const _ = require("lodash");
 const mkdirp = require("mkdirp-promise");
 const path = require("path");
+const tmp = require("tmp");
 const { URL } = require("url");
 const { promisify } = require("util");
 const { parseString } = require("xml2js");
@@ -13,6 +14,7 @@ const { parseString } = require("xml2js");
 const readFileAsync = promisify(fs.readFile);
 
 const CACHE_DIR = "/opt/mlst/cache";
+const TMP_CACHE_DIR = path.join(CACHE_DIR, "tmp");
 
 axios.defaults.headers.common["User-Agent"] =
   "mlst-downloader (https://gist.github.com/bewt85/16f2b7b9c3b331f751ce40273240a2eb)";
@@ -55,11 +57,6 @@ function urlToPath(url) {
   );
 }
 
-async function createWriteStreamIfNotExists(outputPath) {
-  const fd = await promisify(fs.open)(outputPath, "wx", 0o644);
-  return fs.createWriteStream("", { fd });
-}
-
 function parseXml(content) {
   return new Promise((resolve, reject) => {
     parseString(content, (err, result) => {
@@ -73,6 +70,27 @@ function delay(wait) {
   return new Promise(resolve => {
     setTimeout(resolve, wait);
   });
+}
+
+async function createTempFileStream() {
+  const whenTempFile = new Promise((resolve, reject) => {
+    tmp.file(
+      { mode: 0o644, prefix: "mlst-download-", dir: TMP_CACHE_DIR },
+      (err, tmpPath, tmpFd) => {
+        if (err) reject(err);
+        resolve({ tmpPath, tmpFd });
+      }
+    );
+  });
+  const { tmpPath, tmpFd } = await whenTempFile;
+  const tmpStream = fs.createWriteStream("", { fd: tmpFd });
+  return { tmpPath, tmpFd, tmpStream };
+}
+
+async function createEmptyFile(outputPath) {
+  const f = await promisify(fs.open)(outputPath, "w");
+  await promisify(fs.close)(f);
+  return outputPath;
 }
 
 class SlowDownloader {
@@ -101,6 +119,20 @@ class SlowDownloader {
     return response;
   }
 
+  async downloadToTempFile(url, options) {
+    const { tmpPath, tmpStream } = await createTempFileStream();
+    const response = await this.get(url, options);
+    const whenTmpFileClosed = new Promise(resolve => {
+      tmpStream.on("close", () => {
+        logger("trace:SlowDownloader")(`Written ${url} to ${tmpPath}`);
+        resolve(tmpPath);
+      });
+    });
+    response.data.pipe(tmpStream);
+    await whenTmpFileClosed;
+    return tmpPath;
+  }
+
   async downloadFile(url, downloadPath, options = {}) {
     const dirname = path.dirname(downloadPath);
     await mkdirp(dirname, { mode: 0o755 });
@@ -112,31 +144,11 @@ class SlowDownloader {
       );
       return downloadPath;
     } catch (err) {
-      // File isn't already downloaded
+      await createEmptyFile(downloadPath); // So another thread doesn't also download it
     }
     options.responseType = "stream"; // eslint-disable-line no-param-reassign
-    const response = await this.get(url, options);
-    let outstream;
-    try {
-      outstream = await createWriteStreamIfNotExists(downloadPath);
-    } catch (err) {
-      // Check file still doesn't exist after we've started downloading the data
-      if (err.code === "EEXIST") {
-        logger("trace:SlowDownloader")(
-          `${downloadPath} already exists, skipping`
-        );
-        return downloadPath;
-      }
-      throw err;
-    }
-    const whenOutputFileClosed = new Promise(resolve => {
-      outstream.on("close", () => {
-        logger("trace:SlowDownloader")(`Written ${url} to ${downloadPath}`);
-        resolve(downloadPath);
-      });
-    });
-    response.data.pipe(outstream);
-    await whenOutputFileClosed;
+    const tmpPath = await this.downloadToTempFile(url, options);
+    await promisify(fs.rename)(tmpPath, downloadPath);
     await promisify(fs.chmod)(downloadPath, 0o444);
     return downloadPath;
   }
@@ -269,7 +281,10 @@ async function downloadNcbiTaxDump() {
     return taxdumpPath;
   } catch (err) {
     // File isn't already downloaded
+    await createEmptyFile(taxdumpPath); // don't let another thread also download it
   }
+
+  const { tmpPath, tmpStream } = await createTempFileStream();
 
   let onStreamingStart;
   let onStreamError;
@@ -293,32 +308,25 @@ async function downloadNcbiTaxDump() {
   ftp.connect({ host: TAXDUMP_HOST });
   const taxdumpStream = await whenStreaming;
 
-  let outstream;
-  try {
-    outstream = await createWriteStreamIfNotExists(taxdumpPath);
-  } catch (err) {
-    if (err.code === "EEXIST") {
-      logger("trace:ftpDownload")(`${taxdumpPath} already exists, skipping`);
-      return taxdumpPath;
-    }
-    throw err;
-  }
-
-  const whenDownloadComplete = new Promise(resolve => {
-    outstream.on("close", () => {
-      logger("debug:ftpDownload")(
-        `Downloaded 'taxdump.tar.gz' to '${taxdumpPath}'`
-      );
-      resolve(taxdumpPath);
+  const whenTmpFileClosed = new Promise(resolve => {
+    tmpStream.on("close", () => {
+      logger("trace:ftpDownload")(`Written ${taxdumpUrl} to ${tmpPath}`);
+      resolve(tmpPath);
     });
   });
-  taxdumpStream.pipe(outstream);
-  return whenDownloadComplete;
+  taxdumpStream.pipe(tmpStream);
+  await whenTmpFileClosed;
+
+  await promisify(fs.rename)(tmpPath, taxdumpPath);
+  await promisify(fs.chmod)(taxdumpPath, 0o444);
+
+  return taxdumpPath;
 }
 
 module.exports = { urlToPath };
 
 async function downloadAll() {
+  await mkdirp(TMP_CACHE_DIR, { mode: 0o755 });
   return _.concat(
     await downloadPubMlstSevenGenes(),
     await downloadBigsDbSchemes(),

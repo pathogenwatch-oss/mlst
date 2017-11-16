@@ -4,15 +4,12 @@ const { spawn } = require("child_process");
 const _ = require("lodash");
 const fasta = require("bionode-fasta");
 const logger = require("debug");
-const tmp = require("tmp");
 const path = require("path");
 
 const { Transform } = require("stream");
 
 const { FastaString } = require("./mlst-database");
 const { parseAlleleName, DeferredPromise, loadSequencesFromStream } = require("./utils");
-
-tmp.setGracefulCleanup();
 
 class RenameContigs extends Transform {
   constructor(options = {}) {
