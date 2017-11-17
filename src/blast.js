@@ -5,6 +5,7 @@ const _ = require("lodash");
 const fasta = require("bionode-fasta");
 const logger = require("debug");
 const path = require("path");
+const tmp = require("tmp");
 
 const { Transform } = require("stream");
 
@@ -33,10 +34,13 @@ function makeBlastDb(inputFileStream) {
   const whenBlastDb = new DeferredPromise();
 
   const whenBlastDirCreated = new Promise((resolve, reject) => {
-    tmp.dir({ mode: "0750", prefix: "mlst_blast_" }, (err, blastDir) => {
-      if (err) reject(err);
-      resolve(blastDir);
-    });
+    tmp.dir(
+      { mode: "0750", prefix: "mlst_blast_", unsafeCleanup: true },
+      (err, blastDir) => {
+        if (err) reject(err);
+        resolve(blastDir);
+      }
+    );
   });
 
   const contigRenamer = new RenameContigs();
