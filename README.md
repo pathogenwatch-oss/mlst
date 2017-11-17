@@ -98,3 +98,7 @@ docker run --rm -it \
 ```
 
 You can use the same command with a Core Genome MLST container.
+
+## TODO
+
+* Check tasks fail with an error signal
