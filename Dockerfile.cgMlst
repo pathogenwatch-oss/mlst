@@ -7,15 +7,16 @@ RUN cp ncbi-blast-2.7.1+/bin/blastn /
 
 FROM node:8 as index_build
 
+WORKDIR /usr/local/mlst
+COPY    package.json /usr/local/mlst
+RUN     npm install
 COPY    data/cache /opt/mlst/cache
 RUN     mkdir -p /usr/local/mlst /opt/mlst/databases && \
         chmod -R a+w /opt/mlst/databases
-WORKDIR /usr/local/mlst
 COPY    *.js *.json /usr/local/mlst/
 COPY    download_src /usr/local/mlst/download_src/
 COPY    src /usr/local/mlst/src/
-RUN     npm install
-RUN     DEBUG='*,-follow-redirects' node ./update-cgMLST-databases.js && \
+RUN     DEBUG='*' node ./update-cgMLST-databases.js && \
         chmod -R a+r /opt/mlst/databases 
 
 FROM node:8
