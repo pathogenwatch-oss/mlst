@@ -97,7 +97,8 @@ docker run --rm -it \
         bash test.sh
 ```
 
-You can use the same command with a Core Genome MLST container.
+You can use the same command with a Core Genome MLST container.  The tests 
+should also be run automatically when you build a new container.
 
 ## TODO
 
