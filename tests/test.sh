@@ -78,6 +78,7 @@ if [ -z "${RUN_CORE_GENOME_MLST:-}" ]; then
     gono 'WGSA_GENUS_TAXID=482'
     shaemolyticus 'WGSA_SPECIES_TAXID=1283'
     typhi 'WGSA_SPECIES_TAXID=28901'
+    typhi2 'WGSA_SPECIES_TAXID=28901'
 EOF
 
   mkdir -p "$TEST_DIR/saureus_data"
