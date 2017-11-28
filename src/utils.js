@@ -6,16 +6,11 @@ const through = require("through");
 const _ = require("lodash");
 
 function warn(message) {
-  return err => {
-    logger("warning")(`${message}\n${err}`);
-  };
+  return logger(`warning:${message}`);
 }
 
 function fail(message) {
-  return err => {
-    logger("error")(`${message}\n${err}`);
-    process.exit(10);
-  };
+  return logger(`error:${message}`);
 }
 
 function parseAlleleName(allele) {
@@ -90,9 +85,9 @@ function fastaSlice(path, start, end = 0) {
     count += 1;
     if (end !== 0 && count >= end) this.queue(null);
     else if (count >= start) this.queue(data);
-      });
+  });
   return inputStream.pipe(fasta.obj()).pipe(outputStream);
-    }
+}
 
 function loadSequencesFromStream(inputStream) {
   const fastaStream = fasta.obj();
