@@ -1,6 +1,5 @@
 const _ = require("lodash");
 const es = require("event-stream");
-const fasta = require("bionode-fasta");
 const hasha = require("hasha");
 const logger = require("debug");
 const path = require("path");
@@ -8,23 +7,24 @@ const path = require("path");
 const { hashHit } = require("./matches");
 const { createBlastProcess, parseBlastLine } = require("./blast");
 const { FastaString } = require("./mlst-database");
-const { ObjectTap, DeferredPromise } = require("./utils");
+const { fastaSlice } = require("./utils");
 
-function getAlleleStreams(allelePaths, limit) {
-  const streams = {};
-  _.forEach(allelePaths, p => {
-    const allele = path.basename(p, ".tfa");
-    const objectLimiter = new ObjectTap({ limit });
-    const stream = fasta.obj(p).pipe(objectLimiter);
-    streams[allele] = stream;
-  });
-  return streams;
-}
-
-function makeBlastInputStream() {
-  return new FastaString({
+function streamFactory(allelePaths) {
+  const geneMap = _(allelePaths)
+    .map(p => [path.basename(p, ".tfa"), p])
+    .fromPairs()
+    .value();
+  return (genes, start, end) => {
+    const streams = _(genes)
+      .map(gene => geneMap[gene])
+      .map(p => fastaSlice(p, start, end))
+      .value();
+    return es.merge(streams).pipe(
+      new FastaString({
     highWaterMark: 10000
-  });
+      })
+    );
+  };
 }
 
 function startBlast(options = {}) {
@@ -139,9 +139,7 @@ function buildResults(options = {}) {
 }
 
 module.exports = {
-  getAlleleStreams,
-  startBlast,
-  processBlastResultsStream,
-  stopBlast,
+  streamFactory,
+  runBlast,
   buildResults
 };
