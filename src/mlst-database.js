@@ -55,6 +55,16 @@ class Metadata {
     this.dataDir = dataDir;
   }
 
+  read(taxid) {
+    const rootMetadata = require(this.metadataPath);
+    try {
+      const speciesMetadataPath = rootMetadata[String(taxid)].metadataPath;
+      return require(speciesMetadataPath);
+    } catch (err) {
+      return undefined;
+    }
+  }
+
   _sortSequences(sequencesByLength) {
     // Sorts the sequences so that you get a good mix of lengths
     // For example, if sequences == {1: [A1, B1, C1], 3: [D3, E3], 4: [F4], 5:[G5, H5, I5, J5]}
@@ -316,16 +326,6 @@ class PubMlstSevenGenomeSchemes extends Metadata {
     };
   }
 
-  read(taxid) {
-    const rootMetadata = require(this.metadataPath);
-    try {
-      const speciesMetadataPath = rootMetadata[String(taxid)].metadataPath;
-      return require(speciesMetadataPath);
-    } catch (err) {
-      return undefined;
-    }
-  }
-
   async update(speciesTaxIdsMap = {}) {
     const allSpeciesMlstMetadata = {};
     const missingTaxids = [];
@@ -490,9 +490,9 @@ class PubMlstSevenGenomeSchemes extends Metadata {
   }
 }
 
-class cgMlstMetadata extends Metadata {
+class CgMlstMetadata extends Metadata {
   constructor(dataDir = MLST_DIR) {
-    super(dataDir);
+    super();
     this.metadataPath = path.join(dataDir, "metadataCore.json");
   }
 
@@ -543,7 +543,7 @@ class cgMlstMetadata extends Metadata {
   }
 }
 
-class BigsDbSchemes extends cgMlstMetadata {
+class BigsDbSchemes extends CgMlstMetadata {
   constructor(dataDir = MLST_DIR) {
     super(dataDir);
     this.schemeDetailsPath = path.join(__dirname, "..", "bigsDb-schemes.json");
@@ -581,7 +581,7 @@ class BigsDbSchemes extends cgMlstMetadata {
   }
 }
 
-class RidomSchemes extends cgMlstMetadata {
+class RidomSchemes extends CgMlstMetadata {
   constructor(dataDir = MLST_DIR) {
     super(dataDir);
     this.schemeDetailsPath = path.join(__dirname, "..", "ridom-schemes.json");
@@ -661,7 +661,7 @@ class RidomSchemes extends cgMlstMetadata {
   }
 }
 
-class EnterobaseSchemes extends cgMlstMetadata {
+class EnterobaseSchemes extends CgMlstMetadata {
   constructor(dataDir = MLST_DIR) {
     super(dataDir);
     this.schemeDetailsPath = path.join(
@@ -739,6 +739,7 @@ class EnterobaseSchemes extends cgMlstMetadata {
 module.exports = {
   parseAlleleName,
   PubMlstSevenGenomeSchemes,
+  CgMlstMetadata,
   BigsDbSchemes,
   RidomSchemes,
   EnterobaseSchemes,
