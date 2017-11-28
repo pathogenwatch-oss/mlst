@@ -5,27 +5,24 @@ const logger = require("debug");
 
 const {
   PubMlstSevenGenomeSchemes,
-  BigsDbSchemes
+  CgMlstMetadata
 } = require("./src/mlst-database");
 const { makeBlastDb } = require("./src/blast");
 const { HitsStore } = require("./src/matches");
-const {
-  getAlleleStreams,
-  startBlast,
-  processBlastResultsStream,
-  stopBlast,
-  buildResults
-} = require("./src/mlst");
+const { streamFactory, runBlast, buildResults } = require("./src/mlst");
 const { findExactHits } = require("./src/exactHits");
+const { DeferredPromise, fail } = require("./src/utils");
 
 const DATA_DIR = "/opt/mlst/databases";
+
+process.on("unhandledRejection", reason => fail("unhandledRejection")(reason));
 
 const RUN_CORE_GENOME_MLST =
   (process.env.RUN_CORE_GENOME_MLST && true) || false;
 let metadataSchemes;
 
 if (RUN_CORE_GENOME_MLST) {
-  metadataSchemes = new BigsDbSchemes(DATA_DIR);
+  metadataSchemes = new CgMlstMetadata(DATA_DIR);
 } else {
   metadataSchemes = new PubMlstSevenGenomeSchemes(DATA_DIR);
 }
@@ -68,8 +65,8 @@ if (!alleleMetadata) {
   process.exit(1);
 }
 
-const alleleLengths = alleleMetadata.lengths;
 const {
+  lengths: alleleLengths,
   alleleLookup,
   alleleLookupPrefixLength,
   genes,
@@ -80,17 +77,28 @@ const {
   url
 } = alleleMetadata;
 
-const NUMBER_OF_ALLELES = 5;
-const alleleStreams = getAlleleStreams(allelePaths, NUMBER_OF_ALLELES);
+logger("debug")(`${scheme} has ${allelePaths.length} genes`);
 
-process.stdin.pause();
-const { whenContigNameMap, whenRenamedSequences, whenBlastDb } = makeBlastDb(
-  process.stdin
-);
-process.stdin.resume();
-const whenExactHits = whenRenamedSequences.then(renamedSequences =>
-  findExactHits(renamedSequences, alleleLookup, alleleLookupPrefixLength)
-);
+const NUMBER_OF_ALLELES = 5;
+const streamBuilder = streamFactory(allelePaths);
+
+const whenBlastDb = new DeferredPromise();
+const whenRenamedSequences = new DeferredPromise();
+const whenContigNameMap = new DeferredPromise();
+
+makeBlastDb(process.stdin)
+  .then(({ contigNameMap, blastDb, renamedSequences }) => {
+    whenBlastDb.resolve(blastDb);
+    whenRenamedSequences.resolve(renamedSequences);
+    whenContigNameMap.resolve(contigNameMap);
+  })
+  .catch(fail("makeBlastDb"));
+
+const whenExactHits = whenRenamedSequences
+  .then(renamedSequences =>
+    findExactHits(renamedSequences, alleleLookup, alleleLookupPrefixLength)
+  )
+  .catch(fail("exactHits"));
 
 whenExactHits
   .then(hits => _.map(hits, ({ gene }) => gene))
@@ -112,56 +120,25 @@ const whenExactHitsAdded = Promise.all([
   _.forEach(hits, hit => hitsStore.add(hit));
 });
 
-const whenFirstRunStreams = _.values(alleleStreams);
-
-const whenFirstRunStart = Promise.all([
-  whenFirstRunStreams,
-  whenBlastDb,
-  whenExactHitsAdded
-])
-  .then(([streams, db]) => ({ streams, db, wordSize: 30, pIdent: 80 }))
-  .then(startBlast);
-
-const whenFirstRunProcessed = Promise.all([
-  whenHitsStore,
-  whenFirstRunStreams,
-  whenFirstRunStart
-])
-  .then(([hitsStore, streams, { blast, blastResultsStream }]) => ({
-    hitsStore,
-    streams,
-    blast,
-    blastResultsStream
-  }))
-  .then(processBlastResultsStream);
-
-const whenFirstRunStopped = Promise.all([
-  whenFirstRunStart,
-  whenFirstRunProcessed
-])
-  .then(([{ blast, blastInputStream }]) => ({ blast, blastInputStream }))
-  .then(stopBlast);
-
-const whenFirstRunResultCalculated = whenFirstRunStopped
-  .then(() => Promise.all([whenHitsStore, whenRenamedSequences]))
-  .then(([hitsStore, renamedSequences]) => {
-    const bestHits = hitsStore.best();
-    return {
-      bestHits,
-      alleleLengths,
-      genes,
-      profiles,
-      scheme,
-      commonGeneLengths,
-      renamedSequences
-    };
-  })
-  .then(buildResults)
-  .catch(logger("error"));
-
-whenFirstRunResultCalculated.then(results => {
-  logger("hits:first")(results);
-});
+/* eslint-disable max-params */
+async function runRound(wordSize, pIdent, genesToImprove, start, end) {
+  const hitsStore = await whenHitsStore;
+  const db = await whenBlastDb;
+  const renamedSequences = await whenRenamedSequences;
+  const stream = streamBuilder(genesToImprove, start, end);
+  await runBlast({ stream, db, wordSize, pIdent, hitsStore });
+  const bestHits = hitsStore.best();
+  return await buildResults({
+    bestHits,
+    alleleLengths,
+    genes,
+    profiles,
+    scheme,
+    commonGeneLengths,
+    renamedSequences
+  });
+}
+/* eslint-enable max-params */
 
 function findGenesWithInexactResults(results) {
   const exactResultFilter = ([, [firstMatch, ...otherMatches]]) => {
@@ -176,141 +153,25 @@ function findGenesWithInexactResults(results) {
   return inexactGenes;
 }
 
-function getAlleleStreamsForGenes(inexactGenes) {
-  return _.map(inexactGenes, gene => alleleStreams[gene]);
-}
-
-function updateAlleleStreamLimits(streams, limit) {
-  return _.map(streams, stream => {
-    stream.updateLimit(limit);
-    return stream;
-  });
-}
-
-const whenSecondRunStreams = whenFirstRunResultCalculated
-  .then(findGenesWithInexactResults)
-  .then(inexactGenes => {
-    logger("debug:genes:secondRun")(
-      `Rerunning blast on ${inexactGenes.length} genes`
-    );
-    logger("trace:genes:secondRun")(inexactGenes);
-    return inexactGenes;
-  })
-  .then(getAlleleStreamsForGenes)
-  .then(alleleStreamsWithoutExactResults =>
-    updateAlleleStreamLimits(alleleStreamsWithoutExactResults, 50)
-  )
-  .catch(logger("error"));
-
-const whenSecondRunStart = Promise.all([whenSecondRunStreams, whenBlastDb])
-  .then(([streams, db]) => ({ streams, db, wordSize: 20, pIdent: 80 }))
-  .then(startBlast)
-  .catch(logger("error"));
-
-const whenSecondRunProcessed = Promise.all([
-  whenHitsStore,
-  whenSecondRunStreams,
-  whenSecondRunStart
-])
-  .then(([hitsStore, streams, { blast, blastResultsStream }]) => ({
-    hitsStore,
-    streams,
-    blast,
-    blastResultsStream
-  }))
-  .then(processBlastResultsStream)
-  .catch(logger("error"));
-
-const whenSecondRunStopped = Promise.all([
-  whenSecondRunStart,
-  whenSecondRunProcessed
-])
-  .then(([{ blast, blastInputStream }]) => ({ blast, blastInputStream }))
-  .then(stopBlast)
-  .catch(logger("error"));
-
-const whenSecondRunResultsCalculated = whenSecondRunStopped
-  .then(() => Promise.all([whenHitsStore, whenRenamedSequences]))
-  .then(([hitsStore, renamedSequences]) => {
-    const bestHits = hitsStore.best();
-    return {
-      bestHits,
-      alleleLengths,
-      genes,
-      profiles,
-      scheme,
-      commonGeneLengths,
-      renamedSequences
-    };
-  })
-  .then(buildResults)
-  .catch(logger("error"));
-
-whenSecondRunResultsCalculated.then(logger("hits:second"));
-
-let whenFinalBlastResultsCalculated;
-if (RUN_CORE_GENOME_MLST) {
-  whenFinalBlastResultsCalculated = whenSecondRunResultsCalculated;
-} else {
-  // It would take too long to run Core Genome MLST using all of the
-  // alleles so we skip this third run of Blast.
-  const whenThirdRunStreams = whenSecondRunResultsCalculated
-    .then(findGenesWithInexactResults)
-    .then(inexactGenes => {
-      logger("debug:thirdRunGenes")(inexactGenes);
-      return inexactGenes;
-    })
-    .then(getAlleleStreamsForGenes)
-    .then(alleleStreamsWithoutExactResults =>
-      updateAlleleStreamLimits(alleleStreamsWithoutExactResults, null)
-    )
-    .catch(logger("error"));
-
-  const whenThirdRunStarted = Promise.all([whenThirdRunStreams, whenBlastDb])
-    .then(([streams, db]) => ({ streams, db, wordSize: 11, pIdent: 0 }))
-    .then(startBlast)
-    .catch(logger("error"));
-
-  const whenThirdRunProcessed = Promise.all([
-    whenHitsStore,
-    whenThirdRunStreams,
-    whenThirdRunStarted
-  ])
-    .then(([hitsStore, streams, { blast, blastResultsStream }]) => ({
-      hitsStore,
-      streams,
-      blast,
-      blastResultsStream
-    }))
-    .then(processBlastResultsStream)
-    .catch(logger("error"));
-
-  const whenThirdRunStopped = Promise.all([
-    whenThirdRunStarted,
-    whenThirdRunProcessed
-  ])
-    .then(([{ blast, blastInputStream }]) => ({ blast, blastInputStream }))
-    .then(stopBlast)
-    .catch(logger("error"));
-
-  whenFinalBlastResultsCalculated = whenThirdRunStopped
-    .then(() => Promise.all([whenHitsStore, whenRenamedSequences]))
-    .then(([hitsStore, renamedSequences]) => {
-      const bestHits = hitsStore.best();
-      return {
-        bestHits,
-        alleleLengths,
-        genes,
-        profiles,
-        scheme,
-        commonGeneLengths,
-        renamedSequences
-      };
-    })
-    .then(buildResults)
-    .catch(logger("error"));
-
-  whenFinalBlastResultsCalculated.then(logger("hits:third"));
+async function runAllRounds() {
+  logger("debug:blast")("Running first round of blast");
+  const firstRunResults = await runRound(30, 80, genes, 0, NUMBER_OF_ALLELES);
+  let inexactGenes = findGenesWithInexactResults(firstRunResults);
+  if (inexactGenes.length <= 0) return firstRunResults;
+  logger("debug:blast")("Running second round of blast");
+  const secondRunResults = await runRound(
+    20,
+    80,
+    inexactGenes,
+    NUMBER_OF_ALLELES,
+    50
+  );
+  if (RUN_CORE_GENOME_MLST) return secondRunResults;
+  inexactGenes = findGenesWithInexactResults(secondRunResults);
+  if (inexactGenes.length <= 0) return secondRunResults;
+  logger("debug:blast")("Running third round of blast");
+  const thirdRunResults = await runRound(20, 80, inexactGenes, 50, 0);
+  return thirdRunResults;
 }
 
 function formatOutput(results) {
@@ -333,8 +194,9 @@ function formatOutput(results) {
   };
 }
 
-Promise.all([whenFinalBlastResultsCalculated, whenHitsStore])
-  .then(([results, hitsStore]) => {
+Promise.all([whenBlastDb, whenHitsStore, whenExactHitsAdded])
+  .then(async ([, hitsStore]) => {
+    const results = await runAllRounds();
     const output = formatOutput(results);
     if (process.env.DEBUG) {
       const sortedRaw = _(results.raw)
@@ -348,7 +210,6 @@ Promise.all([whenFinalBlastResultsCalculated, whenHitsStore])
       output.raw = sortedRaw;
       output.bins = hitsStore._bins;
     }
-    return output;
+    console.log(JSON.stringify(output));
   })
-  .then(JSON.stringify)
-  .then(console.log);
+  .catch(logger("RunAllBlast"));
