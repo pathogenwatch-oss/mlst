@@ -82,6 +82,7 @@ async function makeBlastDb(inputFileStream) {
 }
 
 function createBlastProcess(db, wordSize = 11, percIdentity = 0) {
+  const blastExit = new DeferredPromise();
   const command =
     "blastn -task blastn " +
     "-max_target_seqs 10000 " +
@@ -93,9 +94,15 @@ function createBlastProcess(db, wordSize = 11, percIdentity = 0) {
     `-perc_identity ${percIdentity}`;
   logger("debug:blast:run")(`Running '${command}'`);
   const blastShell = spawn(command, { shell: true });
+  blastShell.stdin.on("error", err => blastExit.reject(err));
+  blastShell.on("error", err => blastExit.reject(err));
+  blastShell.on("exit", (code, signal) => {
+    if (code !== 0) blastExit.reject(`Blast exited with ${code} (${signal})`);
+    blastExit.resolve();
+  });
 
   blastShell.stderr.pipe(process.stderr);
-  return blastShell;
+  return [blastShell, blastExit];
 }
 
 function parseBlastLine(line) {
