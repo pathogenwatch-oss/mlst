@@ -81,14 +81,14 @@ if [ -z "${RUN_CORE_GENOME_MLST:-}" ]; then
 EOF
 
   mkdir -p "$TEST_DIR/saureus_data"
-  find data/saureus_data/ -name '*.mlst.json' | while read results_path; do
+  while read results_path; do
     sequence_name=$(basename $results_path '.mlst.json')
     echo "[$(date)] Testing $sequence_name" 2>&1;
     results=$(runMlst data/saureus_data/$sequence_name 'WGSA_ORGANISM_TAXID=1280');
     expected_results=$(cat $results_path);
     { diffResults "$expected_results" "$results"; } || { errors=$(($errors+1)) && echo "$errors errors so far"; }
     echo "$results" > "$TEST_DIR/saureus_data/$sequence_name.mlst.json"
-  done
+  done < <(find data/saureus_data/ -name '*.mlst.json')
   
 else
   name="saureus_synthetic_cg";
@@ -100,14 +100,14 @@ else
   echo "$results" > "$TEST_DIR/$name.fasta.cgMlst.json"
 
   mkdir -p "$TEST_DIR/saureus_data"
-  find data/saureus_data/ -name '*.cgMlst.json' | while read results_path; do
+  while read results_path; do
     sequence_name=$(basename $results_path '.cgMlst.json')
     echo "[$(date)] Testing $sequence_name" 2>&1;
     results=$(runMlst data/saureus_data/$sequence_name 'WGSA_ORGANISM_TAXID=1280 RUN_CORE_GENOME_MLST=yes');
     expected_results=$(cat $results_path);
     { diffResults "$expected_results" "$results"; } || { errors=$(($errors+1)) && echo "$errors errors so far"; }
     echo "$results" > "$TEST_DIR/saureus_data/$sequence_name.cgMlst.json"
-  done
+  done < <(find data/saureus_data/ -name '*.cgMlst.json')
 fi
 
 echo "[$(date)] There were $errors errors" 1>&2
