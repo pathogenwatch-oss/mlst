@@ -21,31 +21,18 @@ function streamFactory(allelePaths) {
       .value();
     return es.merge(streams).pipe(
       new FastaString({
-    highWaterMark: 10000
+        highWaterMark: 10000
       })
     );
   };
 }
 
-function startBlast(options = {}) {
-  const { streams, db, wordSize, pIdent } = options;
+async function runBlast(options = {}) {
+  const { stream, db, wordSize, pIdent, hitsStore } = options;
+  const [blast, blastExit] = createBlastProcess(db, wordSize, pIdent);
+  logger("debug:startBlast")(`About to blast genes against ${db}`);
 
-  const blast = createBlastProcess(db, wordSize, pIdent);
-  const blastInputStream = makeBlastInputStream();
-  blastInputStream.setMaxListeners(0);
-  _.forEach(streams, stream => {
-    stream.pipe(blastInputStream);
-  });
-
-  blastInputStream.pipe(blast.stdin);
   const blastResultsStream = blast.stdout.pipe(es.split());
-
-  return { blast, blastInputStream, blastResultsStream };
-}
-
-function processBlastResultsStream(options = {}) {
-  const { hitsStore, streams, blastResultsStream } = options;
-
   blastResultsStream.on("data", line => {
     if (line === "") return;
     const hit = parseBlastLine(line);
@@ -56,20 +43,9 @@ function processBlastResultsStream(options = {}) {
     }
   });
 
-  return Promise.all(_.map(streams, stream => stream.whenEmpty()));
-}
-
-function stopBlast(options = {}) {
-  const { blast, blastInputStream } = options;
-  const output = new DeferredPromise();
-
-  blastInputStream.end();
-  blast.on("exit", (code, signal) => {
-    if (code !== 0) output.resolve(`Blast exited with ${code} (${signal})`);
-    output.resolve(options);
-  });
-
-  return output;
+  stream.pipe(blast.stdin);
+  await blastExit;
+  return options;
 }
 
 function buildResults(options = {}) {
