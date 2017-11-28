@@ -1,16 +1,18 @@
-#!/usr/bin/env node
-
 const { spawn } = require("child_process");
 const _ = require("lodash");
 const fasta = require("bionode-fasta");
 const logger = require("debug");
 const path = require("path");
-const tmp = require("tmp");
+const tmp = require("tmp-promise");
 
 const { Transform } = require("stream");
 
 const { FastaString } = require("./mlst-database");
-const { parseAlleleName, DeferredPromise, loadSequencesFromStream } = require("./utils");
+const {
+  parseAlleleName,
+  DeferredPromise,
+  loadSequencesFromStream
+} = require("./utils");
 
 class RenameContigs extends Transform {
   constructor(options = {}) {
@@ -28,57 +30,55 @@ class RenameContigs extends Transform {
   }
 }
 
-function makeBlastDb(inputFileStream) {
-  const whenContigNameMap = new DeferredPromise();
-  const whenRenamedSequences = new DeferredPromise();
-  const whenBlastDb = new DeferredPromise();
-
-  const whenBlastDirCreated = new Promise((resolve, reject) => {
-    tmp.dir(
-      { mode: "0750", prefix: "mlst_blast_", unsafeCleanup: true },
-      (err, blastDir) => {
-        if (err) reject(err);
-        resolve(blastDir);
-      }
-    );
+async function makeBlastDb(inputFileStream) {
+  const output = new DeferredPromise();
+  const { path: blastDir } = await tmp.dir({
+    mode: "0750",
+    prefix: "mlst_blast_",
+    unsafeCleanup: true
   });
-
   const contigRenamer = new RenameContigs();
-  const renamedFasta = inputFileStream
-    .pipe(fasta.obj())
+  const originalFasta = fasta.obj();
+  const renamedFasta = originalFasta
     .pipe(contigRenamer)
     .pipe(new FastaString());
 
-  whenBlastDirCreated.then(dir => {
-    const databasePath = path.join(dir, "blast.db");
-    const command =
-      `makeblastdb -title mlst -in - ` + `-dbtype nucl -out ${databasePath}`;
-    logger("debug:blast:makeBlastDb")(
-      `Creating Blast database '${databasePath}'`
-    );
-    logger("trace:blast:makeBlastDb")(`Running '${command}'`);
-    const shell = spawn(command, { shell: true });
-    renamedFasta.pipe(shell.stdin);
-    loadSequencesFromStream(renamedFasta).then(
-      whenRenamedSequences.resolve.bind(whenRenamedSequences)
-    );
-    shell.on("exit", (code, signal) => {
-      if (code === 0) {
-        logger("debug:blast:makeBlastDb")(
-          `Created Blast database '${databasePath}'`
-        );
-        whenContigNameMap.resolve(contigRenamer.nameMap);
-        whenBlastDb.resolve(databasePath);
-      } else {
-        whenContigNameMap.reject(
-          `Got ${code}:${signal} while building BlastDB`
-        );
-        whenBlastDb.reject(`Got ${code}:${signal} while building BlastDB`);
-      }
-    });
+  const whenRenamedSequences = loadSequencesFromStream(renamedFasta);
+
+  const databasePath = path.join(blastDir, "blast.db");
+  const command = `makeblastdb -title mlst -in - -dbtype nucl -out ${databasePath}`;
+  logger("debug:blast:makeBlastDb")(
+    `Creating Blast database '${databasePath}'`
+  );
+  logger("trace:blast:makeBlastDb")(`Running '${command}'`);
+  const shell = spawn(command, { shell: true });
+  shell.stdin.on("error", err => {
+    logger("error:blast:makeBlastDb")(err);
+    output.reject(err);
+  });
+  shell.on("error", err => {
+    logger("error:blast:makeBlastDb")(err);
+    output.reject(err);
+  });
+  shell.on("exit", async (code, signal) => {
+    if (code === 0) {
+      logger("debug:blast:makeBlastDb")(
+        `Created Blast database '${databasePath}'`
+      );
+      const renamedSequences = await whenRenamedSequences;
+      output.resolve({
+        contigNameMap: contigRenamer.nameMap,
+        blastDb: databasePath,
+        renamedSequences
+      });
+    } else {
+      output.reject(`Got ${code}:${signal} while building BlastDB`);
+    }
   });
 
-  return { whenContigNameMap, whenRenamedSequences, whenBlastDb };
+  renamedFasta.pipe(shell.stdin);
+  inputFileStream.pipe(originalFasta);
+  return output;
 }
 
 function createBlastProcess(db, wordSize = 11, percIdentity = 0) {
