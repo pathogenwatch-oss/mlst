@@ -9,11 +9,7 @@ async function updateAllSchemes() {
   const bigsDbMetadata = await new BigsDbSchemes(DATA_DIR).update();
   const ridomMetadata = await new RidomSchemes(DATA_DIR).update();
   const enterobaseMetadata = await new EnterobaseSchemes(DATA_DIR).update();
-  const schemesUpdated = _.concat(
-    _.values(bigsDbMetadata),
-    _.values(ridomMetadata),
-    _.values(enterobaseMetadata)
-  );
+  const schemesUpdated = _.values(enterobaseMetadata);
   const schemeString = _(schemesUpdated)
     .map(({ description }) => `* ${description}`)
     .join("\n");
