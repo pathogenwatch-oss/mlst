@@ -14,10 +14,9 @@ async function updateAllSchemes() {
     _.values(ridomMetadata),
     _.values(enterobaseMetadata)
   );
-  const schemeString = _.map(
-    schemesUpdated,
-    ({ scheme, description }) => `* ${scheme} (${description})`
-  );
+  const schemeString = _(schemesUpdated)
+    .map(({ description }) => `* ${description}`)
+    .join("\n");
   console.log(`\nUpdated the following cgMLST schemes:\n${schemeString}`);
 }
 
