@@ -7,8 +7,8 @@ const { makeBlastDb } = require("./src/blast");
 const { HitsStore } = require("./src/matches");
 const { streamFactory, runBlast, buildResults } = require("./src/mlst");
 const { findExactHits } = require("./src/exactHits");
-const { DeferredPromise, fail } = require("./src/utils");
-const { getMetadata } = require("./src/parseEnvVariables")
+const { fail } = require("./src/utils");
+const { getMetadata } = require("./src/parseEnvVariables");
 
 process.on("unhandledRejection", reason => fail("unhandledRejection")(reason));
 
@@ -49,7 +49,9 @@ function formatOutput(alleleMetadata, results) {
 }
 
 async function main() {
-  const [RUN_CORE_GENOME_MLST, alleleMetadata] = getMetadata("/opt/mlst/databases");
+  const [RUN_CORE_GENOME_MLST, alleleMetadata] = getMetadata(
+    "/opt/mlst/databases"
+  );
 
   const {
     lengths: alleleLengths,
@@ -65,10 +67,16 @@ async function main() {
   logger("debug")(`${scheme} has ${allelePaths.length} genes`);
 
   const streamBuilder = streamFactory(allelePaths);
-  const { contigNameMap, blastDb, renamedSequences } = await makeBlastDb(process.stdin);
+  const { contigNameMap, blastDb, renamedSequences } = await makeBlastDb(
+    process.stdin
+  );
   const hitsStore = new HitsStore(alleleLengths, contigNameMap);
 
-  const exactHits = await findExactHits(renamedSequences, alleleLookup, alleleLookupPrefixLength);
+  const exactHits = await findExactHits(
+    renamedSequences,
+    alleleLookup,
+    alleleLookupPrefixLength
+  );
   _.forEach(exactHits, hit => hitsStore.add(hit));
   const matchedGenes = _.uniq(_.map(exactHits, ({ gene }) => gene));
   logger("debug:exactHits")(
@@ -93,12 +101,18 @@ async function main() {
   /* eslint-enable max-params */
 
   logger("debug:blast")("Running first round of blast");
-  const firstRunResults = await runRound(20, 80, genes, 0, ALLELES_IN_FIRST_RUN);
+  const firstRunResults = await runRound(
+    20,
+    80,
+    genes,
+    0,
+    ALLELES_IN_FIRST_RUN
+  );
   const inexactGenes = findGenesWithInexactResults(firstRunResults);
   let results;
   if (inexactGenes.length <= 0) {
     results = firstRunResults;
-  } else if (RUN_CORE_GENOME_MLST){
+  } else if (RUN_CORE_GENOME_MLST) {
     logger("debug:blast")("Running second round of blast");
     results = runRound(20, 80, inexactGenes, ALLELES_IN_FIRST_RUN, 50);
   } else {
