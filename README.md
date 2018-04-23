@@ -25,6 +25,10 @@ by setting `DEBUG='.'`.
 
 You can run Core Genome MLST by running the `cgmlst` container instead of the `mlst` container.
 
+```
+cat tests/data/saureus_duplicate.fasta | docker run -i -e WGSA_ORGANISM_TAXID=1280 -e DEBUG='*' --rm cgmlst:v6
+```
+
 ## Building the containers
 
 7 gene MLST and Core Genome MLST use the same code but different databases 
