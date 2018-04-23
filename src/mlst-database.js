@@ -546,7 +546,7 @@ class CgMlstMetadata extends Metadata {
 class BigsDbSchemes extends CgMlstMetadata {
   constructor(dataDir = MLST_DIR) {
     super(dataDir);
-    this.schemeDetailsPath = path.join(__dirname, "..", "bigsDb-schemes.json");
+    this.schemeDetailsPath = path.join(__dirname, "..", "schemes", "bigsDb-schemes.json");
   }
 
   async _updateScheme(schemeDetails) {
@@ -584,7 +584,7 @@ class BigsDbSchemes extends CgMlstMetadata {
 class RidomSchemes extends CgMlstMetadata {
   constructor(dataDir = MLST_DIR) {
     super(dataDir);
-    this.schemeDetailsPath = path.join(__dirname, "..", "ridom-schemes.json");
+    this.schemeDetailsPath = path.join(__dirname, "..", "schemes", "ridom-schemes.json");
     this.metadataPath = path.join(dataDir, "metadataCore.json");
   }
 
@@ -667,6 +667,7 @@ class EnterobaseSchemes extends CgMlstMetadata {
     this.schemeDetailsPath = path.join(
       __dirname,
       "..",
+      "schemes",
       "enterobase-schemes.json"
     );
   }

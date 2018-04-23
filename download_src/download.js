@@ -25,16 +25,19 @@ const PUBMLST_SEVEN_GENOMES_METADATA_URL =
 const BIGSDB_SCHEME_METADATA_PATH = path.join(
   __dirname,
   "..",
+  "schemes",
   "bigsDb-schemes.json"
 );
 const RIDOM_SCHEME_METADATA_PATH = path.join(
   __dirname,
   "..",
+  "schemes",
   "ridom-schemes.json"
 );
 const ENTEROBASE_SCHEME_METADATA_PATH = path.join(
   __dirname,
   "..",
+  "schemes",
   "enterobase-schemes.json"
 );
 const TAXDUMP_HOST = "ftp.ncbi.nih.gov";
