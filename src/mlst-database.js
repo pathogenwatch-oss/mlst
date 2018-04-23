@@ -334,7 +334,7 @@ class PubMlstSevenGenomeSchemes extends Metadata {
     );
     const latestMetadata = this._latestMetadata(pubMlstMetadata);
 
-    const writtenMetadata = await Promise.map(
+    await Promise.map(
       latestMetadata,
       async speciesMetadata => {
         const indexedData = await this._updateSpecies(speciesMetadata);
@@ -356,6 +356,7 @@ class PubMlstSevenGenomeSchemes extends Metadata {
           });
         }
         missingTaxids.push(species);
+        return Promise.resolve();
       },
       { concurrency: 3 }
     );
@@ -432,7 +433,7 @@ class PubMlstSevenGenomeSchemes extends Metadata {
   async _updateSpecies(speciesData) {
     const { species, scheme, retrieved, url, loci, profilesPath } = speciesData;
     logger("debug:updateSpecies")(`Updating details for ${species}`);
-    const inputAllelePaths = _.map(loci, ({ path }) => path);
+    const inputAllelePaths = _.map(loci, ({ path: p }) => p);
     const genes = _.map(loci, ({ locus }) => locus);
     const { metadataPath } = await this.indexScheme(
       species,
@@ -507,12 +508,7 @@ class CgMlstMetadata extends Metadata {
       return Promise.reject(message);
     }
 
-    let allSpeciesMlstMetadata;
-    try {
-      allSpeciesMlstMetadata = await readJson(this.metadataPath);
-    } catch (err) {
-      allSpeciesMlstMetadata = {};
-    }
+    const allSpeciesMlstMetadata = await this.allMetadata();
     await Promise.map(
       schemeDetails,
       async ({ taxid, url, description }) => {
@@ -534,6 +530,14 @@ class CgMlstMetadata extends Metadata {
     return allSpeciesMlstMetadata;
   }
 
+  async allMetadata() {
+    try {
+      return await readJson(this.metadataPath);
+    } catch (err) {
+      return {};
+    }
+  }
+
   async _updateScheme() {
     throw Error("Not implemented");
   }
@@ -546,7 +550,12 @@ class CgMlstMetadata extends Metadata {
 class BigsDbSchemes extends CgMlstMetadata {
   constructor(dataDir = MLST_DIR) {
     super(dataDir);
-    this.schemeDetailsPath = path.join(__dirname, "..", "schemes", "bigsDb-schemes.json");
+    this.schemeDetailsPath = path.join(
+      __dirname,
+      "..",
+      "schemes",
+      "bigsDb-schemes.json"
+    );
   }
 
   async _updateScheme(schemeDetails) {
@@ -584,7 +593,12 @@ class BigsDbSchemes extends CgMlstMetadata {
 class RidomSchemes extends CgMlstMetadata {
   constructor(dataDir = MLST_DIR) {
     super(dataDir);
-    this.schemeDetailsPath = path.join(__dirname, "..", "schemes", "ridom-schemes.json");
+    this.schemeDetailsPath = path.join(
+      __dirname,
+      "..",
+      "schemes",
+      "ridom-schemes.json"
+    );
     this.metadataPath = path.join(dataDir, "metadataCore.json");
   }
 
