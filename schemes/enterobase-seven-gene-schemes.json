@@ -1,9 +1,0 @@
-[
-  { 
-    "taxid": 28901,
-    "url": "https://enterobase.warwick.ac.uk/api/v2.0/senterica/MLST_Achtman/loci?scheme=MLST_Achtman&limit=50",
-    "profile_url": "http://enterobase.warwick.ac.uk/download_data?allele=profiles&scheme=UoW&species=Salmonella",
-    "species": "Salmonella enterica MLST Achtman",
-    "description": "Salmonella enterica"
-  }
-]
