@@ -5,8 +5,8 @@ const {
   RidomSchemes,
   EnterobaseSchemes,
   CgMlstMetadata
-} = require("./src/mlst-database");
-const { fail } = require("./src/utils");
+} = require("../src/mlst-database");
+const { fail } = require("../src/utils");
 
 process.on("unhandledRejection", reason => fail("unhandledRejection")(reason));
 

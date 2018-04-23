@@ -17,9 +17,9 @@ COPY    data/cache /opt/mlst/cache
 RUN     mkdir -p /usr/local/mlst /opt/mlst/databases && \
         chmod -R a+w /opt/mlst/databases
 COPY    *.js *.json /usr/local/mlst/
-COPY    download_src /usr/local/mlst/download_src/
 COPY    src /usr/local/mlst/src/
-RUN     DEBUG='*' node ./update-${TYPE}-databases.js && \
+COPY    schemes /usr/local/mlst/schemes/
+RUN     DEBUG='*' node ./schemes/index-${TYPE}-databases.js && \
         chmod -R a+r /opt/mlst/databases
 
 

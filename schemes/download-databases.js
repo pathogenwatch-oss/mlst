@@ -10,11 +10,12 @@ const path = require("path");
 const tmp = require("tmp");
 const { URL } = require("url");
 const { promisify } = require("util");
-const { parseString } = require("xml2js");
+const { parseString: parseXml } = require("xml2js");
 
 const { fail } = require("../src/utils");
 
 const readFileAsync = promisify(fs.readFile);
+const parseXmlAsync = promisify(parseXml);
 
 const CACHE_DIR = "/opt/mlst/cache";
 const TMP_CACHE_DIR = path.join(CACHE_DIR, "tmp");
@@ -24,22 +25,10 @@ axios.defaults.headers.common["User-Agent"] =
 
 const PUBMLST_SEVEN_GENOMES_METADATA_URL =
   "https://pubmlst.org/data/dbases.xml";
-const BIGSDB_SCHEME_METADATA_PATH = path.join(
-  __dirname,
-  "..",
-  "schemes",
-  "bigsDb-schemes.json"
-);
-const RIDOM_SCHEME_METADATA_PATH = path.join(
-  __dirname,
-  "..",
-  "schemes",
-  "ridom-schemes.json"
-);
+const BIGSDB_SCHEME_METADATA_PATH = path.join(__dirname, "bigsDb-schemes.json");
+const RIDOM_SCHEME_METADATA_PATH = path.join(__dirname, "ridom-schemes.json");
 const ENTEROBASE_SCHEME_METADATA_PATH = path.join(
   __dirname,
-  "..",
-  "schemes",
   "enterobase-schemes.json"
 );
 const TAXDUMP_HOST = "ftp.ncbi.nih.gov";
@@ -61,15 +50,6 @@ function urlToPath(url) {
   return (
     path.join(CACHE_DIR, hostnameBitOfPath, ...middleBitOfPath) + searchSuffix
   );
-}
-
-function parseXml(content) {
-  return new Promise((resolve, reject) => {
-    parseString(content, (err, result) => {
-      if (err) reject(err);
-      resolve(result);
-    });
-  });
 }
 
 function delay(wait) {
@@ -200,7 +180,7 @@ async function downloadPubMlstSevenGenes() {
   const metadataUrl = PUBMLST_SEVEN_GENOMES_METADATA_URL;
   const metadataPath = await downloadFile(metadataUrl);
   const metadataContent = await readFileAsync(metadataPath);
-  const metadata = await parseXml(metadataContent);
+  const metadata = await parseXmlAsync(metadataContent);
   const urls = extractUrlsForPubMlstSevenGenes(metadata);
   const downloads = _.map(urls, async url => await downloadFile(url));
   const downloadPaths = await Promise.all(downloads);
@@ -209,10 +189,7 @@ async function downloadPubMlstSevenGenes() {
 
 async function downloadBigsDbSchemes() {
   const schemeMetadata = await readJson(BIGSDB_SCHEME_METADATA_PATH);
-  const schemeUrls = _(schemeMetadata)
-    .map(({ url }) => url)
-    .uniq()
-    .value();
+  const schemeUrls = _(schemeMetadata).map(({ url }) => url).uniq().value();
   const schemePaths = await Promise.map(
     schemeUrls,
     async url => await downloadFile(url)
@@ -238,8 +215,7 @@ async function downloadRidomSchemes() {
   const schemeMetadata = await readJson(RIDOM_SCHEME_METADATA_PATH);
   const alleleDownloads = Promise.map(
     schemeMetadata,
-    async ({ url }) => await downloadFile(url),
-    { concurrency: 1 }
+    async ({ url }) => await downloadFile(url)
   );
   return Promise.all(alleleDownloads); // Scheme might be shared between species
 }
