@@ -12,6 +12,8 @@ const { URL } = require("url");
 const { promisify } = require("util");
 const { parseString } = require("xml2js");
 
+const { fail } = require("../src/utils");
+
 const readFileAsync = promisify(fs.readFile);
 
 const CACHE_DIR = "/opt/mlst/cache";
@@ -346,5 +348,5 @@ async function downloadAll() {
 if (require.main === module) {
   downloadAll()
     .then(downloads => logger("debug")(`${downloads.length} downloads cached`))
-    .catch(logger("error"));
+    .catch(fail("error"));
 }
