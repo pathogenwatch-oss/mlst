@@ -312,13 +312,14 @@ module.exports = { urlToPath };
 
 async function downloadAll() {
   await mkdirp(TMP_CACHE_DIR, { mode: 0o755 });
-  return _.concat(
-    await downloadPubMlstSevenGenes(),
-    await downloadBigsDbSchemes(),
-    await downloadRidomSchemes(),
-    await downloadEnterobaseSchemes(),
-    await downloadNcbiTaxDump()
+  const downloads = await Promise.all(
+    downloadPubMlstSevenGenes(),
+    downloadBigsDbSchemes(),
+    downloadRidomSchemes(),
+    downloadEnterobaseSchemes(),
+    downloadNcbiTaxDump()
   );
+  return _.concat(downloads);
 }
 
 if (require.main === module) {
