@@ -4,6 +4,8 @@ const { PubMlstSevenGenomeSchemes } = require("./src/mlst-database");
 const { loadSpeciesTaxidMap } = require("./src/ncbi-taxid-lookup");
 const { fail } = require("./src/utils");
 
+process.on("unhandledRejection", reason => fail("unhandledRejection")(reason));
+
 const DATA_DIR = "/opt/mlst/databases";
 
 async function updateAllSchemes() {
