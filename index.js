@@ -3,142 +3,16 @@
 const _ = require("lodash");
 const logger = require("debug");
 
-const {
-  PubMlstSevenGenomeSchemes,
-  CgMlstMetadata
-} = require("./src/mlst-database");
 const { makeBlastDb } = require("./src/blast");
 const { HitsStore } = require("./src/matches");
 const { streamFactory, runBlast, buildResults } = require("./src/mlst");
 const { findExactHits } = require("./src/exactHits");
 const { DeferredPromise, fail } = require("./src/utils");
-
-const DATA_DIR = "/opt/mlst/databases";
+const { getMetadata } = require("./src/parseEnvVariables")
 
 process.on("unhandledRejection", reason => fail("unhandledRejection")(reason));
 
-const RUN_CORE_GENOME_MLST =
-  (process.env.RUN_CORE_GENOME_MLST && true) || false;
-let metadataSchemes;
-
-if (RUN_CORE_GENOME_MLST) {
-  metadataSchemes = new CgMlstMetadata(DATA_DIR);
-} else {
-  metadataSchemes = new PubMlstSevenGenomeSchemes(DATA_DIR);
-}
-
-const POSSIBLE_TAXID_ENVIRONMENT_VARIABLES = [
-  "WGSA_ORGANISM_TAXID",
-  "WGSA_SPECIES_TAXID",
-  "WGSA_GENUS_TAXID"
-];
-let taxid;
-let taxidVariableName;
-let alleleMetadata;
-_.forEach(POSSIBLE_TAXID_ENVIRONMENT_VARIABLES, variableName => {
-  taxid = process.env[variableName] || null;
-  alleleMetadata = metadataSchemes.read(taxid);
-  if (alleleMetadata) {
-    taxidVariableName = variableName;
-    return false;
-  }
-  return true;
-});
-
-logger("params")({ taxidVariableName, taxid });
-
-if (!alleleMetadata) {
-  const taxIdEnvironmentVariables = _.zip(
-    POSSIBLE_TAXID_ENVIRONMENT_VARIABLES,
-    _.map(
-      POSSIBLE_TAXID_ENVIRONMENT_VARIABLES,
-      variable => process.env[variable]
-    )
-  );
-  console.log(
-    JSON.stringify({
-      error: `Could not find MLST scheme:\n${JSON.stringify(
-        taxIdEnvironmentVariables
-      )}`
-    })
-  );
-  process.exit(1);
-}
-
-const {
-  lengths: alleleLengths,
-  alleleLookup,
-  alleleLookupPrefixLength,
-  genes,
-  profiles,
-  allelePaths,
-  scheme,
-  commonGeneLengths,
-  url
-} = alleleMetadata;
-
-logger("debug")(`${scheme} has ${allelePaths.length} genes`);
-
-const NUMBER_OF_ALLELES = 5;
-const streamBuilder = streamFactory(allelePaths);
-
-const whenBlastDb = new DeferredPromise();
-const whenRenamedSequences = new DeferredPromise();
-const whenContigNameMap = new DeferredPromise();
-
-makeBlastDb(process.stdin)
-  .then(({ contigNameMap, blastDb, renamedSequences }) => {
-    whenBlastDb.resolve(blastDb);
-    whenRenamedSequences.resolve(renamedSequences);
-    whenContigNameMap.resolve(contigNameMap);
-  })
-  .catch(fail("makeBlastDb"));
-
-const whenExactHits = whenRenamedSequences
-  .then(renamedSequences =>
-    findExactHits(renamedSequences, alleleLookup, alleleLookupPrefixLength)
-  )
-  .catch(fail("exactHits"));
-
-whenExactHits
-  .then(hits => _.map(hits, ({ gene }) => gene))
-  .then(matchedGenes => _.uniq(matchedGenes))
-  .then(matchedGenes =>
-    logger("debug:exactHits")(
-      `Found exact matches for ${matchedGenes.length} out of ${genes.length} genes`
-    )
-  );
-
-const whenHitsStore = whenContigNameMap.then(
-  contigNameMap => new HitsStore(alleleLengths, contigNameMap)
-);
-
-const whenExactHitsAdded = Promise.all([
-  whenHitsStore,
-  whenExactHits
-]).then(([hitsStore, hits]) => {
-  _.forEach(hits, hit => hitsStore.add(hit));
-});
-
-/* eslint-disable max-params */
-async function runRound(wordSize, pIdent, genesToImprove, start, end) {
-  const hitsStore = await whenHitsStore;
-  const db = await whenBlastDb;
-  const renamedSequences = await whenRenamedSequences;
-  const stream = streamBuilder(genesToImprove, start, end);
-  await runBlast({ stream, db, wordSize, pIdent, hitsStore });
-  const bestHits = hitsStore.best();
-  return await buildResults({
-    bestHits,
-    alleleLengths,
-    genes,
-    profiles,
-    scheme,
-    commonGeneLengths,
-    renamedSequences
-  });
-}
-/* eslint-enable max-params */
+const ALLELES_IN_FIRST_RUN = 5;
 
 function findGenesWithInexactResults(results) {
   const exactResultFilter = ([, [firstMatch, ...otherMatches]]) => {
@@ -153,28 +27,7 @@ function findGenesWithInexactResults(results) {
   return inexactGenes;
 }
 
-async function runAllRounds() {
-  logger("debug:blast")("Running first round of blast");
-  const firstRunResults = await runRound(30, 80, genes, 0, NUMBER_OF_ALLELES);
-  let inexactGenes = findGenesWithInexactResults(firstRunResults);
-  if (inexactGenes.length <= 0) return firstRunResults;
-  logger("debug:blast")("Running second round of blast");
-  const secondRunResults = await runRound(
-    20,
-    80,
-    inexactGenes,
-    NUMBER_OF_ALLELES,
-    50
-  );
-  if (RUN_CORE_GENOME_MLST) return secondRunResults;
-  inexactGenes = findGenesWithInexactResults(secondRunResults);
-  if (inexactGenes.length <= 0) return secondRunResults;
-  logger("debug:blast")("Running third round of blast");
-  const thirdRunResults = await runRound(20, 80, inexactGenes, 50, 0);
-  return thirdRunResults;
-}
-
-function formatOutput(results) {
+function formatOutput(alleleMetadata, results) {
   const { alleles, code, st } = results;
   const sortedAlleles = _(alleles)
     .toPairs()
@@ -184,6 +37,7 @@ function formatOutput(results) {
     ])
     .fromPairs()
     .value();
+  const { scheme, url, genes } = alleleMetadata;
   return {
     alleles: sortedAlleles,
     code,
@@ -195,11 +49,64 @@ function formatOutput(results) {
 }
 
 async function main() {
-  await whenBlastDb;
-  await whenExactHitsAdded;
-  const hitsStore = await whenHitsStore;
-  const results = await runAllRounds();
-  const output = formatOutput(results);
+  const [RUN_CORE_GENOME_MLST, alleleMetadata] = getMetadata("/opt/mlst/databases");
+
+  const {
+    lengths: alleleLengths,
+    alleleLookup,
+    alleleLookupPrefixLength,
+    genes,
+    profiles,
+    allelePaths,
+    scheme,
+    commonGeneLengths
+  } = alleleMetadata;
+
+  logger("debug")(`${scheme} has ${allelePaths.length} genes`);
+
+  const streamBuilder = streamFactory(allelePaths);
+  const { contigNameMap, blastDb, renamedSequences } = await makeBlastDb(process.stdin);
+  const hitsStore = new HitsStore(alleleLengths, contigNameMap);
+
+  const exactHits = await findExactHits(renamedSequences, alleleLookup, alleleLookupPrefixLength);
+  _.forEach(exactHits, hit => hitsStore.add(hit));
+  const matchedGenes = _.uniq(_.map(exactHits, ({ gene }) => gene));
+  logger("debug:exactHits")(
+    `Added exact matches for ${matchedGenes.length} out of ${genes.length} genes`
+  );
+
+  /* eslint-disable max-params */
+  async function runRound(wordSize, pIdent, genesToImprove, start, end) {
+    const stream = streamBuilder(genesToImprove, start, end);
+    await runBlast({ stream, blastDb, wordSize, pIdent, hitsStore });
+    const bestHits = hitsStore.best();
+    return await buildResults({
+      bestHits,
+      alleleLengths,
+      genes,
+      profiles,
+      scheme,
+      commonGeneLengths,
+      renamedSequences
+    });
+  }
+  /* eslint-enable max-params */
+
+  logger("debug:blast")("Running first round of blast");
+  const firstRunResults = await runRound(20, 80, genes, 0, ALLELES_IN_FIRST_RUN);
+  const inexactGenes = findGenesWithInexactResults(firstRunResults);
+  let results;
+  if (inexactGenes.length <= 0) {
+    results = firstRunResults;
+  } else if (RUN_CORE_GENOME_MLST){
+    logger("debug:blast")("Running second round of blast");
+    results = runRound(20, 80, inexactGenes, ALLELES_IN_FIRST_RUN, 50);
+  } else {
+    logger("debug:blast")("Running second round of blast");
+    results = runRound(20, 80, inexactGenes, ALLELES_IN_FIRST_RUN, 0);
+  }
+
+  const output = formatOutput(alleleMetadata, results);
   if (process.env.DEBUG) {
     const sortedRaw = _(results.raw)
       .toPairs()
