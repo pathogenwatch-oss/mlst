@@ -1,3 +1,5 @@
+ARG TYPE=mlst
+
 FROM ubuntu as blast_build
 
 RUN apt-get update && apt-get install -y wget tar
@@ -17,7 +19,7 @@ RUN     mkdir -p /usr/local/mlst /opt/mlst/databases && \
 COPY    *.js *.json /usr/local/mlst/
 COPY    download_src /usr/local/mlst/download_src/
 COPY    src /usr/local/mlst/src/
-RUN     DEBUG='*' node ./update-mlst-databases.js && \
+RUN     DEBUG='*' node ./update-${TYPE}-databases.js && \
         chmod -R a+r /opt/mlst/databases
 
 
@@ -31,7 +33,7 @@ COPY    tests /usr/local/mlst/tests/
 WORKDIR /usr/local/mlst/tests
 
 RUN     apt-get update && apt-get install -y jq
-RUN     bash test.sh
+RUN     RUN_CORE_GENOME_MLST=$([[ "$TYPE" == "cgmlst" ]] && echo "yes" || echo "no") bash test.sh
  
 
 FROM node:8
@@ -42,4 +44,4 @@ COPY    --from=index_build /usr/local/mlst /usr/local/mlst/
 
 WORKDIR /usr/local/mlst
 
-CMD 	[ "/usr/local/bin/node", "--max-old-space-size=4096", "/usr/local/mlst/index.js" ]
+CMD 	RUN_CORE_GENOME_MLST=$([[ "$TYPE" == "cgmlst" ]] && echo "yes" || echo "no") /usr/local/bin/node --max-old-space-size=4096 /usr/local/mlst/index.js
