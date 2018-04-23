@@ -1,7 +1,11 @@
 const _ = require("lodash");
 
-const { BigsDbSchemes, RidomSchemes, EnterobaseSchemes } = require("./src/mlst-database");
-const { warn } = require("./src/utils");
+const {
+  BigsDbSchemes,
+  RidomSchemes,
+  EnterobaseSchemes
+} = require("./src/mlst-database");
+const { fail } = require("./src/utils");
 
 const DATA_DIR = "/opt/mlst/databases";
 
@@ -16,4 +20,4 @@ async function updateAllSchemes() {
   console.log(`\nUpdated the following cgMLST schemes:\n${schemeString}`);
 }
 
-updateAllSchemes().catch(warn("Problem updating the metadata"));
+updateAllSchemes().catch(fail("Problem updating the metadata"));

@@ -5,12 +5,15 @@ const through = require("through");
 
 const _ = require("lodash");
 
-function warn(message) {
-  return logger(`warning:${message}`);
+function warn(title) {
+  return logger(`warning:${title}`);
 }
 
-function fail(message) {
-  return logger(`error:${message}`);
+function fail(title) {
+  return message => {
+    logger(`error:${title}`)(message);
+    process.exit(1);
+  };
 }
 
 function parseAlleleName(allele) {

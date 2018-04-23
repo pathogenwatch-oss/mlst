@@ -194,22 +194,25 @@ function formatOutput(results) {
   };
 }
 
-Promise.all([whenBlastDb, whenHitsStore, whenExactHitsAdded])
-  .then(async ([, hitsStore]) => {
-    const results = await runAllRounds();
-    const output = formatOutput(results);
-    if (process.env.DEBUG) {
-      const sortedRaw = _(results.raw)
-        .toPairs()
-        .map(([gene, hits]) => [
-          gene,
-          _.sortBy(hits, hit => (hit.exact ? hit.st : hit.hash))
-        ])
-        .fromPairs()
-        .value();
-      output.raw = sortedRaw;
-      output.bins = hitsStore._bins;
-    }
-    console.log(JSON.stringify(output));
-  })
-  .catch(logger("RunAllBlast"));
+async function main() {
+  await whenBlastDb;
+  await whenExactHitsAdded;
+  const hitsStore = await whenHitsStore;
+  const results = await runAllRounds();
+  const output = formatOutput(results);
+  if (process.env.DEBUG) {
+    const sortedRaw = _(results.raw)
+      .toPairs()
+      .map(([gene, hits]) => [
+        gene,
+        _.sortBy(hits, hit => (hit.exact ? hit.st : hit.hash))
+      ])
+      .fromPairs()
+      .value();
+    output.raw = sortedRaw;
+    output.bins = hitsStore._bins;
+  }
+  console.log(JSON.stringify(output));
+}
+
+main().then(() => logger("info")("Done")).catch(fail("RunAllBlast"));
