@@ -1,11 +1,11 @@
 const _ = require("lodash");
 const hasha = require("hasha");
-const logger = require("debug");
 
 const { parseAlleleName } = require("./utils");
 
+// eslint-disable-next-line max-params
 function buildHit(idx, allele, alleleLength, seq, contigId, reverse) {
-  const {gene, st} = parseAlleleName(allele);
+  const { gene, st } = parseAlleleName(allele);
   return {
     allele,
     contigId,
@@ -37,7 +37,14 @@ function findExactHits(renamedSequences, alleleLookup, prefixLength) {
           hashCache[alleleLength] = hash;
         }
         if (hash === alleleHash) {
-          const hit = buildHit(idx, allele, alleleLength, seq, contigId, reverse);
+          const hit = buildHit(
+            idx,
+            allele,
+            alleleLength,
+            seq,
+            contigId,
+            reverse
+          );
           hits.push(hit);
         }
       });

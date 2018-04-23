@@ -104,7 +104,14 @@ class HitsStore {
     if (existingBin) {
       return existingBin;
     }
-    const newBin = { gene, contigStart, contigEnd, contigId, hits: [], bestPIdent: 0 };
+    const newBin = {
+      gene,
+      contigStart,
+      contigEnd,
+      contigId,
+      hits: [],
+      bestPIdent: 0
+    };
     this._bins.push(newBin);
     return newBin;
   }
@@ -127,8 +134,10 @@ class HitsStore {
 
   updateBin(bin, hit) {
     /* eslint-disable no-param-reassign */
-    bin.contigStart = bin.contigStart < hit.contigStart ? bin.contigStart : hit.contigStart;
-    bin.contigEnd = bin.contigEnd > hit.contigEnd ? bin.contigEnd : hit.contigEnd;
+    bin.contigStart =
+      bin.contigStart < hit.contigStart ? bin.contigStart : hit.contigStart;
+    bin.contigEnd =
+      bin.contigEnd > hit.contigEnd ? bin.contigEnd : hit.contigEnd;
 
     // If a bin has a exact hit in it, we're only interested in other
     // exact hits.

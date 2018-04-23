@@ -39,7 +39,10 @@ function parseNcbiNamesFile(namesFileStream) {
       const row = _(line).split("|").map(_.trim).value();
       const [taxid, species, __, rowType] = row.slice(0, 4); // eslint-disable-line no-unused-vars
       if (
-        _.includes(["equivalent name", "genbank synonym", "scientific name", "synonym"], rowType)
+        _.includes(
+          ["equivalent name", "genbank synonym", "scientific name", "synonym"],
+          rowType
+        )
       ) {
         callback(null, [taxid, species]);
       } else {
