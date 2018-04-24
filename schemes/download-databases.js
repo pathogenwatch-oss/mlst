@@ -132,7 +132,12 @@ class SlowDownloader {
       (() => true)(); // Statement left intentionally blank to make linter happy
     }
     options.responseType = "stream"; // eslint-disable-line no-param-reassign
-    const tmpPath = await this.downloadToTempFile(url, options);
+    let tmpPath;
+    try {
+      tmpPath = await this.downloadToTempFile(url, options);
+    } catch (err) {
+      throw new Error(`Downloading ${url} to ${downloadPath}\n${err}`);
+    }
     await promisify(fs.rename)(tmpPath, downloadPath);
     await promisify(fs.chmod)(downloadPath, 0o444);
     return downloadPath;
