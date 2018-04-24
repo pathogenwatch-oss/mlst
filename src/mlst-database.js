@@ -21,7 +21,7 @@ const {
   parseAlleleName,
   reverseCompliment
 } = require("./utils");
-const { urlToPath } = require("../download_src/download");
+const { urlToPath, parseBigsDbHtml } = require("../schemes/download-databases");
 
 const MLST_DIR = "/opt/mlst/databases";
 const ALLELE_LOOKUP_PREFIX_LENGTH = 20;
@@ -547,7 +547,45 @@ class CgMlstMetadata extends Metadata {
   }
 }
 
-class BigsDbSchemes extends CgMlstMetadata {
+class BigsDbHtmlSchemes extends CgMlstMetadata {
+  constructor(dataDir, schemeDetailsPath) {
+    super(dataDir);
+    this.schemeDetailsPath = schemeDetailsPath;
+  }
+
+  async _updateScheme(schemeDetails) {
+    const { scheme, url, schemeMetadataPath } = schemeDetails;
+    logger("debug:updateScheme")(
+      `Updating the ${scheme} with data from ${url}`
+    );
+    const loci = await parseBigsDbHtml(url, schemeMetadataPath);
+    const genes = [];
+    const inputAllelePaths = [];
+    _.forEach(loci, ({ locus, url: lucusUrl }) => {
+      const locusPath = urlToPath(lucusUrl);
+      genes.push(locus);
+      inputAllelePaths.push(locusPath);
+    });
+    const profilesPath = null;
+    const retrieved = new Date();
+
+    const { metadataPath } = await this.indexScheme(
+      scheme,
+      scheme,
+      genes,
+      inputAllelePaths,
+      profilesPath,
+      retrieved,
+      url
+    );
+    return {
+      metadataPath,
+      url
+    };
+  }
+}
+
+class BigsDbRestSchemes extends CgMlstMetadata {
   constructor(dataDir, schemeDetailsPath) {
     super(dataDir);
     this.schemeDetailsPath = schemeDetailsPath;
@@ -750,7 +788,8 @@ module.exports = {
   parseAlleleName,
   PubMlstSevenGenomeSchemes,
   CgMlstMetadata,
-  BigsDbSchemes,
+  BigsDbRestSchemes,
+  BigsDbHtmlSchemes,
   RidomSchemes,
   EnterobaseSchemes,
   FastaString

@@ -1,5 +1,6 @@
 const axios = require("axios");
 const Promise = require("bluebird");
+const cheerio = require("cheerio");
 const logger = require("debug");
 const fs = require("fs");
 const Client = require("ftp");
@@ -205,8 +206,8 @@ async function downloadPubMlstSevenGenes() {
   return [metadataPath, ...downloadPaths];
 }
 
-async function downloadBigsDbSchemes(path) {
-  const schemeMetadata = await readJson(path);
+async function downloadBigsDbSchemesRest(metadataPath) {
+  const schemeMetadata = await readJson(metadataPath);
   const schemeUrls = _(schemeMetadata).map(({ url }) => url).uniq().value();
   const schemePaths = await Promise.map(
     schemeUrls,
@@ -222,6 +223,53 @@ async function downloadBigsDbSchemes(path) {
     )
     .uniq()
     .value();
+  const allelePaths = await Promise.map(
+    alleleUrls,
+    async url => await downloadFile(url)
+  );
+  return [...schemePaths, ...allelePaths];
+}
+
+async function parseBigsDbHtml(downloadUrl, downloadPath) {
+  const content = await readFileAsync(downloadPath);
+  const $ = cheerio.load(content);
+  const { origin: urlRoot } = new URL(downloadUrl);
+
+  function parseRow(row) {
+    const columns = $(row).find("td");
+    if (columns.length !== 9) {
+      return null;
+    }
+    const urlPath = $(columns[1]).find("a").attr("href");
+    if (!urlPath) return null;
+    const locus = $(columns[0]).text()
+    return { locus, url: `${urlRoot}${urlPath}`};
+  }
+
+  const rows = $("#resultstable table").find("tr");
+  const loci = [];
+  rows.each((i, row) => {
+    const locus = parseRow(row);
+    if (locus) {
+      loci.push(locus);
+    }
+  });
+
+  return loci;
+}
+
+async function downloadBigsDbSchemesHtml(metadataPath) {
+  const schemeMetadata = await readJson(metadataPath);
+  const schemeUrls = _(schemeMetadata).map(({ url }) => url).uniq().value();
+  const schemePaths = await Promise.map(schemeUrls, async url => ({
+    url,
+    downloadPath: await downloadFile(url)
+  }));
+  const schemeDetails = await Promise.map(
+    schemePaths,
+    async ({ url, downloadPath }) => await parseBigsDbHtml(url, downloadPath)
+  );
+  const alleleUrls = _(schemeDetails).flatMap(({ url }) => url).uniq().value();
   const allelePaths = await Promise.map(
     alleleUrls,
     async url => await downloadFile(url)
@@ -332,8 +380,8 @@ async function downloadAll() {
   await mkdirp(TMP_CACHE_DIR, { mode: 0o755 });
   const downloads = await Promise.all([
     downloadPubMlstSevenGenes(),
-    downloadBigsDbSchemes(PUBMLST_SCHEME_METADATA_PATH),
-    downloadBigsDbSchemes(PASTEUR_SCHEME_METADATA_PATH),
+    downloadBigsDbSchemesRest(PUBMLST_SCHEME_METADATA_PATH),
+    downloadBigsDbSchemesHtml(PASTEUR_SCHEME_METADATA_PATH),
     downloadRidomSchemes(),
     downloadEnterobaseSchemes(),
     downloadNcbiTaxDump()

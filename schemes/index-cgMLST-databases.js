@@ -2,7 +2,8 @@ const _ = require("lodash");
 const path = require("path");
 
 const {
-  BigsDbSchemes,
+  BigsDbRestSchemes,
+  BigsDbHtmlSchemes,
   RidomSchemes,
   EnterobaseSchemes,
   CgMlstMetadata
@@ -14,11 +15,11 @@ process.on("unhandledRejection", reason => fail("unhandledRejection")(reason));
 const DATA_DIR = "/opt/mlst/databases";
 
 async function updateAllSchemes() {
-  await new BigsDbSchemes(
+  await new BigsDbHtmlSchemes(
     DATA_DIR,
     path.join(__dirname, "pasteur-schemes.json")
   ).update();
-  await new BigsDbSchemes(
+  await new BigsDbRestSchemes(
     DATA_DIR,
     path.join(__dirname, "pubmlst-schemes.json")
   ).update();
