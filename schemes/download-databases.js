@@ -17,6 +17,8 @@ const { fail } = require("../src/utils");
 const readFileAsync = promisify(fs.readFile);
 const parseXmlAsync = promisify(parseXml);
 
+process.on("unhandledRejection", reason => fail("unhandledRejection")(reason));
+
 const CACHE_DIR = "/opt/mlst/cache";
 const TMP_CACHE_DIR = path.join(CACHE_DIR, "tmp");
 
@@ -73,12 +75,6 @@ async function createTempFileStream() {
   return { tmpPath, tmpFd, tmpStream };
 }
 
-async function createEmptyFile(outputPath) {
-  const f = await promisify(fs.open)(outputPath, "w");
-  await promisify(fs.close)(f);
-  return outputPath;
-}
-
 class SlowDownloader {
   constructor(minWait = 1000) {
     this.minWait = minWait; // ms
@@ -133,7 +129,7 @@ class SlowDownloader {
       );
       return downloadPath;
     } catch (err) {
-      await createEmptyFile(downloadPath); // So another thread doesn't also download it
+      (() => true)(); // Statement left intentionally blank to make linter happy
     }
     options.responseType = "stream"; // eslint-disable-line no-param-reassign
     const tmpPath = await this.downloadToTempFile(url, options);
@@ -266,7 +262,7 @@ async function downloadNcbiTaxDump() {
     return taxdumpPath;
   } catch (err) {
     // File isn't already downloaded
-    await createEmptyFile(taxdumpPath); // don't let another thread also download it
+    (() => true)(); // Statement left intentionally blank to make linter happy
   }
 
   const { tmpPath, tmpStream } = await createTempFileStream();
@@ -312,14 +308,14 @@ module.exports = { urlToPath };
 
 async function downloadAll() {
   await mkdirp(TMP_CACHE_DIR, { mode: 0o755 });
-  const downloads = await Promise.all(
+  const downloads = await Promise.all([
     downloadPubMlstSevenGenes(),
     downloadBigsDbSchemes(),
     downloadRidomSchemes(),
     downloadEnterobaseSchemes(),
     downloadNcbiTaxDump()
-  );
-  return _.concat(downloads);
+  ]);
+  return _.concat(...downloads);
 }
 
 if (require.main === module) {
