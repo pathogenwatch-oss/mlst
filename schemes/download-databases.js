@@ -232,21 +232,21 @@ async function downloadBigsDbSchemesRest(metadataPath) {
 
 async function parseBigsDbHtml(downloadUrl, downloadPath) {
   const content = await readFileAsync(downloadPath);
-  const $ = cheerio.load(content);
+  const $ = cheerio.load(content.toString());
   const { origin: urlRoot } = new URL(downloadUrl);
 
   function parseRow(row) {
     const columns = $(row).find("td");
-    if (columns.length !== 9) {
+    if (columns.length < 2) {
       return null;
     }
     const urlPath = $(columns[1]).find("a").attr("href");
     if (!urlPath) return null;
-    const locus = $(columns[0]).text()
-    return { locus, url: `${urlRoot}${urlPath}`};
+    const locus = $(columns[0]).text();
+    return { locus, url: `${urlRoot}${urlPath}` };
   }
 
-  const rows = $("#resultstable table").find("tr");
+  const rows = $("table.resultstable").find("tr");
   const loci = [];
   rows.each((i, row) => {
     const locus = parseRow(row);
@@ -260,21 +260,23 @@ async function parseBigsDbHtml(downloadUrl, downloadPath) {
 
 async function downloadBigsDbSchemesHtml(metadataPath) {
   const schemeMetadata = await readJson(metadataPath);
-  const schemeUrls = _(schemeMetadata).map(({ url }) => url).uniq().value();
-  const schemePaths = await Promise.map(schemeUrls, async url => ({
-    url,
-    downloadPath: await downloadFile(url)
-  }));
-  const schemeDetails = await Promise.map(
-    schemePaths,
-    async ({ url, downloadPath }) => await parseBigsDbHtml(url, downloadPath)
-  );
-  const alleleUrls = _(schemeDetails).flatMap(({ url }) => url).uniq().value();
-  const allelePaths = await Promise.map(
-    alleleUrls,
-    async url => await downloadFile(url)
-  );
-  return [...schemePaths, ...allelePaths];
+  const downloaded = [];
+  await Promise.map(schemeMetadata, async scheme => {
+    const { taxid, url, lociCount } = scheme;
+    const schemePath = await downloadFile(url);
+    const schemeLoci = await parseBigsDbHtml(url, schemePath);
+    if (schemeLoci.length !== lociCount) {
+      throw new Error(
+        `Expected ${lociCount} for ${taxid}, got ${schemeLoci.length}`
+      );
+    }
+    downloaded.push(schemePath);
+    const lociPaths = await Promise.map(schemeLoci, ({ url: lociUrl }) =>
+      downloadFile(lociUrl)
+    );
+    downloaded.push(lociPaths);
+  });
+  return _(downloaded).flatten().uniq().value();
 }
 
 async function downloadRidomSchemes() {
@@ -374,7 +376,7 @@ async function downloadNcbiTaxDump() {
   return taxdumpPath;
 }
 
-module.exports = { urlToPath };
+module.exports = { urlToPath, parseBigsDbHtml };
 
 async function downloadAll() {
   await mkdirp(TMP_CACHE_DIR, { mode: 0o755 });
