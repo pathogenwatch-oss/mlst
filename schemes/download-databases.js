@@ -118,7 +118,8 @@ class SlowDownloader {
     return tmpPath;
   }
 
-  async downloadFile(url, downloadPath, options = {}) {
+  async downloadFile(url, options = {}) {
+    const downloadPath = urlToPath(url);
     const dirname = path.dirname(downloadPath);
     await mkdirp(dirname, { mode: 0o755 });
     try {
@@ -145,18 +146,27 @@ class SlowDownloader {
 }
 
 const downloaders = {};
+const downloadCache = {};
+
 async function downloadFile(url, options = {}) {
+  if (_.has(downloadCache, url)) {
+    return downloadCache[url];
+  }
+
   const urlObj = new URL(url);
   const { hostname } = urlObj;
   if (!_.has(downloaders, hostname)) {
     downloaders[hostname] = new SlowDownloader(1000);
   }
   const downloader = downloaders[hostname];
-  const downloadPath = urlToPath(url);
-  const response = await downloader.downloadFile(url, downloadPath, options);
-  logger("trace:downloadFile")(
-    `${downloader.queueLength} files left in ${hostname} queue`
-  );
+  const response = downloader.downloadFile(url, options).then(r => {
+    logger("trace:downloadFile")(
+      `${downloader.queueLength} files left in ${hostname} queue`
+    );
+    return r;
+  });
+
+  downloadCache[url] = response;
   return response;
 }
 
