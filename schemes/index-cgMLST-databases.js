@@ -1,4 +1,5 @@
 const _ = require("lodash");
+const path = require("path");
 
 const {
   BigsDbSchemes,
@@ -13,7 +14,14 @@ process.on("unhandledRejection", reason => fail("unhandledRejection")(reason));
 const DATA_DIR = "/opt/mlst/databases";
 
 async function updateAllSchemes() {
-  await new BigsDbSchemes(DATA_DIR).update();
+  await new BigsDbSchemes(
+    DATA_DIR,
+    path.join(__dirname, "pasteur-schemes.json")
+  ).update();
+  await new BigsDbSchemes(
+    DATA_DIR,
+    path.join(__dirname, "pubmlst-schemes.json")
+  ).update();
   await new RidomSchemes(DATA_DIR).update();
   await new EnterobaseSchemes(DATA_DIR).update();
 

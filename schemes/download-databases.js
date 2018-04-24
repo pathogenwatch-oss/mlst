@@ -27,7 +27,14 @@ axios.defaults.headers.common["User-Agent"] =
 
 const PUBMLST_SEVEN_GENOMES_METADATA_URL =
   "https://pubmlst.org/data/dbases.xml";
-const BIGSDB_SCHEME_METADATA_PATH = path.join(__dirname, "bigsDb-schemes.json");
+const PASTEUR_SCHEME_METADATA_PATH = path.join(
+  __dirname,
+  "pasteur-schemes.json"
+);
+const PUBMLST_SCHEME_METADATA_PATH = path.join(
+  __dirname,
+  "pubmlst-schemes.json"
+);
 const RIDOM_SCHEME_METADATA_PATH = path.join(__dirname, "ridom-schemes.json");
 const ENTEROBASE_SCHEME_METADATA_PATH = path.join(
   __dirname,
@@ -198,8 +205,8 @@ async function downloadPubMlstSevenGenes() {
   return [metadataPath, ...downloadPaths];
 }
 
-async function downloadBigsDbSchemes() {
-  const schemeMetadata = await readJson(BIGSDB_SCHEME_METADATA_PATH);
+async function downloadBigsDbSchemes(path) {
+  const schemeMetadata = await readJson(path);
   const schemeUrls = _(schemeMetadata).map(({ url }) => url).uniq().value();
   const schemePaths = await Promise.map(
     schemeUrls,
@@ -325,7 +332,8 @@ async function downloadAll() {
   await mkdirp(TMP_CACHE_DIR, { mode: 0o755 });
   const downloads = await Promise.all([
     downloadPubMlstSevenGenes(),
-    downloadBigsDbSchemes(),
+    downloadBigsDbSchemes(PUBMLST_SCHEME_METADATA_PATH),
+    downloadBigsDbSchemes(PASTEUR_SCHEME_METADATA_PATH),
     downloadRidomSchemes(),
     downloadEnterobaseSchemes(),
     downloadNcbiTaxDump()

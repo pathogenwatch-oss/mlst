@@ -548,14 +548,9 @@ class CgMlstMetadata extends Metadata {
 }
 
 class BigsDbSchemes extends CgMlstMetadata {
-  constructor(dataDir = MLST_DIR) {
+  constructor(dataDir, schemeDetailsPath) {
     super(dataDir);
-    this.schemeDetailsPath = path.join(
-      __dirname,
-      "..",
-      "schemes",
-      "bigsDb-schemes.json"
-    );
+    this.schemeDetailsPath = schemeDetailsPath;
   }
 
   async _updateScheme(schemeDetails) {
