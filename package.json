@@ -4,7 +4,7 @@
   "description": "Use PubMLST to type samples",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
+    "test": "ava tests/",
     "lint": "eslint **/*.js *.js"
   },
   "author": "",
@@ -31,6 +31,7 @@
     "xml2js": "^0.4.17"
   },
   "devDependencies": {
+    "ava": "^0.25.0",
     "eslint": "^4.4.1",
     "eslint-config-cgps": "github:imperialcollegelondon/eslint-config-cgps",
     "eslint-config-prettier": "^2.3.0",

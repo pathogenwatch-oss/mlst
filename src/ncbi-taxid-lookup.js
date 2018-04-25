@@ -5,7 +5,7 @@ const fs = require("fs");
 const tar = require("tar");
 
 const { DeferredPromise } = require("./utils");
-const { urlToPath } = require("../download_src/download");
+const { urlToPath } = require("../schemes/download-databases");
 
 const TAXDUMP_HOST = "ftp.ncbi.nih.gov";
 const TAXDUMP_REMOTE_PATH = "/pub/taxonomy/taxdump.tar.gz";

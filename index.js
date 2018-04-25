@@ -48,7 +48,7 @@ function formatOutput(alleleMetadata, results) {
   };
 }
 
-async function main() {
+async function runMlst(inStream) {
   const [RUN_CORE_GENOME_MLST, alleleMetadata] = getMetadata(
     "/opt/mlst/databases"
   );
@@ -68,7 +68,7 @@ async function main() {
 
   const streamBuilder = streamFactory(allelePaths);
   const { contigNameMap, blastDb, renamedSequences } = await makeBlastDb(
-    process.stdin
+    inStream
   );
   const hitsStore = new HitsStore(alleleLengths, contigNameMap);
 
@@ -133,7 +133,14 @@ async function main() {
     output.raw = sortedRaw;
     output.bins = hitsStore._bins;
   }
-  console.log(JSON.stringify(output));
+  return output;
 }
 
-main().then(() => logger("info")("Done")).catch(fail("RunAllBlast"));
+module.exports = { runMlst };
+
+if (require.main === module) {
+  runMlst(process.stdin)
+    .then(output => console.log(JSON.stringify(output)))
+    .then(() => logger("info")("Done"))
+    .catch(fail("RunAllBlast"));
+}
