@@ -13,13 +13,14 @@ const { URL } = require("url");
 const { promisify } = require("util");
 const { parseString: parseXml } = require("xml2js");
 
-const { fail } = require("../src/utils");
+const { fail, DeferredPromise } = require("../src/utils");
 
 const readFileAsync = promisify(fs.readFile);
 const parseXmlAsync = promisify(parseXml);
 
 process.on("unhandledRejection", reason => fail("unhandledRejection")(reason));
 
+const DOWNLOAD_RETRIES = 5
 const CACHE_DIR = "/opt/mlst/cache";
 const TMP_CACHE_DIR = path.join(CACHE_DIR, "tmp");
 
@@ -160,6 +161,8 @@ async function downloadFile(url, options = {}) {
   if (_.has(downloadCache, url)) {
     return downloadCache[url];
   }
+  const response = new DeferredPromise();
+  downloadCache[url] = response;
 
   const urlObj = new URL(url);
   const { hostname } = urlObj;
@@ -167,14 +170,23 @@ async function downloadFile(url, options = {}) {
     downloaders[hostname] = new SlowDownloader(1000);
   }
   const downloader = downloaders[hostname];
-  const response = downloader.downloadFile(url, options).then(r => {
-    logger("trace:downloadFile")(
-      `${downloader.queueLength} files left in ${hostname} queue`
-    );
-    return r;
-  });
 
-  downloadCache[url] = response;
+  for (let i = 0; i < DOWNLOAD_RETRIES; i++) {
+    try {
+      const outPath = await downloader.downloadFile(url, options);
+      logger("trace:downloadFile")(
+        `${downloader.queueLength} files left in ${hostname} queue`
+      );
+      response.resolve(outPath);
+      break;
+    } catch (err) {
+      logger("trace:downloadFile")(`Error: requeueing ${url}`);
+      if (i === DOWNLOAD_RETRIES - 1) {
+        response.reject(err);
+      }
+    }
+  }
+
   return response;
 }
 
