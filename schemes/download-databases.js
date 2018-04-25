@@ -20,7 +20,7 @@ const parseXmlAsync = promisify(parseXml);
 
 process.on("unhandledRejection", reason => fail("unhandledRejection")(reason));
 
-const DOWNLOAD_RETRIES = 5
+const DOWNLOAD_RETRIES = 5;
 const CACHE_DIR = "/opt/mlst/cache";
 const TMP_CACHE_DIR = path.join(CACHE_DIR, "tmp");
 
