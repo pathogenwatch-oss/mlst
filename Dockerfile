@@ -1,5 +1,3 @@
-ARG TYPE=mlst
-
 FROM ubuntu as blast_build
 
 RUN apt-get update && apt-get install -y wget tar
@@ -12,28 +10,29 @@ FROM node:8 as index_build
 
 WORKDIR /usr/local/mlst
 COPY    package.json /usr/local/mlst
-RUN     npm install
+RUN     npm install --production
 COPY    data/cache /opt/mlst/cache
 RUN     mkdir -p /usr/local/mlst /opt/mlst/databases && \
         chmod -R a+w /opt/mlst/databases
 COPY    *.js *.json /usr/local/mlst/
 COPY    src /usr/local/mlst/src/
 COPY    schemes /usr/local/mlst/schemes/
-RUN     DEBUG='*' node ./schemes/index-${TYPE}-databases.js && \
+SHELL   ["/bin/bash", "-c"]
+ARG     RUN_CORE_GENOME_MLST
+RUN     DEBUG='*' \
+        TYPE=$([[ -z "$RUN_CORE_GENOME_MLST" ]] && echo "mlst" || echo "cgmlst") \
+        bash -c 'node ./schemes/index-${TYPE}-databases.js' && \
         chmod -R a+r /opt/mlst/databases
 
 
-FROM node:8 as test_build
+FROM index_build as test_build
 
 COPY    --from=blast_build /blast/blastn /blast/makeblastdb /usr/local/bin/
-COPY    --from=index_build /opt/mlst/databases /opt/mlst/databases
-COPY    --from=index_build /usr/local/mlst /usr/local/mlst/
 COPY    tests /usr/local/mlst/tests/
+RUN     npm install
 
-WORKDIR /usr/local/mlst/tests
-
-RUN     apt-get update && apt-get install -y jq
-RUN     RUN_CORE_GENOME_MLST=$([[ "$TYPE" == "cgmlst" ]] && echo "yes" || echo "no") bash test.sh
+ARG     RUN_CORE_GENOME_MLST
+RUN     node test
  
 
 FROM node:8
@@ -44,4 +43,7 @@ COPY    --from=index_build /usr/local/mlst /usr/local/mlst/
 
 WORKDIR /usr/local/mlst
 
-CMD 	RUN_CORE_GENOME_MLST=$([[ "$TYPE" == "cgmlst" ]] && echo "yes" || echo "no") /usr/local/bin/node --max-old-space-size=4096 /usr/local/mlst/index.js
+ARG     RUN_CORE_GENOME_MLST
+ENV     RUN_CORE_GENOME_MLST=$RUN_CORE_GENOME_MLST
+
+CMD 	/usr/local/bin/node --max-old-space-size=4096 /usr/local/mlst/index.js

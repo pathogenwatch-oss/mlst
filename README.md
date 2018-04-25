@@ -83,7 +83,7 @@ We build separate containers for 7 gene and core genome MLST as follows.
 
 ```
 docker build -t registry.gitlab.com/cgps/wgsa-tasks/mlst -f Dockerfile .
-docker build -t --build_args TYPE=cgmlst registry.gitlab.com/cgps/wgsa-tasks/cgmlst -f Dockerfile .
+docker build -t --build-arg RUN_CORE_GENOME_MLST=yes registry.gitlab.com/cgps/wgsa-tasks/cgmlst -f Dockerfile .
 ```
 
 ## Running the tests
@@ -99,7 +99,7 @@ docker run --rm -it \
     -v $(pwd):/usr/local/mlst \
     -w /usr/local/mlst/tests \
     <EXISTING_DOCKER_CONTAINER> \
-        bash test.sh
+        node test
 ```
 
 You can use the same command with a Core Genome MLST container.  The tests 
