@@ -61,7 +61,6 @@ async function runMlst(inStream) {
     profiles,
     allelePaths,
     scheme,
-    commonGeneLengths
   } = alleleMetadata;
 
   logger("debug")(`${scheme} has ${allelePaths.length} genes`);
@@ -72,7 +71,7 @@ async function runMlst(inStream) {
   );
   const hitsStore = new HitsStore(alleleLengths, contigNameMap);
 
-  const exactHits = await findExactHits(
+  const exactHits = findExactHits(
     renamedSequences,
     alleleLookup,
     alleleLookupPrefixLength
@@ -94,7 +93,6 @@ async function runMlst(inStream) {
       genes,
       profiles,
       scheme,
-      commonGeneLengths,
       renamedSequences
     });
   }

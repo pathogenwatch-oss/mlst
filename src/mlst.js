@@ -28,9 +28,9 @@ function streamFactory(allelePaths) {
 }
 
 async function runBlast(options = {}) {
-  const { stream, db, wordSize, pIdent, hitsStore } = options;
-  const [blast, blastExit] = createBlastProcess(db, wordSize, pIdent);
-  logger("debug:startBlast")(`About to blast genes against ${db}`);
+  const { stream, blastDb, wordSize, pIdent, hitsStore } = options;
+  const [blast, blastExit] = createBlastProcess(blastDb, wordSize, pIdent);
+  logger("debug:startBlast")(`About to blast genes against ${blastDb}`);
 
   const blastResultsStream = blast.stdout.pipe(es.split());
   blastResultsStream.on("data", line => {
@@ -55,7 +55,6 @@ function buildResults(options = {}) {
     genes,
     profiles,
     scheme,
-    commonGeneLengths,
     renamedSequences
   } = options;
 
@@ -76,7 +75,6 @@ function buildResults(options = {}) {
       reverse,
       st
     } = hashHit(hit, renamedSequences);
-    const modeGeneLength = Number(commonGeneLengths[gene]);
     const summary = {
       id: exact ? st : hash,
       contig,
@@ -86,8 +84,8 @@ function buildResults(options = {}) {
     if (exact) {
       alleles[gene].push(summary);
     } else if (
-      contigLength > 0.8 * alleleLengths[allele] &&
-      contigLength < 1.1 * alleleLengths[allele]
+      contigLength > 0.8 * alleleLengths[gene][allele] &&
+      contigLength < 1.1 * alleleLengths[gene][allele]
     ) {
       alleles[gene].push(summary);
     }

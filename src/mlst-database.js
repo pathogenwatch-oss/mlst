@@ -12,6 +12,7 @@ const slugify = require("slugify");
 const tmp = require("tmp");
 const { promisify } = require("util");
 const { Unzip } = require("zlib");
+const AdmZip = require("adm-zip");
 
 const { Transform } = require("stream");
 const { parseString } = require("xml2js");
@@ -156,10 +157,10 @@ class Metadata {
 
     const alleleLookup = {};
     const lengths = {};
-    const inputOutputPairs = _.zip(inputAllelePaths, allelePaths);
     await Promise.map(
-      inputOutputPairs,
-      async ([inputPath, outputPath]) => {
+      _.zip(inputAllelePaths, genes, allelePaths),
+      async ([inputPath, gene, outputPath]) => {
+        lengths[gene] = {};
         const alleleFileDetails = await this._indexAlleleFile(
           inputPath,
           outputPath
@@ -170,12 +171,13 @@ class Metadata {
           _.forEach(matchingAlleles, ([allele, length, hash, reverse]) => {
             (alleleLookup[allelePrefix] =
               alleleLookup[allelePrefix] || []).push([
+              gene,
               allele,
               length,
               hash,
               reverse
             ]);
-            lengths[allele] = length;
+            lengths[gene][allele] = length;
           })
         );
       },
@@ -184,29 +186,10 @@ class Metadata {
     _.forEach(_.keys(alleleLookup), allelePrefix => {
       alleleLookup[allelePrefix] = _.sortBy(
         alleleLookup[allelePrefix],
-        allele => -allele[1]
+        allele => -allele[2] // Should be the length
       );
     });
     return { alleleLookup, lengths, allelePaths };
-  }
-
-  _getMostCommonGeneLengths(lengths) {
-    const geneLengthCounts = {};
-    _.forEach(_.toPairs(lengths), ([allele, length]) => {
-      const { gene } = parseAlleleName(allele);
-      geneLengthCounts[gene] = geneLengthCounts[gene] || {};
-      geneLengthCounts[gene][length] =
-        (geneLengthCounts[gene][length] || 0) + 1;
-    });
-    const mostCommonGeneLengths = {};
-    _.forEach(_.keys(geneLengthCounts), gene => {
-      const [mostCommonLength] = _.maxBy(
-        _.toPairs(geneLengthCounts[gene]),
-        ([, count]) => count
-      );
-      mostCommonGeneLengths[gene] = Number(mostCommonLength);
-    });
-    return mostCommonGeneLengths;
   }
 
   _buildProfileRowParser(genes, header) {
@@ -280,10 +263,6 @@ class Metadata {
     logger("trace:metadata:indexScheme")(
       `Built hashes and lengths for ${species}`
     );
-    const commonGeneLengths = this._getMostCommonGeneLengths(lengths);
-    logger("trace:metadata:indexScheme")(
-      `Found commonest gene lengths for ${species}`
-    );
     const profiles = await this._getProfiles({ profilesPath, genes });
 
     const metadata = {
@@ -296,7 +275,6 @@ class Metadata {
       profiles,
       scheme,
       profilesPath,
-      commonGeneLengths,
       retrieved,
       url
     };
@@ -511,16 +489,19 @@ class CgMlstMetadata extends Metadata {
     const allSpeciesMlstMetadata = await this.allMetadata();
     await Promise.map(
       schemeDetails,
-      async ({ taxid, url, description }) => {
+      async details => {
+        const { taxid, url, description, lociCount } = details;
         const scheme = `cgMLST_${taxid}`;
         const schemeMetadataPath = urlToPath(url);
-        allSpeciesMlstMetadata[taxid] = await this._updateScheme({
+        const detailsUpdate = await this._updateScheme({
           scheme,
           taxid,
           description,
           schemeMetadataPath,
-          url
+          url,
+          lociCount
         });
+        allSpeciesMlstMetadata[taxid] = { ...details, ...detailsUpdate }
         await writeJson(this.metadataPath, allSpeciesMlstMetadata, {
           mode: 0o644
         });
@@ -554,7 +535,7 @@ class BigsDbHtmlSchemes extends CgMlstMetadata {
   }
 
   async _updateScheme(schemeDetails) {
-    const { scheme, url, schemeMetadataPath } = schemeDetails;
+    const { scheme, url, description, schemeMetadataPath } = schemeDetails;
     logger("debug:updateScheme")(
       `Updating the ${scheme} with data from ${url}`
     );
@@ -578,10 +559,7 @@ class BigsDbHtmlSchemes extends CgMlstMetadata {
       retrieved,
       url
     );
-    return {
-      metadataPath,
-      url
-    };
+    return { metadataPath };
   }
 }
 
@@ -618,8 +596,7 @@ class BigsDbRestSchemes extends CgMlstMetadata {
       retrieved,
       url
     );
-    schemeMetadata.metadataPath = metadataPath;
-    return schemeMetadata;
+    return { metadataPath };
   }
 }
 
@@ -635,11 +612,11 @@ class RidomSchemes extends CgMlstMetadata {
     this.metadataPath = path.join(dataDir, "metadataCore.json");
   }
 
-  async _parseZippedXmfa(allelesDownloadPath) {
+  async _parseAlleleZip(allelesDownloadPath) {
     logger("trace:RidomSchemes:parsing")(`Parsing ${allelesDownloadPath}`);
     const genes = [];
     const inputAllelePaths = [];
-    const alleleFileStream = fs.createReadStream(allelesDownloadPath);
+    const alleleZip = new AdmZip(allelesDownloadPath);
 
     const tempAlleleDir = await promisify(tmp.dir)({
       mode: "0750",
@@ -647,35 +624,13 @@ class RidomSchemes extends CgMlstMetadata {
       unsafeCleanup: true
     });
 
-    const unzippedAlleles = alleleFileStream.pipe(new Unzip());
-    const lines = es.split();
-
-    let currentGene;
-    let currentAlleleFile;
-    const whenAlleleFileClosed = new DeferredPromise();
-
-    lines.on("data", line => {
-      if (line.startsWith("#")) {
-        currentGene = line.slice(2);
-        genes.push(currentGene);
-        const allelePath = path.join(tempAlleleDir, `${currentGene}.tfa`);
-        logger("trace:RidomSchemes")(`Writing alleles to ${allelePath}`);
-        inputAllelePaths.push(allelePath);
-        if (typeof currentAlleleFile !== "undefined") {
-          currentAlleleFile.end();
-        }
-        currentAlleleFile = fs.createWriteStream(allelePath);
-      } else if (line.startsWith(">")) {
-        const allele = line.slice(1);
-        currentAlleleFile.write(`>${currentGene}_${allele}\n`);
-      } else if (line !== "" || !line.startsWith("=")) {
-        currentAlleleFile.write(`${line}\n`);
-      }
-    });
-    lines.on("close", () => whenAlleleFileClosed.resolve());
-
-    unzippedAlleles.pipe(lines);
-    await whenAlleleFileClosed;
+    _.forEach(alleleZip.getEntries(), ({ entryName }) => {
+      const filename = path.basename(entryName);
+      const gene = filename.replace(/\.(fa|fasta|mfa|tfa)$/, "");
+      alleleZip.extractEntryTo(entryName, tempAlleleDir, false)
+      genes.push(gene);
+      inputAllelePaths.push(path.join(tempAlleleDir, filename))
+    })
 
     logger("trace:RidomSchemes")(
       `Found ${genes.length} genes in ${allelesDownloadPath}`
@@ -684,13 +639,16 @@ class RidomSchemes extends CgMlstMetadata {
   }
 
   async _updateScheme(schemeDetails) {
-    const { scheme, url, schemeMetadataPath } = schemeDetails;
+    const { scheme, url, schemeMetadataPath, lociCount } = schemeDetails;
     logger("debug:updateScheme")(
       `Updating the ${scheme} with data from ${url}`
     );
-    const { genes, inputAllelePaths } = await this._parseZippedXmfa(
+    const { genes, inputAllelePaths } = await this._parseAlleleZip(
       schemeMetadataPath
     );
+    if (genes.length != lociCount) {
+      throw new Error(`Expected ${lociCount} from ${scheme}, got ${genes.length}`)
+    }
     const profilesPath = null;
     const retrieved = new Date();
 
@@ -703,8 +661,7 @@ class RidomSchemes extends CgMlstMetadata {
       retrieved,
       url
     );
-    schemeDetails.metadataPath = metadataPath; // eslint-disable-line no-param-reassign
-    return schemeDetails;
+    return { metadataPath };
   }
 }
 
@@ -779,8 +736,7 @@ class EnterobaseSchemes extends CgMlstMetadata {
       retrieved,
       url
     );
-    schemeDetails.metadataPath = metadataPath; // eslint-disable-line no-param-reassign
-    return schemeDetails;
+    return { metadataPath };
   }
 }
 

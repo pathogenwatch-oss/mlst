@@ -8,7 +8,7 @@ const { fail } = require("./utils");
 
 function getMetadata(DATA_DIR) {
   const RUN_CORE_GENOME_MLST =
-    process.env.RUN_CORE_GENOME_MLST.toLowerCase() in ["y", "yes", "true", "1"];
+  ["y", "yes", "true", "1"].indexOf(process.env.RUN_CORE_GENOME_MLST.toLowerCase()) > -1;
 
   let metadataSchemes;
   if (RUN_CORE_GENOME_MLST) {

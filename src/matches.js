@@ -39,9 +39,9 @@ class HitsStore {
       pident
     } = hit;
     hit.exact = // eslint-disable-line no-param-reassign
-      contigLength === this.alleleLengths[allele] &&
+      contigLength === this.alleleLengths[gene][allele] &&
       contigLength === matchingBases;
-    if (!this.longEnough(allele, contigLength)) return false;
+    if (!this.longEnough(gene, allele, contigLength)) return false;
     const bin = this.getBin(gene, contigStart, contigEnd, contigId);
     if (!this.closeEnough(pident, bin)) return false;
     if (bin.exact && !hit.exact) return false;
@@ -59,14 +59,14 @@ class HitsStore {
           ? currentBestHit
           : hit;
       });
-      bestHit.alleleLength = this.alleleLengths[bestHit.allele];
+      bestHit.alleleLength = this.alleleLengths[bin.gene][bestHit.allele];
       bestHit.contig = bestHit.contig || this.contigNameMap[bestHit.contigId];
       return bestHit;
     });
   }
 
-  longEnough(allele, contigLength) {
-    return contigLength >= this.alleleLengths[allele] * 0.8;
+  longEnough(gene, allele, contigLength) {
+    return contigLength >= this.alleleLengths[gene][allele] * 0.8;
   }
 
   // eslint-disable-next-line max-params

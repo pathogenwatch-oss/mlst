@@ -4,8 +4,8 @@ const hasha = require("hasha");
 const { parseAlleleName } = require("./utils");
 
 // eslint-disable-next-line max-params
-function buildHit(idx, allele, alleleLength, seq, contigId, reverse) {
-  const { gene, st } = parseAlleleName(allele);
+function buildHit(idx, gene, allele, alleleLength, seq, contigId, reverse) {
+  const { st } = parseAlleleName(allele);
   return {
     allele,
     contigId,
@@ -29,7 +29,7 @@ function findExactHits(renamedSequences, alleleLookup, prefixLength) {
       const hashCache = {};
       const prefix = sequence.slice(idx, idx + prefixLength);
       const alleles = alleleLookup[prefix] || [];
-      _.forEach(alleles, ([allele, alleleLength, alleleHash, reverse]) => {
+      _.forEach(alleles, ([gene, allele, alleleLength, alleleHash, reverse]) => {
         let hash = hashCache[alleleLength];
         if (!hash) {
           const possibleMatch = sequence.slice(idx, idx + alleleLength);
@@ -39,6 +39,7 @@ function findExactHits(renamedSequences, alleleLookup, prefixLength) {
         if (hash === alleleHash) {
           const hit = buildHit(
             idx,
+            gene,
             allele,
             alleleLength,
             seq,

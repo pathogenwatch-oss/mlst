@@ -4,6 +4,7 @@ const path = require("path");
 const { promisify } = require("util");
 const Promise = require("bluebird");
 const _ = require("lodash");
+const logger = require("debug");
 
 const { runMlst } = require("..");
 
@@ -16,7 +17,7 @@ const TESTDATA_DIR = path.join(__dirname, "testdata");
 
 test("Run specific MLST cases", async t => {
   if (process.env.RUN_CORE_GENOME_MLST) {
-    t.skip("Skipping MLST test");
+    t.pass("Skipping MLST test");
     return;
   }
 
@@ -134,7 +135,7 @@ test("Run specific MLST cases", async t => {
 
 test("Run more staph MLST cases", async t => {
   if (process.env.RUN_CORE_GENOME_MLST) {
-    t.skip("Skipping MLST test");
+    t.pass("Skipping MLST test");
     return;
   }
 
@@ -142,7 +143,7 @@ test("Run more staph MLST cases", async t => {
   process.env.WGSA_SPECIES_TAXID = "1280";
 
   const staphDir = path.join(TESTDATA_DIR, "saureus_data");
-  const contents = promisify(fs.readdir)(staphDir);
+  const contents = await promisify(fs.readdir)(staphDir);
   const testCases = _(contents)
     .map(f => {
       if (!f.endsWith(".mlst.json")) {
@@ -182,9 +183,9 @@ test("Run synthetic CgMLST", async t => {
   const RUN_CORE_GENOME_MLST = process.env.RUN_CORE_GENOME_MLST;
   if (
     !RUN_CORE_GENOME_MLST ||
-    !(RUN_CORE_GENOME_MLST.toLowerCase() in ["y", "yes", "true", "1"])
+    ["y", "yes", "true", "1"].indexOf(RUN_CORE_GENOME_MLST.toLowerCase()) == -1
   ) {
-    t.skip("Skipping CgMLST test");
+    t.pass("Skipping CgMLST test");
     return;
   }
 
@@ -208,13 +209,13 @@ test("Run synthetic CgMLST", async t => {
   process.env = initialEnv;
 });
 
-test("Run more staph CgMLST cases", async t => {
+test.only("Run more staph CgMLST cases", async t => {
   const RUN_CORE_GENOME_MLST = process.env.RUN_CORE_GENOME_MLST;
   if (
     !RUN_CORE_GENOME_MLST ||
-    !(RUN_CORE_GENOME_MLST.toLowerCase() in ["y", "yes", "true", "1"])
+    ["y", "yes", "true", "1"].indexOf(RUN_CORE_GENOME_MLST.toLowerCase()) == -1
   ) {
-    t.skip("Skipping CgMLST test");
+    t.pass("Skipping CgMLST test");
     return;
   }
 
@@ -222,7 +223,7 @@ test("Run more staph CgMLST cases", async t => {
   process.env.WGSA_SPECIES_TAXID = "1280";
 
   const staphDir = path.join(TESTDATA_DIR, "saureus_data");
-  const contents = promisify(fs.readdir)(staphDir);
+  const contents = await promisify(fs.readdir)(staphDir);
   const testCases = _(contents)
     .map(f => {
       if (!f.endsWith(".cgMlst.json")) {

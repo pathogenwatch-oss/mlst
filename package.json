@@ -10,6 +10,7 @@
   "author": "",
   "license": "MIT",
   "dependencies": {
+    "adm-zip": "^0.4.9",
     "async-lock": "^1.0.0",
     "axios": "^0.16.2",
     "bionode-fasta": "^0.5.6",
