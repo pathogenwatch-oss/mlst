@@ -93,7 +93,7 @@ class Scheme {
     const genes = [];
     const allelePaths = [];
     const lenghts = {}
-    _.forEach(this.genes(), gene => {
+    await Promise.map(this.genes(), async gene => {
       genes.push(gene)
       lengths[gene] = {};
       const alleles = this.alleles(gene); // map of allele_id to allele object
@@ -125,7 +125,7 @@ class Scheme {
         })
         lengths[gene][allele.st] = allele.length
       })
-    })
+    }, { concurrency: 3 });
 
     this.metadata = (this.metadata || {});
     const metadata = {
@@ -134,7 +134,7 @@ class Scheme {
       allelePaths,
       lengths,
       alleleLookup,
-      alleleLookupPrefixLength = this.alleleLookupPrefixLength,
+      alleleLookupPrefixLength: this.alleleLookupPrefixLength,
       profiles: this.profiles(),
       url: this.schemeUrl
     };
@@ -179,10 +179,10 @@ class Scheme {
   async write(schemeDir, gene, alleles) {
     const alleleFile = path.join(schemeDir, `${gene}.fasta`);
     fd = await openAsync(alleleFile, 'w');
-    _.forEach(alleles, allele => {
+    await Promise.map(alleles, async allele => {
       const alleleString = `>${allele.gene}_${allele.st}\n${allele.seq}\n`;
       await writeAsync(fd, alleleString)
-    });
+    }, { concurrency: 1 });
     return path.resolve(alleleFile)
   }
 
@@ -325,7 +325,7 @@ class PubMlstSevenGeneSchemes {
     const speciesTaxIdsMap = await loadSpeciesTaxidMap(taxDumpPath);
     const metadata = await this.loadMetadata();
 
-    await Promise.map(schemes, scheme => {
+    await Promise.map(schemes, async scheme => {
       const { species, schemeName, url } = scheme.metadata;
       const schemeSlug = `mlst_${slugify(schemeName)}`;
       const schemeDir = path.join(this.dataDir, schemeSlug);
@@ -882,5 +882,4 @@ if (require.main === module) {
     indexAll().catch(fail("error:index"))
   else
     fail("error")(`Usage ${process.argv.slice(0, 2)} download|index`)
-
 }
