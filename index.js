@@ -49,9 +49,7 @@ function formatOutput(alleleMetadata, results) {
 }
 
 async function runMlst(inStream) {
-  const [RUN_CORE_GENOME_MLST, alleleMetadata] = getMetadata(
-    "/opt/mlst/databases"
-  );
+  const [RUN_CORE_GENOME_MLST, alleleMetadata] = getMetadata();
 
   const {
     lengths: alleleLengths,
@@ -99,23 +97,15 @@ async function runMlst(inStream) {
   /* eslint-enable max-params */
 
   logger("debug:blast")("Running first round of blast");
-  const firstRunResults = await runRound(
-    20,
-    80,
-    genes,
-    0,
-    ALLELES_IN_FIRST_RUN
-  );
+  const firstRunResults = await runRound(20, 80, genes, 0, ALLELES_IN_FIRST_RUN);
   const inexactGenes = findGenesWithInexactResults(firstRunResults);
   let results;
   if (inexactGenes.length <= 0) {
     results = firstRunResults;
-  } else if (RUN_CORE_GENOME_MLST) {
-    logger("debug:blast")("Running second round of blast");
-    results = runRound(20, 80, inexactGenes, ALLELES_IN_FIRST_RUN, 50);
   } else {
+    const maxSeqs = scheme.maxSeqs || 0;
     logger("debug:blast")("Running second round of blast");
-    results = runRound(20, 80, inexactGenes, ALLELES_IN_FIRST_RUN, 0);
+    results = runRound(20, 80, inexactGenes, ALLELES_IN_FIRST_RUN, maxSeqs);
   }
 
   const output = formatOutput(alleleMetadata, results);

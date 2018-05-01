@@ -16,17 +16,6 @@ function fail(title) {
   };
 }
 
-function parseAlleleName(allele) {
-  try {
-    const matches = /^(.+)[-_\.]([0-9]+)$/.exec(allele);
-    const [gene, st] = matches.slice(1);
-    return { gene, st: Number(st) };
-  } catch (err) {
-    logger("error")(`Couldn't parse gene and st from ${allele}`);
-    throw err;
-  }
-}
-
 function pmap(promises, fn) {
   return _.map(promises, p => p.then(fn));
 }

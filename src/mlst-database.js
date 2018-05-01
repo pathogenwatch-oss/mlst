@@ -1,76 +1,154 @@
 const Promise = require("bluebird");
-const es = require("event-stream");
-const _ = require("lodash");
-const fasta = require("bionode-fasta");
 const fs = require("fs");
-const mkdirp = require("mkdirp-promise");
-const path = require("path");
 const hasha = require("hasha");
-const logger = require("debug");
-const readline = require("readline");
+const _ = require("lodash");
+const mkdirp = require("mkdirp-promise");
+const path = require("path")
 const slugify = require("slugify");
-const tmp = require("tmp");
+const { URL } = require("url");
 const { promisify } = require("util");
-const { Unzip } = require("zlib");
-const AdmZip = require("adm-zip");
 
-const { Transform } = require("stream");
-const { parseString } = require("xml2js");
+const { loadSpeciesTaxidMap } = require("../src/ncbi-taxid-lookup");
+const { reverseCompliment, DeferredPromise } = require("./utils");
 
-const {
-  DeferredPromise,
-  parseAlleleName,
-  reverseCompliment
-} = require("./utils");
-const { urlToPath, parseBigsDbHtml } = require("../schemes/download-databases");
+const openAsync = promisify(fs.open);
+const writeAsync = promisify(fs.write);
 
-const MLST_DIR = "/opt/mlst/databases";
-const ALLELE_LOOKUP_PREFIX_LENGTH = 20;
-
-class FastaString extends Transform {
-  constructor(options = {}) {
-    super(_.assign(options, { objectMode: true }));
-  }
-
-  _transform(chunk, encoding, callback) {
-    const output = `>${chunk.id}\n${chunk.seq}\n`;
-    this.push(output);
-    callback();
-  }
-}
-
-async function readJson(inputPath) {
-  const jsonString = await promisify(fs.readFile)(inputPath);
-  return JSON.parse(jsonString);
-}
-
-async function writeJson(outputPath, data, options) {
+async function writeJsonAsync(outputPath, data, options) {
   const jsonData = JSON.stringify(data);
   await promisify(fs.writeFile)(outputPath, jsonData, options);
   logger("debug:writeJson")(`Wrote data to ${outputPath}`);
   return outputPath;
 }
 
-class Metadata {
-  constructor(dataDir = MLST_DIR) {
-    this.dataDir = dataDir;
+async function readJsonAsync(outputPath) {
+  const content = await promisify(fs.readFile)(outputPath);
+  return JSON.parse(content)
+}
+
+function parseAlleleName(allele) {
+  try {
+    const matches = /^(.+)[-_\.]([0-9]+)$/.exec(allele);
+    const [gene, st] = matches.slice(1);
+    return { gene, st: Number(st) };
+  } catch (err) {
+    logger("error")(`Couldn't parse gene and st from ${allele}`);
+    throw err;
+  }
+}
+
+class Scheme {
+  constructor(options) {
+    this.downloadFn = options.downloadFn;
+    this.schemeUrl = options.schemeUrl;
+    this.lociCount = options.lociCount;
+    this.alleleLookupPrefixLength = 20;
+    this.metadata = options.metadata;
   }
 
-  read(taxid) {
-    const rootMetadata = require(this.metadataPath);
-    try {
-      const speciesMetadataPath = rootMetadata[String(taxid)].metadataPath;
-      return require(speciesMetadataPath);
-    } catch (err) {
-      return undefined;
+  async lociUrls() {
+    throw Error("Not implemented");
+  }
+
+  async dowload() {
+    const alleleUrls = await this.lociUrls();
+    if (this.lociCount && alleleUrls.length !== this.lociCount) {
+      throw new Error(
+        `Expected ${this.lociCount} for ${this.metadata.schemeName}, got ${alleleUrls.length}`
+      );
     }
+    return Promise.map(alleleUrls, lociUrl =>
+      this.downloadFn(lociUrl)
+    );
+  }
+  
+  async genes() {
+    const alleleUrls = await this.lociUrls();
+    return _(alleleUrls).keys().sort().value()
   }
 
-  _sortSequences(sequencesByLength) {
+  async alleles(gene) {
+    const alleleUrls = await this.lociUrls();
+    const alleleUrl = alleleUrls[gene];
+    if (!alleleUrl)
+      throw new Error(`Problem finding ${gene} in ${this.metadata.schemeName}`)
+    const allelePaths = await this.downloadFn(alleleUrl);
+    const rawSeqs = await this._readFasta(allelesPath);
+    return _.map(rawSeqs, s => {
+      const { id, seq, length } = s;
+      const { st } = parseAlleleName(id);
+      return { gene, st, length, seq };
+    })
+  }
+
+  profiles() {
+    return {}
+  }
+
+  async index(schemeDir, maxSeqs = 0) {
+    // maxSeqs is the maximum number of sequences for each gene
+    await mkdirp(schemeDir, { mode: 0o755 });
+
+    const alleleLookup = {};
+    const genes = [];
+    const allelePaths = [];
+    const lenghts = {}
+    _.forEach(this.genes(), gene => {
+      genes.push(gene)
+      lengths[gene] = {};
+      const alleles = this.alleles(gene); // map of allele_id to allele object
+      const sortedAlleles = this.sort(alleles);
+      if (maxSeqs > 0) {
+        allelePaths.push(
+          await this.write(schemeDir, gene, sortedAlleles.slice(0, maxSeqs))
+        )
+      } else {
+        allelePaths.push(
+          await this.write(schemeDir, gene, sortedAlleles)
+        )
+      }
+      _.forEach(alleles, allele => {
+        _.forEach(this.hash(allele), ([prefix, ...details]) => {
+          // Looks like
+          // {
+          //   <PREFIX>: [
+          //     [ <GENE> <ST> <LENGTH> <SHA1 HASH>  <REVERSE COMPLIMENT> ],
+          //     [ <GENE> <ST> <LENGTH> <SHA1 HASH>  <REVERSE COMPLIMENT> ],
+          //     ... more ...
+          //   ],
+          //   <ANOTHER PREFIX>: [
+          //     ... more ...
+          //   ],
+          //   ... more ...
+          // }
+          (alleleLookup[prefix] = alleleLookup[prefix] || []).push(details);
+        })
+        lengths[gene][allele.st] = allele.length
+      })
+    })
+
+    this.metadata = (this.metadata || {});
+    const metadata = {
+      ...this.metadata,
+      genes,
+      allelePaths,
+      lengths,
+      alleleLookup,
+      alleleLookupPrefixLength = this.alleleLookupPrefixLength,
+      profiles: this.profiles(),
+      url: this.schemeUrl
+    };
+    const metadataPath = path.join(schemeDir, "metadata.json");
+    await writeJsonAsync(metadataPath, metadata);
+    return metadataPath;
+  }
+
+  sort(alleles) {
     // Sorts the sequences so that you get a good mix of lengths
     // For example, if sequences == {1: [A1, B1, C1], 3: [D3, E3], 4: [F4], 5:[G5, H5, I5, J5]}
     // this returns: [G5, F4, D3, A1, H5, E3, B1, I5, C1, J5]
-    const sortedSequences = _(sequencesByLength) // {455: [seq, ...], 460: [seq, ...], ...}
+    return _(alleles)
+      .groupBy(allele => allele.length) // {455: [seq, ...], 460: [seq, ...], ...}
       .toPairs() // [[455, [seq, ...]], [460, [seq, ...]], ...]
       .sortBy(([length]) => -length) // [[477, [seq, ...]], [475, [seq, ...]], ...]
       .map(([, seqs]) => seqs) // [[seq1, seq2, ...], [seq11, seq12, ...], ...]
@@ -78,602 +156,410 @@ class Metadata {
       .flatten() // [seq1, seq11, ..., seq2, undefined, ...]
       .filter(el => typeof el !== "undefined") // [seq1, seq11, ..., seq2, ...]
       .value();
-    return sortedSequences;
   }
 
-  async _indexAlleleFile(inputPath, outputPath) {
-    logger("trace:indexAlleles")(`Analysing ${inputPath}`);
-    const seqStream = fasta.obj(inputPath);
-    seqStream.pause();
-    const alleleLookup = {};
-    const sequencesByLength = {};
+  hash(allele) {
+    const { st, length, seq } = allele;
+    const hash = hasha(sequence, { algorithm: "sha1" });
+    const prefix = sequence.slice(0, this.alleleLookupPrefixLength);
 
-    const whenSequencesRead = new DeferredPromise();
-
-    seqStream.on("data", seq => {
-      const allele = seq.id;
-      const sequence = seq.seq.toLowerCase();
-      const length = seq.seq.length;
-      const hash = hasha(sequence, { algorithm: "sha1" });
-      const prefix = sequence.slice(0, ALLELE_LOOKUP_PREFIX_LENGTH);
-      (alleleLookup[prefix] = alleleLookup[prefix] || []).push([
-        allele,
-        length,
-        hash,
-        false
-      ]);
-
-      const complimentarySequence = reverseCompliment(sequence);
-      const rcHash = hasha(complimentarySequence, { algorithm: "sha1" });
-      const rcPrefix = complimentarySequence.slice(
-        0,
-        ALLELE_LOOKUP_PREFIX_LENGTH
-      );
-      (alleleLookup[rcPrefix] = alleleLookup[rcPrefix] || []).push([
-        allele,
-        length,
-        rcHash,
-        true
-      ]);
-
-      (sequencesByLength[length] = sequencesByLength[length] || []).push(seq);
-    });
-
-    seqStream.on("end", () => {
-      logger("trace:indexAlleles")(
-        `Finished reading alleles from ${inputPath}`
-      );
-      whenSequencesRead.resolve(alleleLookup);
-    });
-    seqStream.resume();
-
-    await whenSequencesRead;
-    const sortedSequences = this._sortSequences(sequencesByLength);
-    const whenSequencesWritten = new DeferredPromise();
-
-    const outputFile = fs.createWriteStream(outputPath, { mode: 0o644 });
-    const fastaStream = new FastaString();
-    fastaStream.pipe(outputFile);
-    _.forEach(sortedSequences, s => {
-      fastaStream.write(s);
-    });
-
-    fastaStream.end();
-    outputFile.on("close", () => {
-      logger("trace:indexAlleles")(`Written sorted alleles to ${outputPath}`);
-      whenSequencesWritten.resolve(alleleLookup);
-    });
-
-    return whenSequencesWritten;
-  }
-
-  async _indexAlleles(inputAllelePaths, genes, schemeDir) {
-    const alleleDir = path.join(schemeDir, "alleles");
-    await mkdirp(alleleDir, { mode: 0o755 });
-    const allelePaths = _.map(
-      genes,
-      gene => `${path.join(alleleDir, gene)}.tfa`
+    const complimentarySequence = reverseCompliment(sequence);
+    const rcHash = hasha(complimentarySequence, { algorithm: "sha1" });
+    const rcPrefix = complimentarySequence.slice(
+      0,
+      ALLELE_LOOKUP_PREFIX_LENGTH
     );
 
-    const alleleLookup = {};
-    const lengths = {};
-    await Promise.map(
-      _.zip(inputAllelePaths, genes, allelePaths),
-      async ([inputPath, gene, outputPath]) => {
-        lengths[gene] = {};
-        const alleleFileDetails = await this._indexAlleleFile(
-          inputPath,
-          outputPath
-        );
-        // Each file gives us a map of {allelePrefix: [[alleleName, alleleLength, alleleHash, isReverseCompliment], [...]], ...}
-        // This step combines the analysis from each allele file into a single set of data structures.
-        _.forEach(alleleFileDetails, (matchingAlleles, allelePrefix) =>
-          _.forEach(matchingAlleles, ([allele, length, hash, reverse]) => {
-            (alleleLookup[allelePrefix] =
-              alleleLookup[allelePrefix] || []).push([
-              gene,
-              allele,
-              length,
-              hash,
-              reverse
-            ]);
-            lengths[gene][allele] = length;
-          })
-        );
-      },
-      { concurrency: 3 }
-    );
-    _.forEach(_.keys(alleleLookup), allelePrefix => {
-      alleleLookup[allelePrefix] = _.sortBy(
-        alleleLookup[allelePrefix],
-        allele => -allele[2] // Should be the length
-      );
-    });
-    return { alleleLookup, lengths, allelePaths };
+    return [
+      [prefix, gene, st, length, hash, false],
+      [rcPrefix, gene, st, length, rcHash, true]
+    ]
   }
 
-  _buildProfileRowParser(genes, header) {
+  async write(schemeDir, gene, alleles) {
+    const alleleFile = path.join(schemeDir, `${gene}.fasta`);
+    fd = await openAsync(alleleFile, 'w');
+    _.forEach(alleles, allele => {
+      const alleleString = `>${allele.gene}_${allele.st}\n${allele.seq}\n`;
+      await writeAsync(fd, alleleString)
+    });
+    return path.resolve(alleleFile)
+  }
+
+  _readFasta(fastaPath) {
+    seqs = []
+    const whenDone = new DeferredPromise();
+    fasta
+      .obj(inputPath)
+      .on("data", seq => {
+        const { id, seq: sequence } = seq;
+        seqs.push({
+          id,
+          seq: sequence.toLowerCase(),
+          length: sequence.length
+        })
+      })
+      .on("end", () => {
+        whenDone.resolve(seqs);
+      })
+      .on("error", err => {
+        whenDone.reject(err);
+      })
+    return whenDone
+  }
+}
+
+class PubMlstSevenGeneScheme extends Scheme {
+  constructor(options) {
+    this.downloadFn = options.downloadFn;
+    this.alleleLookupPrefixLength = 20;
+    this.profilesUrl = options.profilesUrl;
+    this._lociUrls = options.lociUrls;
+    this.metadata = options.metadata;
+  }
+
+  lociUrls() {
+    return this._lociUrls;
+  }
+
+  async download() {
+    const profilesPath = await this.downloadFn(this.profilesUrl)
+    const allelesPaths = await Promise.map(
+      this.lociUrls, url => this.downloadFn(url),
+      { concurrency: 1 }
+    )
+    return { profilesPath, allelesPaths };
+  }
+
+  async _rowParserFactory(header) {
+    // Returns a function which maps a row to an object
+    const genes = this.genes();
     return row => {
       const rowObj = _(header).zip(row).fromPairs().value();
       const alleles = _.map(genes, gene => rowObj[gene]);
-      const ST = rowObj.ST;
-      return { ST, alleles };
+      const st = rowObj.ST;
+      return { st, alleles };
     };
   }
 
-  async _getProfiles(options = {}) {
-    const { profilesPath, genes } = options;
-    logger("debug:metadata:profile")(
-      `Loading profile data from ${profilesPath}`
-    );
+  async profiles() {
+    const profilesPath = this.downloadFn(this.profilesUrl);
+    const rowParser = null;
     const output = new DeferredPromise();
-    let rowParser = null;
+    const profiles = {}
 
-    const profileData = {};
-    const profileFileStream = readline.createInterface({
+    readline.createInterface({
       input: fs.createReadStream(profilesPath)
-    });
-
-    profileFileStream.on("line", line => {
-      const row = line.split("\t");
-      if (rowParser === null) {
-        // This is the header row
-        rowParser = this._buildProfileRowParser(genes, row);
-      } else {
-        const { ST, alleles } = rowParser(row);
-        const allelesKey = alleles.join("_");
-        profileData[allelesKey] = ST;
-      }
-    });
-
-    profileFileStream.on("close", () => {
-      logger("debug:metadata:profile")(
-        `Found ${_.keys(profileData).length} profiles in ${profilesPath}`
-      );
-      output.resolve(profileData);
-    });
-
-    return output;
-  }
-
-  // eslint-disable-next-line max-params
-  async indexScheme(
-    species,
-    scheme,
-    genes,
-    inputAllelePaths,
-    profilesPath,
-    retrieved,
-    url
-  ) {
-    logger("debug:metadata:indexScheme")(`Building metadata for ${species}`);
-
-    const schemeDir = path.join(
-      this.dataDir,
-      slugify(species),
-      slugify(scheme)
-    );
-    await mkdirp(schemeDir, { mode: 0o755 });
-
-    const { alleleLookup, lengths, allelePaths } = await this._indexAlleles(
-      inputAllelePaths,
-      genes,
-      schemeDir
-    );
-    logger("trace:metadata:indexScheme")(
-      `Built hashes and lengths for ${species}`
-    );
-    const profiles = await this._getProfiles({ profilesPath, genes });
-
-    const metadata = {
-      species,
-      allelePaths,
-      genes,
-      lengths,
-      alleleLookup,
-      alleleLookupPrefixLength: ALLELE_LOOKUP_PREFIX_LENGTH,
-      profiles,
-      scheme,
-      profilesPath,
-      retrieved,
-      url
-    };
-
-    const metadataPath = path.join(schemeDir, "metadata.json");
-    logger("debug:metadata:write")(
-      `Writing metadata for ${species} to ${metadataPath}`
-    );
-    await writeJson(metadataPath, metadata, { mode: 0o644 });
-    logger("debug:metadata:write")(
-      `Wrote metadata for ${species} to ${metadataPath}`
-    );
-    return { metadata, metadataPath };
+    })
+      .on("line", line => {
+        const row = line.split("\t");
+        if (rowParser === null) {
+          // This is the header row
+          rowParser = this._rowParserFactory(row);
+        } else {
+          const { st, alleles } = rowParser(row);
+          const allelesKey = alleles.join("_");
+          profileData[allelesKey] = st;
+        }
+      })
+      .on("close", () => {
+        output.resolve(profiles);
+      })
+      .on("error", err => {
+        output.reject(err);
+      })
+    return profiles
   }
 }
 
-class PubMlstSevenGenomeSchemes extends Metadata {
-  constructor(dataDir = MLST_DIR) {
-    super();
-    this.PUBMLST_URL = "https://pubmlst.org/data/dbases.xml";
-    this.rawMetadataPath = urlToPath(this.PUBMLST_URL);
-    this.dataDir = dataDir;
-    this.metadataPath = path.join(dataDir, "metadata.json");
-
+class PubMlstSevenGeneSchemes {
+  constructor(options) {
+    this.downloadFn = options.downloadFn;
+    this.ftpDownloadFn = options.ftpDownloadFn;
+    this.schemesUrl = "https://pubmlst.org/data/dbases.xml";
+    this.taxdumpUrl = "ftp://ftp.ncbi.nih.gov/pub/taxonomy/taxdump.tar.gz"
     this.schemeAliases = {
       1336: 40041 // If we don't find a Streptococcus equi scheme (1336), re-use Streptococcus zooepidemicus (40041)
     };
+    this.dataDir = options.dataDit || "/opt/mlst/databases"
   }
 
-  async update(speciesTaxIdsMap = {}) {
-    const allSpeciesMlstMetadata = {};
-    const missingTaxids = [];
-    const pubMlstMetadata = await this._parsePubMlstMetadata(
-      this.rawMetadataPath
-    );
-    const latestMetadata = this._latestMetadata(pubMlstMetadata);
+  async read(taxid) {
+    const metadata = await this.loadMetadata();
+    const schemeMetadataPath = metadata[taxid];
+    if (!schemeMetadataPath)
+      return undefined
+    try {
+      return await readJsonAsync(schemeMetadataPath)  
+    } catch (err) {
+      return undefined
+    }
+  }
 
-    await Promise.map(
-      latestMetadata,
-      async speciesMetadata => {
-        const indexedData = await this._updateSpecies(speciesMetadata);
-        const { species } = indexedData;
-        let taxids;
-        if (species.slice(-5) === " spp.") {
-          const genus = species.slice(0, -5);
-          taxids = speciesTaxIdsMap[genus];
-        } else {
-          taxids = speciesTaxIdsMap[species];
-        }
-        if (taxids && taxids.length > 0) {
-          _.forEach(taxids, taxid => {
-            indexedData.taxid = taxid; // eslint-disable-line no-param-reassign
-            allSpeciesMlstMetadata[taxid] = indexedData;
-          });
-          return await writeJson(this.metadataPath, allSpeciesMlstMetadata, {
-            mode: 0o644
-          });
-        }
-        missingTaxids.push(species);
-        return Promise.resolve();
-      },
+  loadMetadata() {
+    const metadataPath = path.join(this.dataDir, "seven_gene_metadata.json");
+    try {
+      return readJsonAsync(metadataPath);
+    } catch (err) {
+      return {}
+    }
+  }
+
+  writeMetadata(metadata) {
+    const metadataPath = path.join(this.dataDir, "seven_gene_metadata.json");
+    return writeJsonAsync(metadataPath, metadata)
+  }
+
+  async download() {
+    const taxDumpPath = await this.ftpDownloadFn(this.taxdumpUrl);
+    const schemes = await this.getSchemes();
+    return Promise.map(
+      schemes, scheme => scheme.download(),
       { concurrency: 3 }
     );
-
-    this._updateMetadataWithAliases(allSpeciesMlstMetadata, this.schemeAliases);
-    await writeJson(this.metadataPath, allSpeciesMlstMetadata, { mode: 0o644 });
-    logger("debug")(
-      `Finished writing metadata for ${_.keys(allSpeciesMlstMetadata)
-        .length} species`
-    );
-    if (missingTaxids) {
-      logger("warn:update:missingTaxid")(`Could not find taxids for:`);
-      _.forEach(missingTaxids, species =>
-        logger("warn:update:missingTaxid")(species)
-      );
-    }
-    return allSpeciesMlstMetadata;
   }
 
-  _updateMetadataWithAliases(speciesMetadata, schemeAliases) {
-    _.forEach(schemeAliases, (synonymousSchemeTaxId, schemeTaxId) => {
-      const schemeAlreadyExists =
-        typeof speciesMetadata[schemeTaxId] !== "undefined";
-      const synonymousSchemeAvailable =
-        typeof speciesMetadata[synonymousSchemeTaxId] !== "undefined";
-      if (synonymousSchemeAvailable && !schemeAlreadyExists) {
-        logger("info")(
-          `Reusing ${speciesMetadata[synonymousSchemeTaxId]
-            .scheme} for ${schemeTaxId}`
-        );
-        speciesMetadata[schemeTaxId] = speciesMetadata[synonymousSchemeTaxId]; // eslint-disable-line no-param-reassign
-      } else if (schemeAlreadyExists) {
-        logger("info")(
-          `Scheme ${speciesMetadata[schemeTaxId]
-            .scheme} already exists for ${schemeTaxId}`
-        );
-      } else if (!synonymousSchemeAvailable) {
-        logger("warning")(
-          `Scheme ${synonymousSchemeTaxId} couldn't be copied for ${schemeTaxId}`
-        );
+  async index() {
+    const schemes = this.getSchemes();
+    const taxDumpPath = await this.ftpDownloadFn(this.taxdumpUrl);
+    const speciesTaxIdsMap = await loadSpeciesTaxidMap(taxDumpPath);
+    const metadata = await this.loadMetadata();
+
+    await Promise.map(schemes, scheme => {
+      const { species, schemeName, url } = scheme.metadata;
+      const schemeSlug = `mlst_${slugify(schemeName)}`;
+      const schemeDir = path.join(this.dataDir, schemeSlug);
+      const schemeMetadataPath = await scheme.index(schemeDir);
+
+      let taxids;
+      if (species.slice(-5) === " spp.") {
+        const genus = species.slice(0, -5);
+        taxids = speciesTaxIdsMap[genus] || [];
+      } else {
+        taxids = speciesTaxIdsMap[species] || [];
       }
-    });
+
+      _.forEach(taxids, taxid => {
+        metadata[taxid] = {
+          path: schemeMetadataPath,
+          species,
+          schemeName,
+          url
+        }
+      }),
+
+      await this.writeMetadata(metadata)
+    }, { concurrency: 3 });
+
+    _.forEach(this.schemeAliases, (scheme, alias) => {
+      // If we have `scheme` but `alias` is missing, use `scheme` for `alias`
+      if (!metadata[alias] && !!metadata[scheme]) {
+        metadata[alias] = metadata[scheme];
+      }
+    })
+
+    await this.writeMetadata(metadata);
   }
 
-  _latestMetadata(metadata) {
-    // Some species have multiple MLST schemes, find the latest one
-    const maxVersion = {};
-    const latestVersionOfSpeciesData = {};
+  async _parseMetadata(content) {
+    const rawMetadata = await parseXmlAsync(content);
+    const rawSchemeData = rawMetadata.data.species;
+    return _.map(rawSchemeData, data => {
+      const database = data.mlst[0].database[0];
+      const url = database.url[0];
+      const profiles = database.profiles[0];
+      const profilesUrl = profiles.url[0];
+      const lociUrls = _(database.loci[0].locus)
+        .map(l => [l._.trim(), l.url[0]])
+        .fromPairs()
+        .value()
+      const schemeName = data.species;
 
-    _.forEach(metadata, speciesData => {
-      const nameParts = speciesData.species.split("#");
+      const nameParts = schemeName.split("#");
       const species = nameParts[0];
       const version = Number(nameParts[1] || 0);
-      if ((maxVersion[species] || -1) < version) {
-        maxVersion[species] = version;
-        latestVersionOfSpeciesData[species] = speciesData;
+      return {
+        profilesUrl,
+        lociUrls,
+        species,
+        version,
+        schemeName,
+        url
+      }
+    })
+  }
+
+  _pickLatest(schemeData) {
+    return _(schemeData)
+      .groupBy('species')
+      .values()
+      .map(versions => _.sortBy(versions, 'version')[-1])
+      .value()
+  }
+
+  async getSchemes() {
+    const metadataPath = await this.downloadFn(this.schemesUrl);
+    const metadataContent = await readFileAsync(metadataPath);
+    const allSchemeData = await this._parseMetadata(metadataContent);
+    const latestSchemeData = this._pickLatest(allSchemeData);
+
+    return _.map(latestSchemeData, ({ profilesUrl, lociUrls, ...metadata }) => 
+      new PubMlstSevenGeneScheme({
+        downloadFn: this.downloadFn,
+        profilesUrl,
+        lociUrls,
+        metadata
+      })
+    )
+  }
+}
+
+class BigsDbHtmlScheme extends Scheme {
+  async parseBigsDbHtml(downloadUrl, downloadPath) {
+    const content = await readFileAsync(downloadPath);
+    const $ = cheerio.load(content.toString());
+    const { origin: urlRoot } = new URL(downloadUrl);
+  
+    function parseRow(row) {
+      const columns = $(row).find("td");
+      if (columns.length < 2) {
+        return null;
+      }
+      const urlPath = $(columns[1]).find("a").attr("href");
+      if (!urlPath) return null;
+      const locus = $(columns[0]).text();
+      return { locus, url: `${urlRoot}${urlPath}` };
+    }
+  
+    const rows = $("table.resultstable").find("tr");
+    const lociUrls = {};
+    rows.each((i, row) => {
+      const locus = parseRow(row);
+      if (locus) {
+        lociUrls[locus.locus] = locus.url;
       }
     });
-
-    _(latestVersionOfSpeciesData)
-      .toPairs()
-      .forEach(([species, speciesData]) => {
-        if (species !== speciesData.species) {
-          logger("debug:update:latest")(
-            `Using ${speciesData.species} for ${species}`
-          );
-          speciesData.species = species; // eslint-disable-line no-param-reassign
-        }
-      });
-
-    return _.values(latestVersionOfSpeciesData);
+  
+    return lociUrls;
   }
 
-  async _updateSpecies(speciesData) {
-    const { species, scheme, retrieved, url, loci, profilesPath } = speciesData;
-    logger("debug:updateSpecies")(`Updating details for ${species}`);
-    const inputAllelePaths = _.map(loci, ({ path: p }) => p);
-    const genes = _.map(loci, ({ locus }) => locus);
-    const { metadataPath } = await this.indexScheme(
-      species,
-      scheme,
-      genes,
-      inputAllelePaths,
-      profilesPath,
-      retrieved,
-      url
-    );
-    return {
-      species,
-      scheme,
-      genes,
-      metadataPath,
-      retrieved
-    };
-  }
-
-  async _parsePubMlstMetadata(metadataPath) {
-    logger("debug:parsePubMlstMetadata")(`Parsing ${metadataPath}`);
-    const metadataFileContents = await promisify(fs.readFile)(metadataPath);
-    const metadataXml = await promisify(parseString)(metadataFileContents);
-    const species = metadataXml.data.species;
-    return _.map(species, this._parsePubMlstSpeciesMetadata);
-  }
-
-  _parsePubMlstSpeciesMetadata(data) {
-    const species = data._.trim();
-    const database = data.mlst[0].database[0];
-    const url = database.url[0];
-    const retrieved = database.retrieved[0];
-    const profiles = database.profiles[0];
-    const profilesUrl = profiles.url[0];
-    const profilesPath = urlToPath(profilesUrl);
-
-    function parseLocus(locusData) {
-      const locus = locusData._.trim();
-      const locusUrl = locusData.url[0];
-      const locusPath = urlToPath(locusUrl);
-      return { locus, path: locusPath };
+  async lociUrls() {
+    if (!this._lociUrls) {
+      const schemePath = await this.downloadFn(this.schemeUrl);
+      this._lociUrls = await parseBigsDbHtml(this.schemeUrl, schemePath);
     }
-
-    const loci = _.map(database.loci[0].locus, parseLocus);
-    const scheme = /([^\/]+)\.txt$/.exec(profilesUrl)[1];
-
-    return {
-      species,
-      scheme,
-      retrieved,
-      url,
-      profilesPath,
-      loci
-    };
+    return this._lociUrls;
   }
 }
 
-class CgMlstMetadata extends Metadata {
-  constructor(dataDir = MLST_DIR) {
-    super();
-    this.metadataPath = path.join(dataDir, "metadataCore.json");
-  }
-
-  async update() {
-    let schemeDetails;
-    try {
-      schemeDetails = await readJson(this.schemeDetailsPath);
-    } catch (err) {
-      const message = `Couldn't load details of Core Genome MLST schemes from ${this
-        .schemeDetailsPath}`;
-      logger("debug")(message);
-      return Promise.reject(message);
+class BigsDbRestScheme extends Scheme {
+  async lociUrls() {
+    if (!this._lociUrls) {
+      const schemePath = await this.downloadFn(this.schemeUrl);
+      const schemeDetails = await readJsonAsync(schemePath);
+      this._lociUrls = _(schemeDetails.loci)
+        .map(url => {
+          const locus = url.split("/")[-1];
+          const downloadUrl = `${url}/alleles_fasta`;
+          return [locus, downloadUrl]
+        })
+        .fromPairs()
+        .value()
     }
-
-    const allSpeciesMlstMetadata = await this.allMetadata();
-    await Promise.map(
-      schemeDetails,
-      async details => {
-        const { taxid, url, description, lociCount } = details;
-        const scheme = `cgMLST_${taxid}`;
-        const schemeMetadataPath = urlToPath(url);
-        const detailsUpdate = await this._updateScheme({
-          scheme,
-          taxid,
-          description,
-          schemeMetadataPath,
-          url,
-          lociCount
-        });
-        allSpeciesMlstMetadata[taxid] = { ...details, ...detailsUpdate }
-        await writeJson(this.metadataPath, allSpeciesMlstMetadata, {
-          mode: 0o644
-        });
-      },
-      { concurrency: 1 }
-    );
-    return allSpeciesMlstMetadata;
+    return this._lociUrls;
   }
 
-  async allMetadata() {
-    try {
-      return await readJson(this.metadataPath);
-    } catch (err) {
-      return {};
-    }
-  }
-
-  async _updateScheme() {
-    throw Error("Not implemented");
-  }
-
-  _getProfiles() {
-    return Promise.resolve({});
+  profiles() {
+    return {}
   }
 }
 
-class BigsDbHtmlSchemes extends CgMlstMetadata {
-  constructor(dataDir, schemeDetailsPath) {
-    super(dataDir);
-    this.schemeDetailsPath = schemeDetailsPath;
-  }
-
-  async _updateScheme(schemeDetails) {
-    const { scheme, url, description, schemeMetadataPath } = schemeDetails;
-    logger("debug:updateScheme")(
-      `Updating the ${scheme} with data from ${url}`
-    );
-    const loci = await parseBigsDbHtml(url, schemeMetadataPath);
-    const genes = [];
-    const inputAllelePaths = [];
-    _.forEach(loci, ({ locus, url: lucusUrl }) => {
-      const locusPath = urlToPath(lucusUrl);
-      genes.push(locus);
-      inputAllelePaths.push(locusPath);
-    });
-    const profilesPath = null;
-    const retrieved = new Date();
-
-    const { metadataPath } = await this.indexScheme(
-      scheme,
-      scheme,
-      genes,
-      inputAllelePaths,
-      profilesPath,
-      retrieved,
-      url
-    );
-    return { metadataPath };
-  }
-}
-
-class BigsDbRestSchemes extends CgMlstMetadata {
-  constructor(dataDir, schemeDetailsPath) {
-    super(dataDir);
-    this.schemeDetailsPath = schemeDetailsPath;
-  }
-
-  async _updateScheme(schemeDetails) {
-    const { scheme, url, schemeMetadataPath } = schemeDetails;
-    logger("debug:updateScheme")(
-      `Updating the ${scheme} with data from ${url}`
-    );
-    const schemeMetadata = await readJson(schemeMetadataPath);
-    schemeMetadata.url = url;
-    const genes = [];
-    const inputAllelePaths = [];
-    _.forEach(schemeMetadata.loci, lociUrl => {
-      const locus = lociUrl.split("/").pop();
-      const locusPath = urlToPath(`${lociUrl}/alleles_fasta`);
-      genes.push(locus);
-      inputAllelePaths.push(locusPath);
-    });
-    const profilesPath = null;
-    const retrieved = new Date();
-
-    const { metadataPath } = await this.indexScheme(
-      scheme,
-      scheme,
-      genes,
-      inputAllelePaths,
-      profilesPath,
-      retrieved,
-      url
-    );
-    return { metadataPath };
-  }
-}
-
-class RidomSchemes extends CgMlstMetadata {
-  constructor(dataDir = MLST_DIR) {
-    super(dataDir);
-    this.schemeDetailsPath = path.join(
-      __dirname,
-      "..",
-      "schemes",
-      "ridom-schemes.json"
-    );
-    this.metadataPath = path.join(dataDir, "metadataCore.json");
-  }
-
-  async _parseAlleleZip(allelesDownloadPath) {
+class RidomScheme extends Scheme {
+  async _extractAlleleZip(allelesDownloadPath) {
     logger("trace:RidomSchemes:parsing")(`Parsing ${allelesDownloadPath}`);
-    const genes = [];
-    const inputAllelePaths = [];
+    const allAllelePaths = {}
     const alleleZip = new AdmZip(allelesDownloadPath);
-
-    const tempAlleleDir = await promisify(tmp.dir)({
-      mode: "0750",
-      prefix: "mlst_ridom_index_",
-      unsafeCleanup: true
-    });
+    const alleleDir = path.dirname(allelesDownloadPath);
+    await mkdirp(alleleDir, { mode: 0o755 });
 
     _.forEach(alleleZip.getEntries(), ({ entryName }) => {
       const filename = path.basename(entryName);
       const gene = filename.replace(/\.(fa|fasta|mfa|tfa)$/, "");
-      alleleZip.extractEntryTo(entryName, tempAlleleDir, false)
-      genes.push(gene);
-      inputAllelePaths.push(path.join(tempAlleleDir, filename))
+      alleleZip.extractEntryTo(entryName, alleleDir, false);
+      allelePath = path.join(alleleDir, filename);
+      allAllelePaths[gene] = allelePath;
     })
 
     logger("trace:RidomSchemes")(
-      `Found ${genes.length} genes in ${allelesDownloadPath}`
+      `Found ${allAllelePaths.length} genes in ${allelesDownloadPath}`
     );
-    return { genes, inputAllelePaths };
+    return allAllelePaths;
   }
 
-  async _updateScheme(schemeDetails) {
-    const { scheme, url, schemeMetadataPath, lociCount } = schemeDetails;
-    logger("debug:updateScheme")(
-      `Updating the ${scheme} with data from ${url}`
-    );
-    const { genes, inputAllelePaths } = await this._parseAlleleZip(
-      schemeMetadataPath
-    );
-    if (genes.length != lociCount) {
-      throw new Error(`Expected ${lociCount} from ${scheme}, got ${genes.length}`)
-    }
-    const profilesPath = null;
-    const retrieved = new Date();
+  async dowload() {
+    return this.downloadFn(this.schemeUrl);
+  }
 
-    const { metadataPath } = await this.indexScheme(
-      scheme,
-      scheme,
-      genes,
-      inputAllelePaths,
-      profilesPath,
-      retrieved,
-      url
-    );
-    return { metadataPath };
+  async allAllelePaths() {
+    if (!this._allAllelePaths) {
+      const allelesDownloadPath = await this.download();
+      this._allAllelePaths = this._extractAlleleZip(allelesDownloadPath);
+    }
+    return this._allAllelePaths;
+  }
+  
+  async genes() {
+    const allAllelePaths = await this.allAllelePaths();
+    return _(allAllelePaths)
+      .keys()
+      .sort()
+      .value();
+  }
+  
+  async alleles(gene) {
+    const allAllelePaths = await this.allAllelePaths();
+    const allelesPath = allAllelePaths[gene];
+    if (!allelesPath)
+      throw new Error(`Problem finding ${gene} in ${this.metadata.schemeName}`)
+    const rawSeqs = await this._readFasta(allelesPath);
+    return _.map(rawSeqs, s => {
+      const { id, seq, length } = s;
+      const st = Number(id);
+      return { gene, st, length, seq };
+    })
   }
 }
 
-class EnterobaseSchemes extends CgMlstMetadata {
-  constructor(dataDir = MLST_DIR) {
-    super(dataDir);
-    this.schemeDetailsPath = path.join(
-      __dirname,
-      "..",
-      "schemes",
-      "enterobase-schemes.json"
-    );
+class EnterobaseScheme extends Scheme {
+  constructor(options) {
+    super(options)
+    this.downloadFn = (url, downloadOpts) => {
+      const API_KEY = process.env.ENTEROBASE_API_KEY;
+      if (typeof API_KEY === "undefined") {
+        throw new Error("Please set the ENTEROBASE_API_KEY environment variable");
+      }
+      const authOptions = {
+        auth: { username: API_KEY, password: "" }
+      };
+      return downloadOpts.downloadFn(url, { ...downloadOpts, ...authOptions })
+    }
+  }
+
+  async lociUrls() {
+    if (!this._lociUrls) {
+      const nextPath = await this.downloadFn(this.schemeUrl);
+      lociUrls = {}
+      while (nextPath) {
+        const { loci, links } = await readJson(nextPath);
+        _.forEach(loci, ({ download_alleles_link: url, locus: gene }) => {
+          lociUrls[gene] = url;
+        })
+        const nextUrl = _.get(links, "paging.next", null);
+        const nextPath = nextUrl ? await this.downloadFn(nextUrl) : null;
+      }
+      this._lociUrls = lociUrls;
+    }
+    return this._lociUrls
   }
 
   async _unzip(inputPath, outputPath) {
@@ -687,66 +573,314 @@ class EnterobaseSchemes extends CgMlstMetadata {
     return whenUnzipComplete;
   }
 
-  async _updateScheme(schemeDetails) {
-    const { scheme, url, schemeMetadataPath } = schemeDetails;
-    logger("debug:updateScheme")(
-      `Updating the ${scheme} with data from ${url}`
-    );
+  async alleles(gene) {
+    const alleleUrls = await this.lociUrls();
+    const alleleUrl = alleleUrls[gene];
+    if (!alleleUrl)
+      throw new Error(`Problem finding ${gene} in ${this.metadata.schemeName}`)
+    const zippedAllelesPath = await this.downloadFn(alleleUrl);
+    const unzippedAllelesPath = path.join(
+      path.dirname(zippedAllelesPath),
+      `${gene}.raw.fa`
+    )
+    await this._unzip(zippedAllelesPath, unzippedAllelesPath);
 
-    const tempAlleleDir = await promisify(tmp.dir)({
-      mode: "0750",
-      prefix: "mlst_enterobase_index_",
-      unsafeCleanup: true
-    });
-
-    const genes = [];
-    const inputAllelePaths = [];
-    let nextSchemePath = schemeMetadataPath;
-    while (nextSchemePath) {
-      const { loci, links } = await readJson(nextSchemePath);
-      await Promise.map(
-        loci,
-        async ({ download_alleles_link, locus }) => {
-          if (genes.indexOf(locus) === -1) {
-            genes.push(locus);
-            const zippedAllelesPath = urlToPath(download_alleles_link);
-            const unzippedAllelesPath = path.join(
-              tempAlleleDir,
-              `${locus}.tfa`
-            );
-            inputAllelePaths.push(unzippedAllelesPath);
-            return await this._unzip(zippedAllelesPath, unzippedAllelesPath);
-          }
-          return Promise.resolve();
-        },
-        { concurrency: 3 }
-      );
-      const nextUrl = _.get(links, "paging.next", null);
-      nextSchemePath = nextUrl ? urlToPath(nextUrl) : null;
-    }
-    const profilesPath = null;
-    const retrieved = new Date();
-
-    const { metadataPath } = await this.indexScheme(
-      scheme,
-      scheme,
-      genes,
-      inputAllelePaths,
-      profilesPath,
-      retrieved,
-      url
-    );
-    return { metadataPath };
+    const rawSeqs = await this._readFasta(unzippedAllelesPath);
+    return _.map(rawSeqs, s => {
+      const { id, seq, length } = s;
+      const { st } = parseAlleleName(id);
+      return { gene, st, length, seq };
+    })
   }
 }
 
-module.exports = {
-  parseAlleleName,
-  PubMlstSevenGenomeSchemes,
-  CgMlstMetadata,
-  BigsDbRestSchemes,
-  BigsDbHtmlSchemes,
-  RidomSchemes,
-  EnterobaseSchemes,
-  FastaString
-};
+class CgMlstSchemes {
+  constructor(options) {
+    this.downloadFn = options.downloadFn;
+    this.maxSeqs = options.maxSeqs;
+    this.dataDir = options.dataDit || "/opt/mlst/databases";
+    this.schemes = [
+      {
+        scheme: EnterobaseScheme({
+          schemeUrl: "http://enterobase.warwick.ac.uk/api/v2.0/senterica/cgMLST_v2/loci?scheme=cgMLST_v2&limit=50",
+          metadata: {
+            schemeName: "Salmonella enterica cgMLST V2",
+            cite: [{
+              text: "Alikhan et al. (2018) PLoS Genet 14 (4): e1007261",
+              url: "https://doi.org/10.1371/journal.pgen.1007261"
+            }]
+          }
+        }),
+        schemeTargets: [
+          { name: "Salmonella enterica", taxid: 28901 }
+        ]
+      },
+      {
+        scheme: EnterobaseScheme({
+          schemeUrl: "http://enterobase.warwick.ac.uk/api/v2.0/ecoli/cgMLST/loci?scheme=cgMLST&limit=50",
+          metadata: {
+            schemeName: "Escherichia/Shigella cgMLSTv1",
+            cite: [{
+              text: "Alikhan et al. (2018) PLoS Genet 14 (4): e1007261",
+              url: "https://doi.org/10.1371/journal.pgen.1007261"
+            }]
+          }
+        }),
+        schemeTargets: [
+          { name: "Escherichia", taxid: 561 },
+          { name: "Shigella", taxid: 620 }
+        ]
+      },
+      {
+        scheme: BigsDbHtmlScheme({
+          schemeUrl: "http://bigsdb.pasteur.fr/perl/bigsdb/bigsdb.pl?db=pubmlst_klebsiella_seqdef_public&page=downloadAlleles&scheme_id=3",
+          lociCount: 632,
+          metadata: {
+            schemeName: "Klebsiella pneumoniae/quasipneumoniae/variicola scgMLST634",
+            cite: []
+          }
+        }),
+        schemeTargets: [
+          { name: "Klebsiella pneumoniae", taxid: 573 },
+          { name: "Klebsiella quasipneumoniae", taxid: 1463165 },
+          { name: "Klebsiella variicola", taxid: 244366 }
+        ]
+      },
+      {
+        scheme: BigsDbHtmlScheme({
+          schemeUrl: "http://bigsdb.pasteur.fr/perl/bigsdb/bigsdb.pl?db=pubmlst_listeria_seqdef_public&page=downloadAlleles&scheme_id=3",
+          lociCount: 1748,
+          metadata: {
+            schemeName: "Listeria cgMLST1748",
+            cite: []
+          }
+        }),
+        schemeTargets: [
+          { name: "Listeria", taxid: 1637 }
+        ]
+      },
+      {
+        scheme: BigsDbRestScheme({
+          schemeUrl: "http://rest.pubmlst.org/db/pubmlst_campylobacter_seqdef/schemes/4",
+          metadata: {
+            schemeName: "C. jejuni / C. coli cgMLST v1.0",
+            cite: [{
+              text: "Jolley & Maiden 2010, BMC Bioinformatics, 11:595",
+              url: "http://www.biomedcentral.com/1471-2105/11/595/abstract",
+              long: "This tool made use of the Campylobacter Multi Locus Sequence Typing website (https://pubmlst.org/campylobacter/) sited at the University of Oxford"
+            }]
+          }
+        }),
+        schemeTargets: [
+          { name: "Campylobacter jejuni", taxid: 197 },
+          { name: "Campylobacter coli", taxid: 195 }
+        ]
+      },
+      {
+        scheme: BigsDbRestScheme({
+          schemeUrl: "http://rest.pubmlst.org/db/pubmlst_neisseria_seqdef/schemes/47",
+          metadata: {
+            schemeName: "N. meningitidis cgMLST v1.0",
+            cite: [{
+              text: "Jolley & Maiden 2010, BMC Bioinformatics, 11:595",
+              url: "http://www.biomedcentral.com/1471-2105/11/595/abstract",
+              long: "This tool made use of the Neisseria Multi Locus Sequence Typing website (https://pubmlst.org/neisseria/) developed by Keith Jolley and sited at the University of Oxford"
+            }]
+          }
+        }),
+        schemeTargets: [
+          { name: "Neisseria meningitidis", taxid: 487 }
+        ]
+      },
+      {
+        scheme: BigsDbRestScheme({
+          schemeUrl: "http://rest.pubmlst.org/db/pubmlst_neisseria_seqdef/schemes/62",
+          metadata: {
+            schemeName: "N. gonorrhoeae cgMLST v1.0",
+            cite: [{
+              text: "Jolley & Maiden 2010, BMC Bioinformatics, 11:595",
+              url: "http://www.biomedcentral.com/1471-2105/11/595/abstract",
+              long: "This tool made use of the Neisseria Multi Locus Sequence Typing website (https://pubmlst.org/neisseria/) developed by Keith Jolley and sited at the University of Oxford"
+            }]
+          }
+        }),
+        schemeTargets: [
+          { name: "Neisseria gonorrhoeae", taxid: 485 }
+        ]
+      },
+      {
+        scheme: BigsDbRestScheme({
+          schemeUrl: "http://rest.pubmlst.org/db/pubmlst_saureus_seqdef/schemes/2",
+          metadata: {
+            schemeName: "S. aureus Core 2208",
+            cite: [{
+              text: "Jolley & Maiden 2010, BMC Bioinformatics, 11:595",
+              url: "http://www.biomedcentral.com/1471-2105/11/595/abstract",
+              long: "This tool made use of the Staphylococcus aureus MLST website (https://pubmlst.org/saureus/) sited at the University of Oxford"
+            }]
+          }
+        }),
+        schemeTargets: [
+          { name: "Staphylococcus aureus", taxid: 1280 }
+        ]
+      },
+      {
+        scheme: RidomScheme({
+          schemeUrl: "http://www.cgmlst.org/ncs/schema/3956907/alleles/",
+          lociCount: 2390,
+          metadata: {
+            schemeName: "Acinetobacter baumannii",
+            cite: [{
+              text: "Higgins PG et al. (2017) PLoS ONE. 12",
+              url: "https://www.ncbi.nlm.nih.gov/pubmed/28594944",
+              long: "Higgins PG, Prior K, Harmsen D, and Seifert H. Development and evaluation of a core genome multilocus typing scheme for whole-genome sequence-based typing of Acinetobacter baumannii. PLoS ONE. 2017, 12: e0179228: e0179228"
+            }]
+          }
+        }),
+        schemeTargets: [
+          { name: "Acinetobacter baumannii", taxid: 470 }
+        ]
+      },
+      {
+        scheme: RidomScheme({
+          schemeUrl: "http://www.cgmlst.org/ncs/schema/991893/alleles/",
+          lociCount: 1423,
+          metadata: {
+            schemeName: "Enterococcus faecium",
+            cite: [{
+              text: "de Been M et al. (2015) J. Clin. Microbiol. 53",
+              url: "https://www.ncbi.nlm.nih.gov/pubmed/26400782",
+              long: "de Been M, Pinholt M, Top J, Bletz S, Mellmann A, van Schaik W, Brouwer E, Rogers M, Kraat Y, Bonten M, Corander J, Westh H, Harmsen D, and Willems RJ. Core Genome Multilocus Sequence Typing Scheme for High- Resolution Typing of Enterococcus faecium. J. Clin. Microbiol. 2015, 53: 3788-97: 3788-97"
+            }]
+          }
+        }),
+        schemeTargets: [
+          { name: "Enterococcus faecium", taxid: 1352 }
+        ]
+      },
+      {
+        scheme: RidomScheme({
+          schemeUrl: "http://www.cgmlst.org/ncs/schema/741110/alleles/",
+          lociCount: 2891,
+          metadata: {
+            schemeName: "Mycobacterium tuberculosis/bovis/africanum/canettii",
+            cite: [{
+              text: "Kohl TA et al. (2014) J. Clin. Microbiol. 52",
+              url: "https://www.ncbi.nlm.nih.gov/pubmed/24789177",
+              long: "Kohl TA, Diel R, Harmsen D, Rothgänger J, Walter KM, Merker M, Weniger T, and Niemann S. Whole-genome-based Mycobacterium tuberculosis surveillance: a standardized, portable, and expandable approach. J. Clin. Microbiol. 2014, 52: 2479-86: 2479-86"
+            }]
+          }
+        }),
+        schemeTargets: [
+          { name: "Mycobacterium tuberculosis", taxid: 1773 },
+          { name: "Mycobacterium bovis", taxid: 1765 },
+          { name: "Mycobacterium africanum", taxid: 33894 },
+          { name: "Mycobacterium canettii", taxid: 78331 },
+        ]
+      }
+    ];
+  }
+
+  async read(taxid) {
+    const metadata = await this.loadMetadata();
+    const schemeMetadataPath = metadata[taxid];
+    if (!schemeMetadataPath)
+      return undefined
+    try {
+      return await readJsonAsync(schemeMetadataPath)  
+    } catch (err) {
+      return undefined
+    }
+  }
+
+  loadMetadata() {
+    const metadataPath = path.join(this.dataDir, "cgmlst_metadata.json");
+    try {
+      return readJsonAsync(metadataPath);
+    } catch (err) {
+      return {}
+    }
+  }
+
+  writeMetadata(metadata) {
+    const metadataPath = path.join(this.dataDir, "cgmlst_metadata.json");
+    return writeJsonAsync(metadataPath, metadata)
+  }
+
+  download() {
+    return Promise.map(this.schemes, scheme => scheme.download());
+  }
+
+  index() {
+    const metadata = this.loadMetadata();
+
+    return Promise.map(this.schemes, async ({ scheme, schemeTargets }) => {
+      const { schemeName } = scheme.metadata;
+      const schemeSlug = `cgmlst_${slugify(schemeName)}`;
+      const schemeDir = path.join(this.dataDir, schemeSlug);
+      const schemeMetadataPath = await scheme.index(schemeDir, this.maxSeqs)
+      _.forEach(schemeTargets, ({ name, taxid }) => {
+        metadata[taxid] = {
+          path: schemeMetadataPath,
+          species: name,
+          schemeName,
+          url: scheme.schemeUrl,
+          maxSeqs: this.maxSeqs
+        }
+      })
+      await this.writeMetadata(metadata);
+    }, { concurrency: 1 })
+  }
+}
+
+module.exports = { PubMlstSevenGeneSchemes, CgMlstSchemes };
+
+if (require.main === module) {
+  const { shouldRunCgMlst } = require("./parseEnvVariables");
+  const { downloadFile, getFromCache, ftpDownloadFile } = require("./download");
+  const { fail } = require("./utils");
+
+  process.on("unhandledRejection", reason => fail("unhandledRejection")(reason));
+
+  async function downloadAll() {
+    var schemes;
+    if (shouldRunCgMlst()) {
+      schemes = new CgMlstSchemes({
+        downloadFn: downloadFile,
+        maxSeqs: 50
+      })
+    } else {
+      schemes = new PubMlstSevenGeneSchemes({
+        downloadFn: downloadFile,
+        ftpDownloadFn: ftpDownloadFile
+      })
+    }
+    const results = schemes.download();
+    logger("info")(`Downloaded ${results.length} schemes`)
+  }
+
+  async function indexAll() {
+    var schemes;
+    if (shouldRunCgMlst()) {
+      schemes = new CgMlstSchemes({
+        downloadFn: getFromCache,
+        maxSeqs: 50
+      })
+    } else {
+      schemes = new PubMlstSevenGeneSchemes({
+        downloadFn: getFromCache,
+        ftpDownloadFn: getFromCache
+      })
+    }
+    const results = schemes.index();
+    logger("info")(`Indexed ${results.length} schemes`)
+  }
+
+  if (process.argv[2] == "download")
+    downloadAll().catch(fail("error:download"))
+  else if (process.argv[2] == "index")
+    indexAll().catch(fail("error:index"))
+  else
+    fail("error")(`Usage ${process.argv.slice(0, 2)} download|index`)
+
+}

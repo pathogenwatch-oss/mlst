@@ -74,9 +74,7 @@ function mapSpeciesToTaxids(taxIdSpeciesList) {
   return speciesTaxidMap;
 }
 
-function loadSpeciesTaxidMap() {
-  const taxdumpUrl = `ftp://${TAXDUMP_HOST}${TAXDUMP_REMOTE_PATH}`;
-  const taxdumpPath = urlToPath(taxdumpUrl);
+function loadSpeciesTaxidMap(taxdumpPath) {
   const taxdumpStream = fs.createReadStream(taxdumpPath);
   const speciesTaxIdsMap = extractNcbiNamesFile(taxdumpStream)
     .then(parseNcbiNamesFile)

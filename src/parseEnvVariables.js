@@ -6,32 +6,46 @@ const {
 } = require("./mlst-database");
 const { fail } = require("./utils");
 
-function getMetadata(DATA_DIR) {
-  const RUN_CORE_GENOME_MLST =
-  ["y", "yes", "true", "1"].indexOf(process.env.RUN_CORE_GENOME_MLST.toLowerCase()) > -1;
+function shouldRunCgMlst() {
+  return ["y", "yes", "true", "1"].indexOf(process.env.RUN_CORE_GENOME_MLST.toLowerCase()) > -1;
+}
 
-  let metadataSchemes;
+function getMetadata() {
+  const RUN_CORE_GENOME_MLST = shouldRunCgMlst();
+
+  let schemes;
   if (RUN_CORE_GENOME_MLST) {
-    metadataSchemes = new CgMlstMetadata(DATA_DIR);
+    schemes = new CgMlstSchemes({
+      downloadFn: getFromCache,
+      maxSeqs: 50
+    })
   } else {
-    metadataSchemes = new PubMlstSevenGenomeSchemes(DATA_DIR);
+    schemes = new PubMlstSevenGeneSchemes({
+      downloadFn: getFromCache,
+      ftpDownloadFn: getFromCache
+    })
   }
 
   let taxid;
   let taxidVariableName;
   let alleleMetadata;
+
   if (process.env.WGSA_ORGANISM_TAXID) {
     taxid = process.env.WGSA_ORGANISM_TAXID;
     taxidVariableName = "WGSA_ORGANISM_TAXID";
-    alleleMetadata = metadataSchemes.read(taxid);
-  } else if (process.env.WGSA_SPECIES_TAXID) {
+    alleleMetadata = schemes.read(taxid);
+  } 
+  
+  if (!alleleMetadata && process.env.WGSA_SPECIES_TAXID) {
     taxid = process.env.WGSA_SPECIES_TAXID;
     taxidVariableName = "WGSA_SPECIES_TAXID";
-    alleleMetadata = metadataSchemes.read(taxid);
-  } else if (process.env.WGSA_GENUS_TAXID) {
+    alleleMetadata = schemes.read(taxid);
+  }
+  
+  if (!alleleMetadata && process.env.WGSA_GENUS_TAXID) {
     taxid = process.env.WGSA_GENUS_TAXID;
     taxidVariableName = "WGSA_GENUS_TAXID";
-    alleleMetadata = metadataSchemes.read(taxid);
+    alleleMetadata = schemes.read(taxid);
   } else {
     fail("Missing organism")(
       "Need one of WGSA_ORGANISM_TAXID, WGSA_SPECIES_TAXID or WGSA_GENUS_TAXID"
@@ -43,4 +57,4 @@ function getMetadata(DATA_DIR) {
   return [RUN_CORE_GENOME_MLST, alleleMetadata];
 }
 
-module.exports = { getMetadata };
+module.exports = { getMetadata, shouldRunCgMlst };
