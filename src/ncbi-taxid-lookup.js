@@ -5,10 +5,6 @@ const fs = require("fs");
 const tar = require("tar");
 
 const { DeferredPromise } = require("./utils");
-const { urlToPath } = require("../schemes/download-databases");
-
-const TAXDUMP_HOST = "ftp.ncbi.nih.gov";
-const TAXDUMP_REMOTE_PATH = "/pub/taxonomy/taxdump.tar.gz";
 
 function extractNcbiNamesFile(ftpStream) {
   const output = new DeferredPromise();
@@ -36,7 +32,10 @@ function parseNcbiNamesFile(namesFileStream) {
   const taxIDSpeciesStreamOutput = taxIDSpeciesStreamInput.pipe(
     // eslint-disable-next-line array-callback-return
     es.map((line, callback) => {
-      const row = _(line).split("|").map(_.trim).value();
+      const row = _(line)
+        .split("|")
+        .map(_.trim)
+        .value();
       const [taxid, species, __, rowType] = row.slice(0, 4); // eslint-disable-line no-unused-vars
       if (
         _.includes(

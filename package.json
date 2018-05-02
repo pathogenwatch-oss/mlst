@@ -33,7 +33,7 @@
   },
   "devDependencies": {
     "ava": "^0.25.0",
-    "eslint": "^4.4.1",
+    "eslint": "^2.13.1",
     "eslint-config-cgps": "github:imperialcollegelondon/eslint-config-cgps",
     "eslint-config-prettier": "^2.3.0",
     "eslint-plugin-prettier": "^2.1.2",

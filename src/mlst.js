@@ -58,7 +58,10 @@ function buildResults(options = {}) {
     renamedSequences
   } = options;
 
-  const alleles = _(genes).map(gene => [gene, []]).fromPairs().value();
+  const alleles = _(genes)
+    .map(gene => [gene, []])
+    .fromPairs()
+    .value();
   const raw = {};
 
   _.forEach(bestHits, hit => {
@@ -71,7 +74,6 @@ function buildResults(options = {}) {
       gene,
       hash,
       exact,
-      matchingBases,
       reverse,
       st
     } = hashHit(hit, renamedSequences);
@@ -94,7 +96,11 @@ function buildResults(options = {}) {
 
   const code = _.map(genes, gene => {
     const summaries = alleles[gene] || [];
-    return _(summaries).map(({ id }) => id).value().sort().join(",");
+    return _(summaries)
+      .map(({ id }) => id)
+      .value()
+      .sort()
+      .join(",");
   })
     .join("_")
     .toLowerCase();

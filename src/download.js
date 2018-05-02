@@ -1,6 +1,6 @@
 const axios = require("axios");
 const Promise = require("bluebird");
-const cheerio = require("cheerio");
+const { Client: FtpClient } = require("ftp");
 const logger = require("debug");
 const fs = require("fs");
 const hasha = require("hasha");
@@ -11,7 +11,7 @@ const tmp = require("tmp");
 const { URL } = require("url");
 const { promisify } = require("util");
 
-const { fail, DeferredPromise } = require("../src/utils");
+const { DeferredPromise } = require("../src/utils");
 
 const DOWNLOAD_RETRIES = 5;
 const CACHE_DIR = "/opt/mlst/cache";
@@ -168,8 +168,8 @@ async function downloadFile(url, options = {}) {
 }
 
 async function ftpDownloadFile(url) {
-  const urlParts = new Url(url)
-  const { host, path } = urlParts;
+  const urlParts = new URL(url);
+  const { host, urlPath } = urlParts;
   const outPath = urlToPath(url);
   const dirname = path.dirname(outPath);
   await mkdirp(dirname, { mode: 0o755 });
@@ -185,16 +185,14 @@ async function ftpDownloadFile(url) {
   }
 
   const { tmpPath, tmpStream } = await createTempFileStream();
-  const whenStreaming = new DeferredPromise()
+  const whenStreaming = new DeferredPromise();
 
-  const ftp = new Client();
-  ftp.on("error", onStreamError);
+  const ftp = new FtpClient();
+  ftp.on("error", err => whenStreaming.reject(err));
   ftp.on("ready", () => {
-    logger("debug:ftpDownloadFile")(
-      `Dowloading '${path}' from ${host}`
-    );
-    ftp.get(path, (err, stream) => {
-      if (err) onStreamError(err);
+    logger("debug:ftpDownloadFile")(`Dowloading '${urlPath}' from ${host}`);
+    ftp.get(urlPath, (err, stream) => {
+      if (err) whenStreaming.reject(err);
       stream.once("close", () => ftp.end());
       whenStreaming.resolve(stream);
     });
@@ -217,11 +215,11 @@ async function ftpDownloadFile(url) {
   return outPath;
 }
 
-async function getFromCache(url, options) {
+async function getFromCache(url) {
   const expectedPath = urlToPath(url);
   const exists = await existsAsync(expectedPath);
   if (exists) return expectedPath;
   throw new Error(`${url} hasn't been downloaded`);
 }
 
-module.exports = { downloadFile, ftpDownloadFile, getFromCache }
+module.exports = { downloadFile, ftpDownloadFile, getFromCache };

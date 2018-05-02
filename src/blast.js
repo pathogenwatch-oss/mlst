@@ -7,12 +7,20 @@ const tmp = require("tmp-promise");
 
 const { Transform } = require("stream");
 
-const { FastaString } = require("./mlst-database");
-const {
-  parseAlleleName,
-  DeferredPromise,
-  loadSequencesFromStream
-} = require("./utils");
+const { parseAlleleName } = require("./mlst-database");
+const { DeferredPromise, loadSequencesFromStream } = require("./utils");
+
+class FastaString extends Transform {
+  constructor(options = {}) {
+    super(_.assign(options, { objectMode: true }));
+  }
+
+  _transform(chunk, encoding, callback) {
+    const output = `>${chunk.id}\n${chunk.seq}\n`;
+    this.push(output);
+    callback();
+  }
+}
 
 class RenameContigs extends Transform {
   constructor(options = {}) {
@@ -126,10 +134,10 @@ function parseBlastLine(line) {
     Number(row[SSTART]) < Number(row[SEND])
       ? [Number(row[SSTART]), Number(row[SEND]), false]
       : [Number(row[SEND]), Number(row[SSTART]), true];
-  const [alleleStart, alleleEnd] = 
+  const [alleleStart, alleleEnd] =
     Number(row[QSTART]) < Number(row[QEND])
-    ? [Number(row[QSTART]), Number(row[QEND])]
-    : [Number(row[QEND]), Number(row[QSTART])];
+      ? [Number(row[QSTART]), Number(row[QEND])]
+      : [Number(row[QEND]), Number(row[QSTART])];
   const contigLength = contigEnd - contigStart + 1;
   const matchingBases = Number(row[NIDENT]);
 

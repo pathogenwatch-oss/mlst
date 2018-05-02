@@ -104,7 +104,6 @@ function reverseCompliment(sequence) {
 module.exports = {
   warn,
   fail,
-  parseAlleleName,
   pmap,
   splitResolveReject,
   DeferredPromise,
