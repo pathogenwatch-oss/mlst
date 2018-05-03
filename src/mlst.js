@@ -2,21 +2,15 @@ const _ = require("lodash");
 const es = require("event-stream");
 const hasha = require("hasha");
 const logger = require("debug");
-const path = require("path");
 
 const { hashHit } = require("./matches");
 const { createBlastProcess, parseBlastLine } = require("./blast");
-const { FastaString } = require("./mlst-database");
-const { fastaSlice } = require("./utils");
+const { fastaSlice, FastaString } = require("./utils");
 
 function streamFactory(allelePaths) {
-  const geneMap = _(allelePaths)
-    .map(p => [path.basename(p, ".tfa"), p])
-    .fromPairs()
-    .value();
   return (genes, start, end) => {
     const streams = _(genes)
-      .map(gene => geneMap[gene])
+      .map(gene => allelePaths[gene])
       .map(p => fastaSlice(p, start, end))
       .value();
     return es.merge(streams).pipe(
@@ -48,7 +42,7 @@ async function runBlast(options = {}) {
   return options;
 }
 
-function buildResults(options = {}) {
+function buildResults(options) {
   const {
     bestHits,
     alleleLengths,
@@ -66,7 +60,6 @@ function buildResults(options = {}) {
 
   _.forEach(bestHits, hit => {
     const {
-      allele,
       contig,
       contigStart,
       contigEnd,
@@ -86,8 +79,8 @@ function buildResults(options = {}) {
     if (exact) {
       alleles[gene].push(summary);
     } else if (
-      contigLength > 0.8 * alleleLengths[gene][allele] &&
-      contigLength < 1.1 * alleleLengths[gene][allele]
+      contigLength > 0.8 * alleleLengths[gene][st] &&
+      contigLength < 1.1 * alleleLengths[gene][st]
     ) {
       alleles[gene].push(summary);
     }

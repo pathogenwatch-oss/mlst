@@ -16,7 +16,7 @@ const { parseString: parseXml } = require("xml2js");
 const { Unzip } = require("zlib");
 
 const { loadSpeciesTaxidMap } = require("../src/ncbi-taxid-lookup");
-const { reverseCompliment, DeferredPromise } = require("./utils");
+const { reverseCompliment, DeferredPromise, loadSequencesFromStream } = require("./utils");
 
 const openAsync = promisify(fs.open);
 const closeAsync = promisify(fs.close);
@@ -106,25 +106,24 @@ class Scheme {
     await mkdirp(schemeDir, { mode: 0o755 });
 
     const alleleLookup = {};
-    const genes = [];
-    const allelePaths = [];
+    const genes = await this.genes();
+    const allelePaths = {};
     const lengths = {};
     const alleleCounts = {};
     await Promise.map(
-      await this.genes(),
+      genes,
       async gene => {
-        genes.push(gene);
         lengths[gene] = {};
         const alleles = await this.alleles(gene); // map of allele_id to allele object
         const sortedAlleles = this.sort(alleles);
         alleleCounts[gene] = sortedAlleles.length;
+        let allelePath;
         if (maxSeqs > 0) {
-          allelePaths.push(
-            await this.write(schemeDir, gene, sortedAlleles.slice(0, maxSeqs))
-          );
+          allelePath = await this.write(schemeDir, gene, sortedAlleles.slice(0, maxSeqs))
         } else {
-          allelePaths.push(await this.write(schemeDir, gene, sortedAlleles));
+          allelePath = await this.write(schemeDir, gene, sortedAlleles);
         }
+        allelePaths[gene] = allelePath;
         _.forEach(alleles, allele => {
           _.forEach(this.hash(allele), ([prefix, ...details]) => {
             // Looks like
@@ -161,7 +160,7 @@ class Scheme {
       lengths,
       alleleLookup,
       alleleLookupPrefixLength: this.alleleLookupPrefixLength,
-      profiles: this.profiles(),
+      profiles: await this.profiles(),
       url: this.schemeUrl
     };
     const metadataPath = path.join(schemeDir, "metadata.json");
@@ -220,26 +219,14 @@ class Scheme {
     return outpath
   }
 
-  _readFasta(fastaPath) {
-    const seqs = [];
-    const whenDone = new DeferredPromise();
-    fasta
-      .obj(fastaPath)
-      .on("data", seq => {
-        const { id, seq: sequence } = seq;
-        seqs.push({
-          id,
-          seq: sequence.toLowerCase(),
-          length: sequence.length
-        });
-      })
-      .on("end", () => {
-        whenDone.resolve(seqs);
-      })
-      .on("error", err => {
-        whenDone.reject(err);
-      });
-    return whenDone;
+  async _readFasta(fastaPath) {
+    const stream = fs.createReadStream(fastaPath);
+    const rawSeqs = await loadSequencesFromStream(stream);
+    return _.map(rawSeqs, (seq, id) => ({
+      id,
+      seq: seq.toLowerCase(),
+      length: seq.length
+    }));
   }
 }
 
@@ -263,9 +250,8 @@ class PubMlstSevenGeneScheme extends Scheme {
     return { profilesPath, allelesPaths };
   }
 
-  _rowParserFactory(header) {
+  _rowParserFactory(genes, header) {
     // Returns a function which maps a row to an object
-    const genes = this.genes();
     return row => {
       const rowObj = _(header)
         .zip(row)
@@ -279,6 +265,7 @@ class PubMlstSevenGeneScheme extends Scheme {
 
   async profiles() {
     const profilesPath = await this.downloadFn(this.profilesUrl);
+    const genes = await this.genes();
     let rowParser = null;
     const output = new DeferredPromise();
     const profiles = {};
@@ -291,7 +278,7 @@ class PubMlstSevenGeneScheme extends Scheme {
         const row = line.split("\t");
         if (rowParser === null) {
           // This is the header row
-          rowParser = this._rowParserFactory(row);
+          rowParser = this._rowParserFactory(genes, row);
         } else {
           const { st, alleles } = rowParser(row);
           const allelesKey = alleles.join("_");
@@ -299,12 +286,14 @@ class PubMlstSevenGeneScheme extends Scheme {
         }
       })
       .on("close", () => {
+        const nProfiles = _.keys(profiles).length;
+        logger("trace:index")(`Found ${nProfiles} in ${profilesPath}`)
         output.resolve(profiles);
       })
       .on("error", err => {
         output.reject(err);
       });
-    return profiles;
+    return output;
   }
 }
 
@@ -322,7 +311,7 @@ class PubMlstSevenGeneSchemes {
 
   async read(taxid) {
     const metadata = await this.loadMetadata();
-    const schemeMetadataPath = metadata[taxid];
+    const schemeMetadataPath = metadata[taxid].path;
     if (!schemeMetadataPath) return undefined;
     try {
       return await readJsonAsync(schemeMetadataPath);
@@ -340,7 +329,7 @@ class PubMlstSevenGeneSchemes {
     }
   }
 
-  async writeMetadata(metadata) {
+  writeMetadata(metadata) {
     mkdirp(this.dataDir, { mode: 0o755 });
     const metadataPath = path.join(this.dataDir, "mlst_metadata.json");
     return writeJsonAsync(metadataPath, metadata);
@@ -386,7 +375,7 @@ class PubMlstSevenGeneSchemes {
         });
         await this.writeMetadata(metadata);
       },
-      { concurrency: 3 }
+      { concurrency: 1 }
     );
 
     _.forEach(this.schemeAliases, (scheme, alias) => {
@@ -447,6 +436,7 @@ class PubMlstSevenGeneSchemes {
       ({ profilesUrl, lociUrls, ...metadata }) =>
         new PubMlstSevenGeneScheme({
           downloadFn: this.downloadFn,
+          schemeUrl: profilesUrl,
           profilesUrl,
           lociUrls,
           metadata
@@ -856,7 +846,7 @@ class CgMlstSchemes {
 
   async read(taxid) {
     const metadata = await this.loadMetadata();
-    const schemeMetadataPath = metadata[taxid];
+    const schemeMetadataPath = metadata[taxid].path;
     if (!schemeMetadataPath) return undefined;
     try {
       return await readJsonAsync(schemeMetadataPath);
@@ -908,11 +898,12 @@ class CgMlstSchemes {
       { concurrency: 1 }
     );
 
+    await this.writeMetadata(metadata);
     return _(metadata).values().map("path").value()
   }
 }
 
-module.exports = { PubMlstSevenGeneSchemes, CgMlstSchemes };
+module.exports = { PubMlstSevenGeneSchemes, CgMlstSchemes, parseAlleleName };
 
 if (require.main === module) {
   const { shouldRunCgMlst } = require("./parseEnvVariables");

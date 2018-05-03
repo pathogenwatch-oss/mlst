@@ -37,19 +37,19 @@ function formatOutput(alleleMetadata, results) {
     ])
     .fromPairs()
     .value();
-  const { scheme, url, genes } = alleleMetadata;
+  const { schemeName, url, genes } = alleleMetadata;
   return {
     alleles: sortedAlleles,
     code,
     st,
-    scheme,
+    scheme: schemeName,
     url,
     genes
   };
 }
 
 async function runMlst(inStream) {
-  const [RUN_CORE_GENOME_MLST, alleleMetadata] = getMetadata();
+  const [RUN_CORE_GENOME_MLST, alleleMetadata] = await getMetadata();
 
   const {
     lengths: alleleLengths,
@@ -58,10 +58,11 @@ async function runMlst(inStream) {
     genes,
     profiles,
     allelePaths,
-    scheme,
+    schemeName,
   } = alleleMetadata;
+  const maxSeqs = alleleMetadata.maxSeqs || 0;
 
-  logger("debug")(`${scheme} has ${allelePaths.length} genes`);
+  logger("debug")(`Scheme '${schemeName}' has ${genes.length} genes`);
 
   const streamBuilder = streamFactory(allelePaths);
   const { contigNameMap, blastDb, renamedSequences } = await makeBlastDb(
@@ -90,7 +91,7 @@ async function runMlst(inStream) {
       alleleLengths,
       genes,
       profiles,
-      scheme,
+      scheme: schemeName,
       renamedSequences
     });
   }
@@ -103,7 +104,6 @@ async function runMlst(inStream) {
   if (inexactGenes.length <= 0) {
     results = firstRunResults;
   } else {
-    const maxSeqs = scheme.maxSeqs || 0;
     logger("debug:blast")("Running second round of blast");
     results = runRound(20, 80, inexactGenes, ALLELES_IN_FIRST_RUN, maxSeqs);
   }

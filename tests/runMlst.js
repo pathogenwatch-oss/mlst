@@ -105,10 +105,11 @@ test("Run specific MLST cases", async t => {
       env: { WGSA_SPECIES_TAXID: "28901" }
     }
   ];
-  await Promise.all(
-    Promise.map(
+  await Promise.map(
       testCases,
       async ({ name, env }) => {
+        logger("test")(`Running MLST for ${name}`);
+        
         const expectedResults = await readJson(
           path.join(TESTDATA_DIR, `${name}.json`)
         );
@@ -118,8 +119,8 @@ test("Run specific MLST cases", async t => {
         process.env = { ...initialEnv, ...env };
 
         const results = await runMlst(inputStream);
-        t.is(results.st, expectedResults.st, `${name}: st`);
         t.is(results.code, expectedResults.code, `${name}: code`);
+        t.is(results.st, expectedResults.st, `${name}: st`);
         t.deepEqual(
           results.alleles,
           expectedResults.alleles,
@@ -127,7 +128,6 @@ test("Run specific MLST cases", async t => {
         );
       },
       { concurrency: 1 }
-    )
   );
 
   process.env = initialEnv;
@@ -150,7 +150,7 @@ test("Run more staph MLST cases", async t => {
         return null;
       }
       const name = f.replace(".mlst.json", "");
-      const seqPath = path.join(staphDir, `${name}.fasta`);
+      const seqPath = path.join(staphDir, name);
       const resultsPath = path.join(staphDir, f);
       return { name, seqPath, resultsPath };
     })
@@ -209,7 +209,7 @@ test("Run synthetic CgMLST", async t => {
   process.env = initialEnv;
 });
 
-test.only("Run more staph CgMLST cases", async t => {
+test("Run more staph CgMLST cases", async t => {
   const RUN_CORE_GENOME_MLST = process.env.RUN_CORE_GENOME_MLST;
   if (
     !RUN_CORE_GENOME_MLST ||

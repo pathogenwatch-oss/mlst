@@ -1,6 +1,7 @@
 const logger = require("debug");
 const fasta = require("bionode-fasta");
 const fs = require("fs");
+const { Transform } = require("stream");
 const through = require("through");
 
 const _ = require("lodash");
@@ -14,10 +15,6 @@ function fail(title) {
     logger(`error:${title}`)(message);
     process.exit(1);
   };
-}
-
-function pmap(promises, fn) {
-  return _.map(promises, p => p.then(fn));
 }
 
 class DeferredPromise {
@@ -89,8 +86,21 @@ function loadSequencesFromStream(inputStream) {
     sequences[id] = seq;
   });
   fastaStream.on("end", () => output.resolve(sequences));
+  fastaStream.on("error", err => output.reject(err));
   inputStream.pipe(fastaStream);
   return output;
+}
+
+class FastaString extends Transform {
+  constructor(options = {}) {
+    super(_.assign(options, { objectMode: true }));
+  }
+
+  _transform(chunk, encoding, callback) {
+    const output = `>${chunk.id}\n${chunk.seq}\n`;
+    this.push(output);
+    callback();
+  }
 }
 
 function reverseCompliment(sequence) {
@@ -104,7 +114,7 @@ function reverseCompliment(sequence) {
 module.exports = {
   warn,
   fail,
-  pmap,
+  FastaString,
   splitResolveReject,
   DeferredPromise,
   fastaSlice,

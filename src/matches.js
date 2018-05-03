@@ -28,8 +28,15 @@ class HitsStore {
   }
 
   add(hit) {
+    // Alleles of a given gene are similar (and sometimes truncations of one another)
+    // We use "bins" to define a section of each query contig for each gene and add 
+    // hits to each bin.  We can then select the best hit according so some criteria.
+    // This means that we only count one hit for a given query contig but we can 
+    // report multiple (different) hits as long as they're in different parts of the
+    // query sequence.
+
     const {
-      allele,
+      st,
       contigLength,
       contigStart,
       contigEnd,
@@ -39,9 +46,9 @@ class HitsStore {
       pident
     } = hit;
     hit.exact = // eslint-disable-line no-param-reassign
-      contigLength === this.alleleLengths[gene][allele] &&
+      contigLength === this.alleleLengths[gene][st] &&
       contigLength === matchingBases;
-    if (!this.longEnough(gene, allele, contigLength)) return false;
+    if (!this.longEnough(gene, st, contigLength)) return false;
     const bin = this.getBin(gene, contigStart, contigEnd, contigId);
     if (!this.closeEnough(pident, bin)) return false;
     if (bin.exact && !hit.exact) return false;
@@ -59,14 +66,14 @@ class HitsStore {
           ? currentBestHit
           : hit;
       });
-      bestHit.alleleLength = this.alleleLengths[bin.gene][bestHit.allele];
+      bestHit.alleleLength = this.alleleLengths[bin.gene][bestHit.st];
       bestHit.contig = bestHit.contig || this.contigNameMap[bestHit.contigId];
       return bestHit;
     });
   }
 
-  longEnough(gene, allele, contigLength) {
-    return contigLength >= this.alleleLengths[gene][allele] * 0.8;
+  longEnough(gene, st, contigLength) {
+    return contigLength >= this.alleleLengths[gene][st] * 0.8;
   }
 
   // eslint-disable-next-line max-params

@@ -8,19 +8,11 @@ const tmp = require("tmp-promise");
 const { Transform } = require("stream");
 
 const { parseAlleleName } = require("./mlst-database");
-const { DeferredPromise, loadSequencesFromStream } = require("./utils");
-
-class FastaString extends Transform {
-  constructor(options = {}) {
-    super(_.assign(options, { objectMode: true }));
-  }
-
-  _transform(chunk, encoding, callback) {
-    const output = `>${chunk.id}\n${chunk.seq}\n`;
-    this.push(output);
-    callback();
-  }
-}
+const {
+  DeferredPromise,
+  loadSequencesFromStream,
+  FastaString
+} = require("./utils");
 
 class RenameContigs extends Transform {
   constructor(options = {}) {
@@ -60,10 +52,12 @@ async function makeBlastDb(inputFileStream) {
   );
   logger("trace:blast:makeBlastDb")(`Running '${command}'`);
   const shell = spawn(command, { shell: true });
+
   shell.stdin.on("error", err => {
     logger("error:blast:makeBlastDb")(err);
     output.reject(err);
   });
+
   shell.on("error", err => {
     logger("error:blast:makeBlastDb")(err);
     output.reject(err);
