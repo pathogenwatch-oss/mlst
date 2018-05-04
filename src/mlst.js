@@ -3,9 +3,8 @@ const es = require("event-stream");
 const hasha = require("hasha");
 const logger = require("debug");
 
-const { hashHit } = require("./matches");
 const { createBlastProcess, parseBlastLine } = require("./blast");
-const { fastaSlice, FastaString } = require("./utils");
+const { fastaSlice, FastaString, reverseCompliment } = require("./utils");
 
 function streamFactory(allelePaths) {
   return (genes, start, end) => {
@@ -21,7 +20,7 @@ function streamFactory(allelePaths) {
   };
 }
 
-async function runBlast(options = {}) {
+async function runBlast(options) {
   const { stream, blastDb, wordSize, pIdent, hitsStore } = options;
   const [blast, blastExit] = createBlastProcess(blastDb, wordSize, pIdent);
   logger("debug:startBlast")(`About to blast genes against ${blastDb}`);
@@ -39,80 +38,239 @@ async function runBlast(options = {}) {
 
   stream.pipe(blast.stdin);
   await blastExit;
-  return options;
+  return hitsStore.best();
 }
 
-function buildResults(options) {
-  const {
-    bestHits,
-    alleleLengths,
-    genes,
-    profiles,
-    scheme,
-    renamedSequences
-  } = options;
+function findGenesWithInexactResults(bestHits) {
+  return _(bestHits)
+    .filter(({ exact }) => !exact)
+    .map("gene")
+    .uniq()
+    .value()
+}
 
-  const alleles = _(genes)
-    .map(gene => [gene, []])
-    .fromPairs()
-    .value();
-  const raw = {};
+function hashHit(hit, renamedSequences) {
+  const { contigStart, contigEnd, contigId, hash, reverse } = hit;
+  if (hash) return hash;
+  const sequence = renamedSequences[contigId].toLowerCase();
+  const closestMatchingSequence = sequence.slice(contigStart - 1, contigEnd);
+  if (reverse) {
+    return hasha(reverseCompliment(closestMatchingSequence), {
+      algorithm: "sha1"
+    });
+  }
+  return hasha(closestMatchingSequence, { algorithm: "sha1" });
+}
 
+function formatOutput({ alleleMetadata, renamedSequences, bestHits }) {
+  /* eslint-disable no-param-reassign */
   _.forEach(bestHits, hit => {
-    const {
-      contig,
-      contigStart,
-      contigEnd,
-      contigLength,
-      gene,
-      hash,
-      exact,
-      reverse,
-      st
-    } = hashHit(hit, renamedSequences);
-    const summary = {
-      id: exact ? st : hash,
-      contig,
-      start: reverse ? contigEnd : contigStart,
-      end: reverse ? contigStart : contigEnd
-    };
-    if (exact) {
-      alleles[gene].push(summary);
-    } else if (
-      contigLength > 0.8 * alleleLengths[gene][st] &&
-      contigLength < 1.1 * alleleLengths[gene][st]
-    ) {
-      alleles[gene].push(summary);
-    }
-    (raw[gene] = raw[gene] || []).push(hit);
-  });
+    // Add an id to all hits
+    const { exact, st } = hit;
+    if (exact) hit.id = st;
+    else hit.id = hashHit(hit, renamedSequences);
 
-  const code = _.map(genes, gene => {
-    const summaries = alleles[gene] || [];
-    return _(summaries)
-      .map(({ id }) => id)
-      .value()
-      .sort()
-      .join(",");
+    // Set start and end
+    const { reverse, contigStart, contigEnd } = hit
+    hit.start = reverse ? contigEnd : contigStart;
+    hit.end = reverse ? contigStart : contigEnd;
   })
+  /* eslint-enable no-param-reassign */
+
+  const { lengths: alleleLengths } = alleleMetadata;
+  const alleles = _(bestHits)
+    .filter(({ gene, st, exact, contigLength }) => {
+      if (exact) return true
+      const normalLength = alleleLengths[gene][st];
+      if (contigLength < 0.8 * normalLength) return false
+      if (contigLength > 1.1 * normalLength) return false
+      return true
+    })
+    .groupBy("gene")
+    .mapValues(hits => _.map(hits, ({ id, contig, start, end }) => ({ id, contig, start, end })))
+    .mapValues(hits => _.sortBy(hits, [({ id }) => String(id), "contig", "start"]))
+    .value();
+
+  // For each gene we make a comma delimited list of allele ids
+  // and join them with underscores
+  const { genes } = alleleMetadata;
+  const code = _(genes)
+    .map(gene => alleles[gene] || [])
+    .map(hits => _.map(hits, "id").join(","))
+    .value()
     .join("_")
     .toLowerCase();
 
+  const { profiles = {} } = alleleMetadata;
   const st = profiles[code]
     ? profiles[code]
     : hasha(code.toLowerCase(), { algorithm: "sha1" });
 
+  const { schemeName: scheme, url } = alleleMetadata;
   return {
     alleles,
     code,
-    raw,
+    st,
     scheme,
-    st
-  };
+    url,
+    genes
+  }
+}
+
+class HitsStore {
+  constructor(alleleLengths, contigNameMap) {
+    this.alleleLengths = alleleLengths;
+    this.contigNameMap = contigNameMap;
+    this._bins = [];
+  }
+
+  add(hit) {
+    // Alleles of a given gene are similar (and sometimes truncations of one another)
+    // We use "bins" to define a section of each query contig for each gene and add 
+    // hits to each bin.  We can then select the best hit according so some criteria.
+    // This means that we only count one hit for a given query contig but we can 
+    // report multiple (different) hits as long as they're in different parts of the
+    // query sequence.
+
+    const {
+      st,
+      contigLength,
+      contigStart,
+      contigEnd,
+      contigId,
+      gene,
+      matchingBases,
+      pident
+    } = hit;
+    hit.exact = // eslint-disable-line no-param-reassign
+      contigLength === this.alleleLengths[gene][st] &&
+      contigLength === matchingBases;
+    if (!this.longEnough(gene, st, contigLength)) return false;
+    const bin = this.getBin(gene, contigStart, contigEnd, contigId);
+    if (!this.closeEnough(pident, bin)) return false;
+    if (bin.exact && !hit.exact) return false;
+    this.updateBin(bin, hit);
+    return true;
+  }
+
+  best() {
+    return _.map(this._bins, bin => {
+      const bestHit = _.reduce(bin.hits, (currentBestHit, hit) => {
+        if (currentBestHit.matchingBases === hit.matchingBases) {
+          return currentBestHit.pident > hit.pident ? currentBestHit : hit;
+        }
+        return currentBestHit.matchingBases > hit.matchingBases
+          ? currentBestHit
+          : hit;
+      });
+      bestHit.alleleLength = this.alleleLengths[bin.gene][bestHit.st];
+      bestHit.contig = bestHit.contig || this.contigNameMap[bestHit.contigId];
+      return bestHit;
+    });
+  }
+
+  longEnough(gene, st, contigLength) {
+    return contigLength >= this.alleleLengths[gene][st] * 0.8;
+  }
+
+  // eslint-disable-next-line max-params
+  getBin(gene, contigStart, contigEnd, contigId) {
+    const existingBin = _.find(this._bins, bin => {
+      if (bin.gene !== gene) return false;
+      if (bin.contigId !== contigId) return false;
+      // Check if the new hit is completely within the bin
+      if (bin.contigStart <= contigStart && bin.contigEnd >= contigEnd)
+        return true;
+      // Check if the bin is completely within the new hit
+      if (contigStart <= bin.contigStart && contigEnd >= bin.contigEnd)
+        return true;
+      const binLength = bin.contigEnd - bin.contigStart;
+      // Check if the bin overlaps to the left
+      if (
+        bin.contigStart <= contigStart &&
+        bin.contigEnd <= contigEnd &&
+        bin.contigEnd > contigStart
+      ) {
+        const overlap = (bin.contigEnd - contigStart) / binLength;
+        return overlap > 0.8;
+      }
+      // Check if the new entry overlaps to the left
+      if (
+        contigStart <= bin.contigStart &&
+        contigEnd <= bin.contigEnd &&
+        contigEnd > bin.contigStart
+      ) {
+        const overlap = (contigEnd - bin.contigStart) / binLength;
+        return overlap > 0.8;
+      }
+      return false;
+    });
+    if (existingBin) {
+      return existingBin;
+    }
+    const newBin = {
+      gene,
+      contigStart,
+      contigEnd,
+      contigId,
+      hits: [],
+      bestPIdent: 0
+    };
+    this._bins.push(newBin);
+    return newBin;
+  }
+
+  closeEnough(pident, bin) {
+    return pident >= bin.bestPIdent - 2.0;
+  }
+
+  sameLocationButWorse(hitA, hitB) {
+    // Fail if the hit isn't in the right place
+    if (hitA.contigId !== hitB.contigId) return false;
+    if (hitA.contigStart !== hitB.contigStart) return false;
+    if (hitA.contigEnd !== hitB.contigEnd) return false;
+    // A is a worse hit than B
+    if (hitA.matchingBases < hitB.matchingBases) return true;
+    // B matches the whole allele, which is better than a partial match
+    if (hitA.matchingBases === hitB.matchingBases && hitB.exact) return true;
+    return false;
+  }
+
+  updateBin(bin, hit) {
+    /* eslint-disable no-param-reassign */
+    bin.contigStart =
+      bin.contigStart < hit.contigStart ? bin.contigStart : hit.contigStart;
+    bin.contigEnd =
+      bin.contigEnd > hit.contigEnd ? bin.contigEnd : hit.contigEnd;
+
+    // If a bin has a exact hit in it, we're only interested in other
+    // exact hits.
+    if (hit.exact && !bin.exact) {
+      bin.exact = true;
+      _.remove(bin.hits, h => !h.exact);
+    }
+
+    if (hit.pident > bin.bestPIdent) {
+      // Remove any hits which are no longer good enough
+      bin.bestPIdent = hit.pident;
+      _.remove(bin.hits, h => !this.closeEnough(h.pident, bin));
+    }
+
+    // Check if any of the existing hits should be replaced with the new one
+    _.remove(bin.hits, h => this.sameLocationButWorse(h, hit));
+
+    // Check if any of the existing hits is better than this new one
+    if (_.find(bin.hits, h => this.sameLocationButWorse(hit, h))) return;
+
+    bin.hits.push(hit);
+    /* eslint-enable no-param-reassign */
+  }
 }
 
 module.exports = {
   streamFactory,
   runBlast,
-  buildResults
+  findGenesWithInexactResults,
+  formatOutput,
+  HitsStore
 };

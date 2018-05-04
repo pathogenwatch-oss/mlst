@@ -109,7 +109,7 @@ test("Run specific MLST cases", async t => {
       testCases,
       async ({ name, env }) => {
         logger("test")(`Running MLST for ${name}`);
-        
+
         const expectedResults = await readJson(
           path.join(TESTDATA_DIR, `${name}.json`)
         );

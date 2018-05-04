@@ -4,8 +4,7 @@ const _ = require("lodash");
 const logger = require("debug");
 
 const { makeBlastDb } = require("./src/blast");
-const { HitsStore } = require("./src/matches");
-const { streamFactory, runBlast, buildResults } = require("./src/mlst");
+const { HitsStore, streamFactory, runBlast, findGenesWithInexactResults, formatOutput } = require("./src/mlst");
 const { findExactHits } = require("./src/exactHits");
 const { fail } = require("./src/utils");
 const { getMetadata } = require("./src/parseEnvVariables");
@@ -13,40 +12,6 @@ const { getMetadata } = require("./src/parseEnvVariables");
 process.on("unhandledRejection", reason => fail("unhandledRejection")(reason));
 
 const ALLELES_IN_FIRST_RUN = 5;
-
-function findGenesWithInexactResults(results) {
-  const exactResultFilter = ([, [firstMatch, ...otherMatches]]) => {
-    const exact = firstMatch && firstMatch.exact && otherMatches.length === 0;
-    return !exact;
-  };
-  const inexactGenes = _(results.raw)
-    .toPairs()
-    .filter(exactResultFilter)
-    .map(([gene]) => gene)
-    .value();
-  return inexactGenes;
-}
-
-function formatOutput(alleleMetadata, results) {
-  const { alleles, code, st } = results;
-  const sortedAlleles = _(alleles)
-    .toPairs()
-    .map(([gene, hits]) => [
-      gene,
-      _.sortBy(hits, [hit => String(hit.id), "contig", "start"])
-    ])
-    .fromPairs()
-    .value();
-  const { schemeName, url, genes } = alleleMetadata;
-  return {
-    alleles: sortedAlleles,
-    code,
-    st,
-    scheme: schemeName,
-    url,
-    genes
-  };
-}
 
 async function runMlst(inStream) {
   const [RUN_CORE_GENOME_MLST, alleleMetadata] = await getMetadata();
@@ -84,41 +49,21 @@ async function runMlst(inStream) {
   /* eslint-disable max-params */
   async function runRound(wordSize, pIdent, genesToImprove, start, end) {
     const stream = streamBuilder(genesToImprove, start, end);
-    await runBlast({ stream, blastDb, wordSize, pIdent, hitsStore });
-    const bestHits = hitsStore.best();
-    return await buildResults({
-      bestHits,
-      alleleLengths,
-      genes,
-      profiles,
-      scheme: schemeName,
-      renamedSequences
-    });
+    const bestHits = await runBlast({ stream, blastDb, wordSize, pIdent, hitsStore });
+    return bestHits
   }
   /* eslint-enable max-params */
 
   logger("debug:blast")("Running first round of blast");
-  const firstRunResults = await runRound(20, 80, genes, 0, ALLELES_IN_FIRST_RUN);
-  const inexactGenes = findGenesWithInexactResults(firstRunResults);
-  let results;
-  if (inexactGenes.length <= 0) {
-    results = firstRunResults;
-  } else {
+  let bestHits = await runRound(20, 80, genes, 0, ALLELES_IN_FIRST_RUN);
+  const inexactGenes = findGenesWithInexactResults(bestHits);
+  if (inexactGenes.length > 0) {
     logger("debug:blast")("Running second round of blast");
-    results = runRound(20, 80, inexactGenes, ALLELES_IN_FIRST_RUN, maxSeqs);
+    bestHits = await runRound(20, 80, inexactGenes, ALLELES_IN_FIRST_RUN, maxSeqs);
   }
 
-  const output = formatOutput(alleleMetadata, results);
+  const output = formatOutput({ alleleMetadata, renamedSequences, bestHits });
   if (process.env.DEBUG) {
-    const sortedRaw = _(results.raw)
-      .toPairs()
-      .map(([gene, hits]) => [
-        gene,
-        _.sortBy(hits, hit => (hit.exact ? hit.st : hit.hash))
-      ])
-      .fromPairs()
-      .value();
-    output.raw = sortedRaw;
     output.bins = hitsStore._bins;
   }
   return output;
