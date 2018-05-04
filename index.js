@@ -21,7 +21,6 @@ async function runMlst(inStream) {
     alleleLookup,
     alleleLookupPrefixLength,
     genes,
-    profiles,
     allelePaths,
     schemeName,
   } = alleleMetadata;
