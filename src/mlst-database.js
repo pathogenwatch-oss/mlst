@@ -174,10 +174,10 @@ class Scheme {
     // For example, if sequences == {1: [A1, B1, C1], 3: [D3, E3], 4: [F4], 5:[G5, H5, I5, J5]}
     // this returns: [G5, F4, D3, A1, H5, E3, B1, I5, C1, J5]
     return _(alleles)
-      .groupBy(allele => allele.length) // {455: [seq, ...], 460: [seq, ...], ...}
+      .groupBy("length") // {455: [seq, ...], 460: [seq, ...], ...}
       .toPairs() // [[455, [seq, ...]], [460, [seq, ...]], ...]
       .sortBy(([length]) => -length) // [[477, [seq, ...]], [475, [seq, ...]], ...]
-      .map(([, seqs]) => seqs) // [[seq1, seq2, ...], [seq11, seq12, ...], ...]
+      .map(([, seqs]) => _.sortBy(seqs, "st")) // [[seq1, seq2, ...], [seq11, seq12, ...], ...]
       .thru(seqs => _.zip(...seqs)) // [[seq1, seq11, ...], [seq2, undefined, ...], ...]
       .flatten() // [seq1, seq11, ..., seq2, undefined, ...]
       .filter(el => typeof el !== "undefined") // [seq1, seq11, ..., seq2, ...]
