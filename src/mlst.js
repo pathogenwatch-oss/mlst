@@ -20,27 +20,6 @@ function streamFactory(allelePaths) {
   };
 }
 
-async function runBlast(options) {
-  const { stream, blastDb, wordSize, pIdent, hitsStore } = options;
-  const [blast, blastExit] = createBlastProcess(blastDb, wordSize, pIdent);
-  logger("debug:startBlast")(`About to blast genes against ${blastDb}`);
-
-  const blastResultsStream = blast.stdout.pipe(es.split());
-  blastResultsStream.on("data", line => {
-    if (line === "") return;
-    const hit = parseBlastLine(line);
-    if (hitsStore.add(hit)) {
-      logger("trace:mlst:addedHit")(line);
-    } else {
-      logger("trace:mlst:skippedHit")(line);
-    }
-  });
-
-  stream.pipe(blast.stdin);
-  await blastExit;
-  return hitsStore.best();
-}
-
 function findGenesWithInexactResults(bestHits) {
   return _(bestHits)
     .filter(({ exact }) => !exact)
@@ -153,6 +132,26 @@ class HitsStore {
     if (bin.exact && !hit.exact) return false;
     this.updateBin(bin, hit);
     return true;
+  }
+
+  async addFromBlast(options) {
+    const { stream, blastDb, wordSize, pIdent } = options;
+    const [blast, blastExit] = createBlastProcess(blastDb, wordSize, pIdent);
+    logger("debug:startBlast")(`About to blast genes against ${blastDb}`);
+
+    const blastResultsStream = blast.stdout.pipe(es.split());
+    blastResultsStream.on("data", line => {
+      if (line === "") return;
+      const hit = parseBlastLine(line);
+      if (this.add(hit)) {
+        logger("trace:mlst:addedHit")(line);
+      } else {
+        logger("trace:mlst:skippedHit")(line);
+      }
+    });
+
+    stream.pipe(blast.stdin);
+    await blastExit;
   }
 
   best() {
@@ -271,7 +270,6 @@ class HitsStore {
 
 module.exports = {
   streamFactory,
-  runBlast,
   findGenesWithInexactResults,
   formatOutput,
   HitsStore
