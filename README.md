@@ -30,7 +30,16 @@ You can run Core Genome MLST by running the `cgmlst` container instead of the `m
 cat tests/testdata/saureus_duplicate.fasta | docker run -i -e WGSA_ORGANISM_TAXID=1280 -e DEBUG='*' --rm registry.gitlab.com/cgps/wgsa-tasks/cgmlst:latest
 ```
 
-## Building the containers
+## Making a release
+
+The following script will bump the version, make a git tag, push the code and build it using out CI
+pipeline.  It will also (slowly) run some tests.
+
+```
+./bin/release.sh
+```
+
+## Building the containers locally
 
 7 gene MLST and Core Genome MLST use the same code but different databases 
 which you build into two separate containers.  This means that you can 
@@ -104,3 +113,8 @@ docker run --rm -it \
 
 You can use the same command with a Core Genome MLST container.  The tests 
 should also be run automatically when you build a new container.
+
+## TODO
+
+* Add more quick tests which don't need a database or blast to tell if something
+  has been broken.
