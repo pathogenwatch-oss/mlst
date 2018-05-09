@@ -7,6 +7,7 @@ const _ = require("lodash");
 const logger = require("debug");
 
 const { runMlst } = require("..");
+const { shouldRunCgMlst } = require("../src/parseEnvVariables");
 
 async function readJson(p) {
   const contents = await promisify(fs.readFile)(p);
@@ -15,14 +16,105 @@ async function readJson(p) {
 
 const TESTDATA_DIR = path.join(__dirname, "testdata");
 
+function diff(as, bs) {
+  const extra = []
+  const missing = _.clone(bs)
+  _.forEach(as, a => {
+    const idx = missing.indexOf(a);
+    if (idx === -1) extra.push(a)
+    else _.pullAt(missing, [idx])
+  })
+  return { extra, missing }
+}
+
+function compareAlleles(actual, expected) {
+  const { genes: expectedGenes, alleles: expectedAlleles } = expected;
+  const { genes: actualGenes, alleles: actualAlleles } = actual;
+  const badAlleles = {};
+  const allGenes = _.union(expectedGenes, actualGenes);
+  _.forEach(allGenes, gene => {
+    const expectedHits = _.map(expectedAlleles[gene] || [], "id");
+    const actualHits = _.map(actualAlleles[gene] || [], "id");
+    const { extra, missing } = diff(actualHits, expectedHits);
+    if (!_.isEmpty(_.concat(missing, extra))) {
+      badAlleles[gene] = `+${extra.join(",")};-${missing.join(",")}`;
+    }
+  });
+  return badAlleles;
+}
+
+test("compare alleles", t => {
+  const testCases = [
+    {
+      actualAlleles: { geneA: [{ id: 1 }]},
+      expectedAlleles: { geneA: [{ id: 1 }]},
+      pass: true
+    },
+    {
+      actualAlleles: { geneA: [{ id: 1 }], geneB: []},
+      expectedAlleles: { geneA: [{ id: 1 }]},
+      pass: true
+    },
+    {
+      actualAlleles: { geneA: [{ id: 1 }]},
+      expectedAlleles: { geneA: [{ id: 1 }], geneB: []},
+      pass: true
+    },
+    {
+      actualAlleles: { geneA: [{ id: 1 }, { id: 1 }]},
+      expectedAlleles: { geneA: [{ id: 1 }, { id: 1 }]},
+      pass: true
+    },
+    {
+      actualAlleles: { geneA: [{ id: 1 }], geneB: [{ id: 1 }]},
+      expectedAlleles: { geneA: [{ id: 1 }], geneB: [{ id: 1 }]},
+      pass: true
+    },
+    {
+      actualAlleles: { geneA: [{ id: 1 }], geneB: [{ id: 1 }]},
+      expectedAlleles: { geneA: [{ id: 1 }]},
+      pass: false
+    },
+    {
+      actualAlleles: { geneA: [{ id: 1 }]},
+      expectedAlleles: { geneA: [{ id: 1 }], geneB: [{ id: 1 }]},
+      pass: false
+    },
+    {
+      actualAlleles: { geneA: [{ id: 1 }]},
+      expectedAlleles: { geneA: [{ id: 1 }, { id: 1 }]},
+      pass: false
+    },
+    {
+      actualAlleles: { geneA: [{ id: 1 }, { id: 1 }]},
+      expectedAlleles: { geneA: [{ id: 1 }]},
+      pass: false
+    },
+    {
+      actualAlleles: { geneA: [{ id: 1 }]},
+      expectedAlleles: { geneA: [{ id: 2 }]},
+      pass: false
+    },
+    {
+      actualAlleles: { geneA: [{ id: 1 }], geneC: [{ id: 1 }]},
+      expectedAlleles: { geneA: [{ id: 1 }]},
+      pass: true
+    },
+  ]
+  _.forEach(testCases, ({ actualAlleles, expectedAlleles, pass }, i) => {
+    const genes = ["geneA", "geneB"];
+    const actual = { alleles: actualAlleles, genes };
+    const expected = { alleles: expectedAlleles, genes };
+    const badAlleles = compareAlleles(actual, expected);
+    if (pass) {
+      t.deepEqual(badAlleles, {}, i)
+    } else {
+      t.notDeepEqual(badAlleles, {}, i)
+    }
+  })
+})
+
 test("Run specific MLST cases", async t => {
-  if (process.env.RUN_CORE_GENOME_MLST) {
-    t.pass("Skipping MLST test");
-    return;
-  }
-
-  const initialEnv = _.clone(process.env);
-
   const testCases = [
     {
       name: "saureus_synthetic_ones",
@@ -106,42 +198,29 @@ test("Run specific MLST cases", async t => {
     }
   ];
   await Promise.map(
-      testCases,
-      async ({ name, env }) => {
-        logger("test")(`Running MLST for ${name}`);
+    testCases,
+    async ({ name, env }) => {
+      logger("test")(`Running MLST for ${name}`);
 
-        const expectedResults = await readJson(
-          path.join(TESTDATA_DIR, `${name}.json`)
-        );
-        const inputStream = fs.createReadStream(
-          path.join(TESTDATA_DIR, `${name}.fasta`)
-        );
-        process.env = { ...initialEnv, ...env };
+      const expectedResults = await readJson(
+        path.join(TESTDATA_DIR, `${name}.json`)
+      );
+      const inputStream = fs.createReadStream(
+        path.join(TESTDATA_DIR, `${name}.fasta`)
+      );
 
-        const results = await runMlst(inputStream);
-        t.is(results.code, expectedResults.code, `${name}: code`);
-        t.is(results.st, expectedResults.st, `${name}: st`);
-        t.deepEqual(
-          results.alleles,
-          expectedResults.alleles,
-          `${name}: alleles`
-        );
-      },
-      { concurrency: 1 }
+      const results = await runMlst(inputStream, env);
+      t.deepEqual(compareAlleles(results, expectedResults), {}, `${name}: alleles`);
+      t.is(results.code, expectedResults.code, `${name}: code`);
+      t.deepEqual(results.genes, expectedResults.genes, `${name}: genes`);
+      t.is(results.st, expectedResults.st, `${name}: st`);
+    },
+    { concurrency: 1 }
   );
 
-  process.env = initialEnv;
 });
 
 test("Run more staph MLST cases", async t => {
-  if (process.env.RUN_CORE_GENOME_MLST) {
-    t.pass("Skipping MLST test");
-    return;
-  }
-
-  const initialEnv = _.clone(process.env);
-  process.env.WGSA_SPECIES_TAXID = "1280";
-
   const staphDir = path.join(TESTDATA_DIR, "saureus_data");
   const contents = await promisify(fs.readdir)(staphDir);
   const testCases = _(contents)
@@ -157,41 +236,22 @@ test("Run more staph MLST cases", async t => {
     .filter(r => r !== null)
     .value();
 
-  await Promise.all(
-    Promise.map(
-      testCases,
-      async ({ name, seqPath, resultsPath }) => {
-        const expectedResults = await readJson(resultsPath);
-        const inputStream = fs.createReadStream(seqPath);
-        const results = await runMlst(inputStream);
-        t.is(results.st, expectedResults.st, `${name}: st`);
-        t.is(results.code, expectedResults.code, `${name}: code`);
-        t.deepEqual(
-          results.alleles,
-          expectedResults.alleles,
-          `${name}: alleles`
-        );
-      },
-      { concurrency: 1 }
-    )
+  await Promise.map(
+    testCases,
+    async ({ name, seqPath, resultsPath }) => {
+      const expectedResults = await readJson(resultsPath);
+      const inputStream = fs.createReadStream(seqPath);
+      const results = await runMlst(inputStream, { WGSA_SPECIES_TAXID: "1280" });
+      t.deepEqual(compareAlleles(results, expectedResults), {}, `${name}: alleles`);
+      t.is(results.code, expectedResults.code, `${name}: code`);
+      t.deepEqual(results.genes, expectedResults.genes, `${name}: genes`);
+      t.is(results.st, expectedResults.st, `${name}: st`);
+    },
+    { concurrency: 1 }
   );
-
-  process.env = initialEnv;
 });
 
 test("Run synthetic CgMLST", async t => {
-  const RUN_CORE_GENOME_MLST = process.env.RUN_CORE_GENOME_MLST;
-  if (
-    !RUN_CORE_GENOME_MLST ||
-    ["y", "yes", "true", "1"].indexOf(RUN_CORE_GENOME_MLST.toLowerCase()) == -1
-  ) {
-    t.pass("Skipping CgMLST test");
-    return;
-  }
-
-  const initialEnv = _.clone(process.env);
-  process.env.WGSA_SPECIES_TAXID = "1280";
-
   const name = "saureus_synthetic_cg";
 
   const expectedResults = await readJson(
@@ -201,27 +261,14 @@ test("Run synthetic CgMLST", async t => {
     path.join(TESTDATA_DIR, `${name}.fasta`)
   );
 
-  const results = await runMlst(inputStream);
-  t.is(results.st, expectedResults.st, `${name}: st`);
+  const results = await runMlst(inputStream, { WGSA_SPECIES_TAXID: "1280", RUN_CORE_GENOME_MLST: "yes" });
+  t.deepEqual(compareAlleles(results, expectedResults), {}, `${name}: alleles`);
   t.is(results.code, expectedResults.code, `${name}: code`);
-  t.deepEqual(results.alleles, expectedResults.alleles, `${name}: alleles`);
-
-  process.env = initialEnv;
+  t.deepEqual(results.genes, expectedResults.genes, `${name}: genes`);
+  t.is(results.st, expectedResults.st, `${name}: st`);
 });
 
 test("Run more staph CgMLST cases", async t => {
-  const RUN_CORE_GENOME_MLST = process.env.RUN_CORE_GENOME_MLST;
-  if (
-    !RUN_CORE_GENOME_MLST ||
-    ["y", "yes", "true", "1"].indexOf(RUN_CORE_GENOME_MLST.toLowerCase()) == -1
-  ) {
-    t.pass("Skipping CgMLST test");
-    return;
-  }
-
-  const initialEnv = _.clone(process.env);
-  process.env.WGSA_SPECIES_TAXID = "1280";
-
   const staphDir = path.join(TESTDATA_DIR, "saureus_data");
   const contents = await promisify(fs.readdir)(staphDir);
   const testCases = _(contents)
@@ -237,24 +284,17 @@ test("Run more staph CgMLST cases", async t => {
     .filter(r => r !== null)
     .value();
 
-  await Promise.all(
-    Promise.map(
-      testCases,
-      async ({ name, seqPath, resultsPath }) => {
-        const expectedResults = await readJson(resultsPath);
-        const inputStream = fs.createReadStream(seqPath);
-        const results = await runMlst(inputStream);
-        t.is(results.st, expectedResults.st, `${name}: st`);
-        t.is(results.code, expectedResults.code, `${name}: code`);
-        t.deepEqual(
-          results.alleles,
-          expectedResults.alleles,
-          `${name}: alleles`
-        );
-      },
-      { concurrency: 1 }
-    )
+  await Promise.map(
+    testCases,
+    async ({ name, seqPath, resultsPath }) => {
+      const expectedResults = await readJson(resultsPath);
+      const inputStream = fs.createReadStream(seqPath);
+      const results = await runMlst(inputStream, { WGSA_SPECIES_TAXID: "1280", RUN_CORE_GENOME_MLST: "yes" });
+      t.deepEqual(compareAlleles(results, expectedResults), {}, `${name}: alleles`);
+      t.is(results.code, expectedResults.code, `${name}: code`);
+      t.deepEqual(results.genes, expectedResults.genes, `${name}: genes`);
+      t.is(results.st, expectedResults.st, `${name}: st`);
+    },
+    { concurrency: 1 }
   );
-
-  process.env = initialEnv;
 });
