@@ -1,6 +1,6 @@
 image: docker:latest
 
-build:
+download:
   stage: build
   cache:
     key: data
@@ -22,10 +22,8 @@ build:
     node:8 npm install && npm run download
   only:
   - tags
-  except:
-  - schedules
 
-build:
+fresh_download:
   stage: build
   cache:
     key: data
@@ -68,3 +66,4 @@ deploy:
   - docker push "$CI_REGISTRY_IMAGE:$CI_COMMIT_REF_NAME"
   only:
   - tags
+  - schedules
