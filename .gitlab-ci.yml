@@ -7,11 +7,12 @@ build:
     untracked: true
     paths:
     - data/
+    - node_modules/
   script:
   - docker login -u "$CI_REGISTRY_USER" -p "$CI_REGISTRY_PASSWORD" $CI_REGISTRY
   - docker run --rm
     -v $(cd data && pwd):/opt/mlst
-    -v $(pwd):/usr/local/mlst:ro
+    -v $(pwd):/usr/local/mlst
     -w /usr/local/mlst
     -e ENTEROBASE_API_KEY="$ENTEROBASE_API_KEY"
     -e DEBUG='*,-follow-redirects'
@@ -31,13 +32,14 @@ build:
     untracked: true
     paths:
     - data/
+    - node_modules/
   script:
   - docker login -u "$CI_REGISTRY_USER" -p "$CI_REGISTRY_PASSWORD" $CI_REGISTRY
   - rm data/ || true
   - mkdir data/
   - docker run --rm
     -v $(cd data && pwd):/opt/mlst
-    -v $(pwd):/usr/local/mlst:ro
+    -v $(pwd):/usr/local/mlst
     -w /usr/local/mlst
     -e ENTEROBASE_API_KEY="$ENTEROBASE_API_KEY"
     -e DEBUG='*,-follow-redirects'
