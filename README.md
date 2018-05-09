@@ -11,13 +11,13 @@ cat FILE_TO_BE_TYPED.fasta | docker run -i -e WGSA_ORGANISM_TAXID=ORGANISM_TAXID
 For example:
 
 ```
-cat tests/data/saureus_duplicate.fasta | docker run -i -e WGSA_ORGANISM_TAXID=1280 --rm registry.gitlab.com/cgps/wgsa-tasks/mlst:latest
+cat tests/testdata/saureus_duplicate.fasta | docker run -i -e WGSA_ORGANISM_TAXID=1280 --rm registry.gitlab.com/cgps/wgsa-tasks/mlst:latest
 ```
 
 You can get information for debugging by passing in the `DEBUG` environment variable:
 
 ```
-cat tests/data/saureus_duplicate.fasta | docker run -i -e WGSA_ORGANISM_TAXID=1280 -e DEBUG='*,-trace*' --rm registry.gitlab.com/cgps/wgsa-tasks/mlst:latest
+cat tests/testdata/saureus_duplicate.fasta | docker run -i -e WGSA_ORGANISM_TAXID=1280 -e DEBUG='*,-trace*' --rm registry.gitlab.com/cgps/wgsa-tasks/mlst:latest
 ```
 
 The output data also includes more details if you set the `DEBUG` environment variable.  This includes 
@@ -27,7 +27,7 @@ by setting `DEBUG='.'`.
 You can run Core Genome MLST by running the `cgmlst` container instead of the `mlst` container.
 
 ```
-cat tests/data/saureus_duplicate.fasta | docker run -i -e WGSA_ORGANISM_TAXID=1280 -e DEBUG='*' --rm registry.gitlab.com/cgps/wgsa-tasks/cgmlst:latest
+cat tests/testdata/saureus_duplicate.fasta | docker run -i -e WGSA_ORGANISM_TAXID=1280 -e DEBUG='*' --rm registry.gitlab.com/cgps/wgsa-tasks/cgmlst:latest
 ```
 
 ## Building the containers
@@ -62,7 +62,7 @@ docker run -it --rm \
     -e DEBUG='*,-follow-redirects' \
     node:8 \
         npm install && \
-        node schemes/download-databases.js
+        npm run download
 ```
 
 Downloaded files are stored in `data/cache` in a hierarcy similar to 
@@ -99,7 +99,7 @@ docker run --rm -it \
     -v $(pwd):/usr/local/mlst \
     -w /usr/local/mlst/tests \
     <EXISTING_DOCKER_CONTAINER> \
-        node test
+        npm test
 ```
 
 You can use the same command with a Core Genome MLST container.  The tests 

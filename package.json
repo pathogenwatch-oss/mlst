@@ -5,7 +5,9 @@
   "main": "index.js",
   "scripts": {
     "test": "ava tests/",
-    "lint": "eslint **/*.js *.js"
+    "lint": "eslint **/*.js *.js",
+    "download": "node ./src/mlst-database.js download",
+    "index": "node ./src/mlst-database.js index"
   },
   "author": "",
   "license": "MIT",

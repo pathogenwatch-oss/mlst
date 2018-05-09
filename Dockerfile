@@ -20,8 +20,7 @@ COPY    schemes /usr/local/mlst/schemes/
 SHELL   ["/bin/bash", "-c"]
 ARG     RUN_CORE_GENOME_MLST
 RUN     DEBUG='*' \
-        TYPE=$([[ -z "$RUN_CORE_GENOME_MLST" ]] && echo "mlst" || echo "cgmlst") \
-        bash -c 'node ./schemes/index-${TYPE}-databases.js' && \
+        npm run index && \
         chmod -R a+r /opt/mlst/databases
 
 
@@ -32,7 +31,7 @@ COPY    tests /usr/local/mlst/tests/
 RUN     npm install
 
 ARG     RUN_CORE_GENOME_MLST
-RUN     node test
+RUN     npm test
  
 
 FROM node:8
@@ -46,4 +45,4 @@ WORKDIR /usr/local/mlst
 ARG     RUN_CORE_GENOME_MLST
 ENV     RUN_CORE_GENOME_MLST=$RUN_CORE_GENOME_MLST
 
-CMD 	/usr/local/bin/node --max-old-space-size=4096 /usr/local/mlst/index.js
+CMD 	/usr/local/bin/node /usr/local/mlst/index.js
