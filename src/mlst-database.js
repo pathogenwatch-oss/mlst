@@ -2,7 +2,6 @@ const AdmZip = require("adm-zip");
 const Promise = require("bluebird");
 const cheerio = require("cheerio");
 const logger = require("debug");
-const fasta = require("bionode-fasta");
 const fs = require("fs");
 const hasha = require("hasha");
 const _ = require("lodash");
@@ -16,13 +15,14 @@ const { parseString: parseXml } = require("xml2js");
 const { Unzip } = require("zlib");
 
 const { loadSpeciesTaxidMap } = require("../src/ncbi-taxid-lookup");
-const { reverseCompliment, DeferredPromise, loadSequencesFromStream } = require("./utils");
+const {
+  reverseCompliment,
+  DeferredPromise,
+  loadSequencesFromStream
+} = require("./utils");
 
-const openAsync = promisify(fs.open);
-const closeAsync = promisify(fs.close);
 const readFileAsync = promisify(fs.readFile);
 const writeFileAsync = promisify(fs.writeFile);
-const writeAsync = promisify(fs.write);
 const parseXmlAsync = promisify(parseXml);
 
 async function writeJsonAsync(outputPath, data, options) {
@@ -120,7 +120,11 @@ class Scheme {
         alleleCounts[gene] = sortedAlleles.length;
         let allelePath;
         if (maxSeqs > 0) {
-          allelePath = await this.write(schemeDir, gene, sortedAlleles.slice(0, maxSeqs))
+          allelePath = await this.write(
+            schemeDir,
+            gene,
+            sortedAlleles.slice(0, maxSeqs)
+          );
         } else {
           allelePath = await this.write(schemeDir, gene, sortedAlleles);
         }
@@ -146,12 +150,14 @@ class Scheme {
           });
           lengths[gene][allele.st] = allele.length;
         });
-        logger("trace:index")(`Hashed ${alleles.length} alleles of ${gene}`)
+        logger("trace:index")(`Hashed ${alleles.length} alleles of ${gene}`);
       },
       { concurrency: 3 }
     );
 
-    const totalAlleles = _(alleleCounts).values().sum();
+    const totalAlleles = _(alleleCounts)
+      .values()
+      .sum();
     this.metadata = this.metadata || {};
     const metadata = {
       ...this.metadata,
@@ -166,7 +172,11 @@ class Scheme {
     };
     const metadataPath = path.join(schemeDir, "metadata.json");
     await writeJsonAsync(metadataPath, metadata);
-    logger("info")(`Indexed ${totalAlleles} alleles from ${genes.length} genes into ${metadataPath}`)
+    logger("info")(
+      `Indexed ${totalAlleles} alleles from ${
+        genes.length
+      } genes into ${metadataPath}`
+    );
     return metadataPath;
   }
 
@@ -205,10 +215,14 @@ class Scheme {
 
   async write(schemeDir, gene, alleles) {
     const outpath = path.join(schemeDir, `${gene}.fasta`);
-    const contents = _(alleles).map(allele => `>${allele.gene}_${allele.st}\n${allele.seq}\n`).join("");
-    await writeFileAsync(outpath, contents)
-    logger("trace:index")(`Wrote ${alleles.length} alleles for ${gene} to ${outpath}`)
-    return outpath
+    const contents = _(alleles)
+      .map(allele => `>${allele.gene}_${allele.st}\n${allele.seq}\n`)
+      .join("");
+    await writeFileAsync(outpath, contents);
+    logger("trace:index")(
+      `Wrote ${alleles.length} alleles for ${gene} to ${outpath}`
+    );
+    return outpath;
   }
 
   async _readFasta(fastaPath) {
@@ -279,7 +293,7 @@ class PubMlstSevenGeneScheme extends Scheme {
       })
       .on("close", () => {
         const nProfiles = _.keys(profiles).length;
-        logger("trace:index")(`Found ${nProfiles} in ${profilesPath}`)
+        logger("trace:index")(`Found ${nProfiles} in ${profilesPath}`);
         output.resolve(profiles);
       })
       .on("error", err => {
@@ -379,7 +393,10 @@ class PubMlstSevenGeneSchemes {
     });
 
     await this.writeMetadata(metadata);
-    return _(metadata).values().map("path").value()
+    return _(metadata)
+      .values()
+      .map("path")
+      .value();
   }
 
   async _parseMetadata(content) {
@@ -556,7 +573,7 @@ class EnterobaseScheme extends Scheme {
   constructor(options) {
     super(options);
     const API_KEY = process.env.ENTEROBASE_API_KEY;
-    const authOptions = {}
+    const authOptions = {};
     if (API_KEY) {
       authOptions.auth = { username: API_KEY, password: "" };
     }
@@ -564,7 +581,7 @@ class EnterobaseScheme extends Scheme {
       try {
         return options.downloadFn(url, { ...downloadOpts, ...authOptions });
       } catch (err) {
-        logger("error")("Check your ENTEROBASE_API_KEY")
+        logger("error")("Check your ENTEROBASE_API_KEY");
         throw err;
       }
     };
@@ -776,8 +793,8 @@ class CgMlstSchemes {
         scheme: new RidomScheme({
           schemeUrl: "http://www.cgmlst.org/ncs/schema/3956907/alleles/",
           lociCount: 2390,
-        downloadFn: this.downloadFn,
-        metadata: {
+          downloadFn: this.downloadFn,
+          metadata: {
             schemeName: "Acinetobacter baumannii",
             cite: [
               {
@@ -795,8 +812,8 @@ class CgMlstSchemes {
         scheme: new RidomScheme({
           schemeUrl: "http://www.cgmlst.org/ncs/schema/991893/alleles/",
           lociCount: 1423,
-        downloadFn: this.downloadFn,
-        metadata: {
+          downloadFn: this.downloadFn,
+          metadata: {
             schemeName: "Enterococcus faecium",
             cite: [
               {
@@ -814,8 +831,8 @@ class CgMlstSchemes {
         scheme: new RidomScheme({
           schemeUrl: "http://www.cgmlst.org/ncs/schema/741110/alleles/",
           lociCount: 2891,
-        downloadFn: this.downloadFn,
-        metadata: {
+          downloadFn: this.downloadFn,
+          metadata: {
             schemeName: "Mycobacterium tuberculosis/bovis/africanum/canettii",
             cite: [
               {
@@ -865,7 +882,9 @@ class CgMlstSchemes {
   }
 
   async download() {
-    return Promise.map(this.schemes, ({ scheme }) => scheme.download(), { concurrency: 1 });
+    return Promise.map(this.schemes, ({ scheme }) => scheme.download(), {
+      concurrency: 1
+    });
   }
 
   async index() {
@@ -893,11 +912,19 @@ class CgMlstSchemes {
     );
 
     await this.writeMetadata(metadata);
-    return _(metadata).values().map("path").value()
+    return _(metadata)
+      .values()
+      .map("path")
+      .value();
   }
 }
 
-module.exports = { Scheme, PubMlstSevenGeneSchemes, CgMlstSchemes, parseAlleleName };
+module.exports = {
+  Scheme,
+  PubMlstSevenGeneSchemes,
+  CgMlstSchemes,
+  parseAlleleName
+};
 
 if (require.main === module) {
   const { shouldRunCgMlst } = require("./parseEnvVariables");

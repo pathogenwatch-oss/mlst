@@ -80,16 +80,42 @@ test("Find some ones", async t => {
   const hits = findExactHits(sequences, alleleLookup, 20);
   t.is(hits.length, 7);
 
-  const expectedAlleles = ["arcC_1", "glpF_1", "aroE_1", "tpi_1", "yqiL_1", "pta_1", "gmk_1"].sort();
-  const actualAlleles = _(hits).map("allele").sort().value()
+  const expectedAlleles = [
+    "arcC_1",
+    "glpF_1",
+    "aroE_1",
+    "tpi_1",
+    "yqiL_1",
+    "pta_1",
+    "gmk_1"
+  ].sort();
+  const actualAlleles = _(hits)
+    .map("allele")
+    .sort()
+    .value();
   t.deepEqual(actualAlleles, expectedAlleles);
-  
-  const expectedGenes = ["arcC", "glpF", "aroE", "tpi", "yqiL", "pta", "gmk"].sort();
-  const actualGenes = _(hits).map("gene").sort().value()
+
+  const expectedGenes = [
+    "arcC",
+    "glpF",
+    "aroE",
+    "tpi",
+    "yqiL",
+    "pta",
+    "gmk"
+  ].sort();
+  const actualGenes = _(hits)
+    .map("gene")
+    .sort()
+    .value();
   t.deepEqual(actualGenes, expectedGenes);
 
-  _.forEach(hits, ({ gene, st }) => t.is(st, 1, `Expected st of ${gene} to be 1`));
-  _.forEach(hits, ({ gene, reverse }) => t.is(reverse, false, `Didn't expected ${gene} to be reversed`));
+  _.forEach(hits, ({ gene, st }) =>
+    t.is(st, 1, `Expected st of ${gene} to be 1`)
+  );
+  _.forEach(hits, ({ gene, reverse }) =>
+    t.is(reverse, false, `Didn't expected ${gene} to be reversed`)
+  );
 });
 
 test("Find some reversed ones", async t => {
@@ -104,14 +130,40 @@ test("Find some reversed ones", async t => {
   const hits = findExactHits(sequences, alleleLookup, 20);
   t.is(hits.length, 7);
 
-  const expectedAlleles = ["arcC_1", "glpF_1", "aroE_1", "tpi_1", "yqiL_1", "pta_1", "gmk_1"].sort();
-  const actualAlleles = _(hits).map("allele").sort().value()
+  const expectedAlleles = [
+    "arcC_1",
+    "glpF_1",
+    "aroE_1",
+    "tpi_1",
+    "yqiL_1",
+    "pta_1",
+    "gmk_1"
+  ].sort();
+  const actualAlleles = _(hits)
+    .map("allele")
+    .sort()
+    .value();
   t.deepEqual(actualAlleles, expectedAlleles);
-  
-  const expectedGenes = ["arcC", "glpF", "aroE", "tpi", "yqiL", "pta", "gmk"].sort();
-  const actualGenes = _(hits).map("gene").sort().value()
+
+  const expectedGenes = [
+    "arcC",
+    "glpF",
+    "aroE",
+    "tpi",
+    "yqiL",
+    "pta",
+    "gmk"
+  ].sort();
+  const actualGenes = _(hits)
+    .map("gene")
+    .sort()
+    .value();
   t.deepEqual(actualGenes, expectedGenes);
 
-  _.forEach(hits, ({ gene, st }) => t.is(st, 1, `Expected st of ${gene} to be 1`));
-  _.forEach(hits, ({ gene, reverse }) => t.is(reverse, true, `Expected ${gene} to be reversed`));
+  _.forEach(hits, ({ gene, st }) =>
+    t.is(st, 1, `Expected st of ${gene} to be 1`)
+  );
+  _.forEach(hits, ({ gene, reverse }) =>
+    t.is(reverse, true, `Expected ${gene} to be reversed`)
+  );
 });

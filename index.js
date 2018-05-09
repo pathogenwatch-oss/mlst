@@ -4,7 +4,12 @@ const _ = require("lodash");
 const logger = require("debug");
 
 const { makeBlastDb } = require("./src/blast");
-const { HitsStore, streamFactory, runBlast, findGenesWithInexactResults, formatOutput } = require("./src/mlst");
+const {
+  HitsStore,
+  streamFactory,
+  findGenesWithInexactResults,
+  formatOutput
+} = require("./src/mlst");
 const { findExactHits } = require("./src/exactHits");
 const { fail } = require("./src/utils");
 const { getMetadata, shouldRunCgMlst } = require("./src/parseEnvVariables");
@@ -22,7 +27,7 @@ async function runMlst(inStream, taxidEnvVariables) {
     alleleLookupPrefixLength,
     genes,
     allelePaths,
-    schemeName,
+    schemeName
   } = alleleMetadata;
   const maxSeqs = alleleMetadata.maxSeqs || 0;
 
@@ -42,7 +47,9 @@ async function runMlst(inStream, taxidEnvVariables) {
   _.forEach(exactHits, hit => hitsStore.add(hit));
   const matchedGenes = _.uniq(_.map(exactHits, ({ gene }) => gene));
   logger("debug:exactHits")(
-    `Added exact matches for ${matchedGenes.length} out of ${genes.length} genes`
+    `Added exact matches for ${matchedGenes.length} out of ${
+      genes.length
+    } genes`
   );
 
   /* eslint-disable max-params */
@@ -59,9 +66,21 @@ async function runMlst(inStream, taxidEnvVariables) {
   if (inexactGenes.length > 0) {
     logger("debug:blast")("Running second round of blast");
     if (shouldRunCgMlst(taxidEnvVariables)) {
-      bestHits = await runRound(20, 80, inexactGenes, ALLELES_IN_FIRST_RUN, maxSeqs);
+      bestHits = await runRound(
+        20,
+        80,
+        inexactGenes,
+        ALLELES_IN_FIRST_RUN,
+        maxSeqs
+      );
     } else {
-      bestHits = await runRound(11, 0, inexactGenes, ALLELES_IN_FIRST_RUN, maxSeqs);
+      bestHits = await runRound(
+        11,
+        0,
+        inexactGenes,
+        ALLELES_IN_FIRST_RUN,
+        maxSeqs
+      );
     }
   }
 

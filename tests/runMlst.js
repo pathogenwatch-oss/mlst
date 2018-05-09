@@ -17,14 +17,14 @@ async function readJson(p) {
 const TESTDATA_DIR = path.join(__dirname, "testdata");
 
 function diff(as, bs) {
-  const extra = []
-  const missing = _.clone(bs)
+  const extra = [];
+  const missing = _.clone(bs);
   _.forEach(as, a => {
     const idx = missing.indexOf(a);
-    if (idx === -1) extra.push(a)
-    else _.pullAt(missing, [idx])
-  })
-  return { extra, missing }
+    if (idx === -1) extra.push(a);
+    else _.pullAt(missing, [idx]);
+  });
+  return { extra, missing };
 }
 
 function compareAlleles(actual, expected) {
@@ -46,73 +46,73 @@ function compareAlleles(actual, expected) {
 test("compare alleles", t => {
   const testCases = [
     {
-      actualAlleles: { geneA: [{ id: 1 }]},
-      expectedAlleles: { geneA: [{ id: 1 }]},
+      actualAlleles: { geneA: [{ id: 1 }] },
+      expectedAlleles: { geneA: [{ id: 1 }] },
       pass: true
     },
     {
-      actualAlleles: { geneA: [{ id: 1 }], geneB: []},
-      expectedAlleles: { geneA: [{ id: 1 }]},
+      actualAlleles: { geneA: [{ id: 1 }], geneB: [] },
+      expectedAlleles: { geneA: [{ id: 1 }] },
       pass: true
     },
     {
-      actualAlleles: { geneA: [{ id: 1 }]},
-      expectedAlleles: { geneA: [{ id: 1 }], geneB: []},
+      actualAlleles: { geneA: [{ id: 1 }] },
+      expectedAlleles: { geneA: [{ id: 1 }], geneB: [] },
       pass: true
     },
     {
-      actualAlleles: { geneA: [{ id: 1 }, { id: 1 }]},
-      expectedAlleles: { geneA: [{ id: 1 }, { id: 1 }]},
+      actualAlleles: { geneA: [{ id: 1 }, { id: 1 }] },
+      expectedAlleles: { geneA: [{ id: 1 }, { id: 1 }] },
       pass: true
     },
     {
-      actualAlleles: { geneA: [{ id: 1 }], geneB: [{ id: 1 }]},
-      expectedAlleles: { geneA: [{ id: 1 }], geneB: [{ id: 1 }]},
+      actualAlleles: { geneA: [{ id: 1 }], geneB: [{ id: 1 }] },
+      expectedAlleles: { geneA: [{ id: 1 }], geneB: [{ id: 1 }] },
       pass: true
     },
     {
-      actualAlleles: { geneA: [{ id: 1 }], geneB: [{ id: 1 }]},
-      expectedAlleles: { geneA: [{ id: 1 }]},
+      actualAlleles: { geneA: [{ id: 1 }], geneB: [{ id: 1 }] },
+      expectedAlleles: { geneA: [{ id: 1 }] },
       pass: false
     },
     {
-      actualAlleles: { geneA: [{ id: 1 }]},
-      expectedAlleles: { geneA: [{ id: 1 }], geneB: [{ id: 1 }]},
+      actualAlleles: { geneA: [{ id: 1 }] },
+      expectedAlleles: { geneA: [{ id: 1 }], geneB: [{ id: 1 }] },
       pass: false
     },
     {
-      actualAlleles: { geneA: [{ id: 1 }]},
-      expectedAlleles: { geneA: [{ id: 1 }, { id: 1 }]},
+      actualAlleles: { geneA: [{ id: 1 }] },
+      expectedAlleles: { geneA: [{ id: 1 }, { id: 1 }] },
       pass: false
     },
     {
-      actualAlleles: { geneA: [{ id: 1 }, { id: 1 }]},
-      expectedAlleles: { geneA: [{ id: 1 }]},
+      actualAlleles: { geneA: [{ id: 1 }, { id: 1 }] },
+      expectedAlleles: { geneA: [{ id: 1 }] },
       pass: false
     },
     {
-      actualAlleles: { geneA: [{ id: 1 }]},
-      expectedAlleles: { geneA: [{ id: 2 }]},
+      actualAlleles: { geneA: [{ id: 1 }] },
+      expectedAlleles: { geneA: [{ id: 2 }] },
       pass: false
     },
     {
-      actualAlleles: { geneA: [{ id: 1 }], geneC: [{ id: 1 }]},
-      expectedAlleles: { geneA: [{ id: 1 }]},
+      actualAlleles: { geneA: [{ id: 1 }], geneC: [{ id: 1 }] },
+      expectedAlleles: { geneA: [{ id: 1 }] },
       pass: true
-    },
-  ]
+    }
+  ];
   _.forEach(testCases, ({ actualAlleles, expectedAlleles, pass }, i) => {
     const genes = ["geneA", "geneB"];
     const actual = { alleles: actualAlleles, genes };
     const expected = { alleles: expectedAlleles, genes };
     const badAlleles = compareAlleles(actual, expected);
     if (pass) {
-      t.deepEqual(badAlleles, {}, i)
+      t.deepEqual(badAlleles, {}, i);
     } else {
-      t.notDeepEqual(badAlleles, {}, i)
+      t.notDeepEqual(badAlleles, {}, i);
     }
-  })
-})
+  });
+});
 
 test("Run specific MLST cases", async t => {
   const testCases = [
@@ -210,14 +210,17 @@ test("Run specific MLST cases", async t => {
       );
 
       const results = await runMlst(inputStream, env);
-      t.deepEqual(compareAlleles(results, expectedResults), {}, `${name}: alleles`);
+      t.deepEqual(
+        compareAlleles(results, expectedResults),
+        {},
+        `${name}: alleles`
+      );
       t.is(results.code, expectedResults.code, `${name}: code`);
       t.deepEqual(results.genes, expectedResults.genes, `${name}: genes`);
       t.is(results.st, expectedResults.st, `${name}: st`);
     },
     { concurrency: 1 }
   );
-
 });
 
 test("Run more staph MLST cases", async t => {
@@ -241,8 +244,14 @@ test("Run more staph MLST cases", async t => {
     async ({ name, seqPath, resultsPath }) => {
       const expectedResults = await readJson(resultsPath);
       const inputStream = fs.createReadStream(seqPath);
-      const results = await runMlst(inputStream, { WGSA_SPECIES_TAXID: "1280" });
-      t.deepEqual(compareAlleles(results, expectedResults), {}, `${name}: alleles`);
+      const results = await runMlst(inputStream, {
+        WGSA_SPECIES_TAXID: "1280"
+      });
+      t.deepEqual(
+        compareAlleles(results, expectedResults),
+        {},
+        `${name}: alleles`
+      );
       t.is(results.code, expectedResults.code, `${name}: code`);
       t.deepEqual(results.genes, expectedResults.genes, `${name}: genes`);
       t.is(results.st, expectedResults.st, `${name}: st`);
@@ -261,7 +270,10 @@ test("Run synthetic CgMLST", async t => {
     path.join(TESTDATA_DIR, `${name}.fasta`)
   );
 
-  const results = await runMlst(inputStream, { WGSA_SPECIES_TAXID: "1280", RUN_CORE_GENOME_MLST: "yes" });
+  const results = await runMlst(inputStream, {
+    WGSA_SPECIES_TAXID: "1280",
+    RUN_CORE_GENOME_MLST: "yes"
+  });
   t.deepEqual(compareAlleles(results, expectedResults), {}, `${name}: alleles`);
   t.is(results.code, expectedResults.code, `${name}: code`);
   t.deepEqual(results.genes, expectedResults.genes, `${name}: genes`);
@@ -289,8 +301,15 @@ test("Run more staph CgMLST cases", async t => {
     async ({ name, seqPath, resultsPath }) => {
       const expectedResults = await readJson(resultsPath);
       const inputStream = fs.createReadStream(seqPath);
-      const results = await runMlst(inputStream, { WGSA_SPECIES_TAXID: "1280", RUN_CORE_GENOME_MLST: "yes" });
-      t.deepEqual(compareAlleles(results, expectedResults), {}, `${name}: alleles`);
+      const results = await runMlst(inputStream, {
+        WGSA_SPECIES_TAXID: "1280",
+        RUN_CORE_GENOME_MLST: "yes"
+      });
+      t.deepEqual(
+        compareAlleles(results, expectedResults),
+        {},
+        `${name}: alleles`
+      );
       t.is(results.code, expectedResults.code, `${name}: code`);
       t.deepEqual(results.genes, expectedResults.genes, `${name}: genes`);
       t.is(results.st, expectedResults.st, `${name}: st`);

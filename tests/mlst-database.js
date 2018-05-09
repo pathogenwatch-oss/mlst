@@ -13,7 +13,7 @@ test("Sort seq objects", t => {
         { st: 0, length: 1 },
         { st: 0, length: 1 },
         { st: 0, length: 3 },
-        { st: 0, length: 2 },
+        { st: 0, length: 2 }
       ],
       expected: [
         { st: 0, length: 3 },
@@ -21,7 +21,7 @@ test("Sort seq objects", t => {
         { st: 0, length: 1 },
         { st: 0, length: 2 },
         { st: 0, length: 1 },
-        { st: 0, length: 2 },
+        { st: 0, length: 2 }
       ]
     },
     sts: {
@@ -29,13 +29,13 @@ test("Sort seq objects", t => {
         { st: 3, length: 0 },
         { st: 2, length: 0 },
         { st: 1, length: 0 },
-        { st: 4, length: 0 },
+        { st: 4, length: 0 }
       ],
       expected: [
         { st: 1, length: 0 },
         { st: 2, length: 0 },
         { st: 3, length: 0 },
-        { st: 4, length: 0 },
+        { st: 4, length: 0 }
       ]
     },
     mix: {
@@ -44,20 +44,20 @@ test("Sort seq objects", t => {
         { st: 4, length: 8 },
         { st: 1, length: 8 },
         { st: 3, length: 12 },
-        { st: 5, length: 10 },
+        { st: 5, length: 10 }
       ],
       expected: [
         { st: 3, length: 12 },
         { st: 2, length: 10 },
         { st: 1, length: 8 },
         { st: 5, length: 10 },
-        { st: 4, length: 8 },
+        { st: 4, length: 8 }
       ]
     }
-  }
+  };
   const scheme = new Scheme({});
   _.forEach(testCases, ({ seqs, expected }, name) => {
-    const actual = scheme.sort(seqs)
-    t.deepEqual(actual, expected, name)
-  })
-})
+    const actual = scheme.sort(seqs);
+    t.deepEqual(actual, expected, name);
+  });
+});

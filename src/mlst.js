@@ -25,7 +25,7 @@ function findGenesWithInexactResults(bestHits) {
     .filter(({ exact }) => !exact)
     .map("gene")
     .uniq()
-    .value()
+    .value();
 }
 
 function hashHit(hit, renamedSequences) {
@@ -50,28 +50,32 @@ function formatOutput({ alleleMetadata, renamedSequences, bestHits }) {
     else hit.id = hashHit(hit, renamedSequences);
 
     // Set start and end
-    const { reverse, contigStart, contigEnd } = hit
+    const { reverse, contigStart, contigEnd } = hit;
     hit.start = reverse ? contigEnd : contigStart;
     hit.end = reverse ? contigStart : contigEnd;
-  })
+  });
   /* eslint-enable no-param-reassign */
 
   const { genes, lengths: alleleLengths } = alleleMetadata;
   const alleles = _(bestHits)
     .filter(({ gene, st, exact, contigLength }) => {
-      if (exact) return true
+      if (exact) return true;
       const normalLength = alleleLengths[gene][st];
-      if (contigLength < 0.8 * normalLength) return false
-      if (contigLength > 1.1 * normalLength) return false
-      return true
+      if (contigLength < 0.8 * normalLength) return false;
+      if (contigLength > 1.1 * normalLength) return false;
+      return true;
     })
     .groupBy("gene")
-    .mapValues(hits => _.map(hits, ({ id, contig, start, end }) => ({ id, contig, start, end })))
-    .mapValues(hits => _.sortBy(hits, [({ id }) => String(id), "contig", "start"]))
+    .mapValues(hits =>
+      _.map(hits, ({ id, contig, start, end }) => ({ id, contig, start, end }))
+    )
+    .mapValues(hits =>
+      _.sortBy(hits, [({ id }) => String(id), "contig", "start"])
+    )
     .value();
   _.forEach(genes, gene => {
     alleles[gene] = alleles[gene] || [];
-  })
+  });
 
   // For each gene we make a comma delimited list of allele ids
   // and join them with underscores
@@ -95,7 +99,7 @@ function formatOutput({ alleleMetadata, renamedSequences, bestHits }) {
     scheme,
     url,
     genes
-  }
+  };
 }
 
 class HitsStore {
@@ -107,9 +111,9 @@ class HitsStore {
 
   add(hit) {
     // Alleles of a given gene are similar (and sometimes truncations of one another)
-    // We use "bins" to define a section of each query contig for each gene and add 
+    // We use "bins" to define a section of each query contig for each gene and add
     // hits to each bin.  We can then select the best hit according so some criteria.
-    // This means that we only count one hit for a given query contig but we can 
+    // This means that we only count one hit for a given query contig but we can
     // report multiple (different) hits as long as they're in different parts of the
     // query sequence.
 
