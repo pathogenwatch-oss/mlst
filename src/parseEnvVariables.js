@@ -4,13 +4,13 @@ const { getFromCache } = require("./download");
 const { PubMlstSevenGeneSchemes, CgMlstSchemes } = require("./mlst-database");
 const { fail } = require("./utils");
 
-function shouldRunCgMlst() {
-  const cgMlstFlag = process.env.RUN_CORE_GENOME_MLST || "";
+function shouldRunCgMlst(taxidEnvVariables = process.env) {
+  const cgMlstFlag = taxidEnvVariables.RUN_CORE_GENOME_MLST || "";
   return ["y", "yes", "true", "1"].indexOf(cgMlstFlag.toLowerCase()) > -1;
 }
 
-async function getMetadata() {
-  const RUN_CORE_GENOME_MLST = shouldRunCgMlst();
+async function getMetadata(taxidEnvVariables = process.env) {
+  const RUN_CORE_GENOME_MLST = shouldRunCgMlst(taxidEnvVariables);
 
   let schemes;
   if (RUN_CORE_GENOME_MLST) {
@@ -29,20 +29,20 @@ async function getMetadata() {
   let taxidVariableName;
   let alleleMetadata;
 
-  if (process.env.WGSA_ORGANISM_TAXID) {
-    taxid = process.env.WGSA_ORGANISM_TAXID;
+  if (taxidEnvVariables.WGSA_ORGANISM_TAXID) {
+    taxid = taxidEnvVariables.WGSA_ORGANISM_TAXID;
     taxidVariableName = "WGSA_ORGANISM_TAXID";
     alleleMetadata = await schemes.read(taxid);
   }
 
-  if (!alleleMetadata && process.env.WGSA_SPECIES_TAXID) {
-    taxid = process.env.WGSA_SPECIES_TAXID;
+  if (!alleleMetadata && taxidEnvVariables.WGSA_SPECIES_TAXID) {
+    taxid = taxidEnvVariables.WGSA_SPECIES_TAXID;
     taxidVariableName = "WGSA_SPECIES_TAXID";
     alleleMetadata = await schemes.read(taxid);
   }
 
-  if (!alleleMetadata && process.env.WGSA_GENUS_TAXID) {
-    taxid = process.env.WGSA_GENUS_TAXID;
+  if (!alleleMetadata && taxidEnvVariables.WGSA_GENUS_TAXID) {
+    taxid = taxidEnvVariables.WGSA_GENUS_TAXID;
     taxidVariableName = "WGSA_GENUS_TAXID";
     alleleMetadata = await schemes.read(taxid);
   }
@@ -55,7 +55,7 @@ async function getMetadata() {
 
   logger("params")({ taxidVariableName, taxid });
 
-  return [RUN_CORE_GENOME_MLST, alleleMetadata];
+  return alleleMetadata;
 }
 
 module.exports = { getMetadata, shouldRunCgMlst };
