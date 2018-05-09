@@ -1,7 +1,7 @@
 image: docker:latest
 
-deploy:
-  stage: deploy
+build:
+  stage: build
   cache:
     key: data
     untracked: true
@@ -9,7 +9,7 @@ deploy:
     - data/
   script:
   - docker login -u "$CI_REGISTRY_USER" -p "$CI_REGISTRY_PASSWORD" $CI_REGISTRY
-  - docker run -it --rm
+  - docker run --rm
     -v $(cd data && pwd):/opt/mlst
     -v $(pwd):/usr/local/mlst:ro
     -w /usr/local/mlst
@@ -19,6 +19,18 @@ deploy:
     -e https_proxy=$https_proxy
     -e ftp_proxy=$https_proxy
     node:8 npm install && npm run download
+  only:
+  - tags
+
+deploy:
+  stage: deploy
+  cache:
+    key: data
+    untracked: true
+    paths:
+    - data/
+  script:
+  - docker login -u "$CI_REGISTRY_USER" -p "$CI_REGISTRY_PASSWORD" $CI_REGISTRY
   - docker build
     --pull
     --build-arg http_proxy=$http_proxy
