@@ -1,0 +1,205 @@
+{
+  "alleles": {
+    "aroC": [
+      {
+        "contig": "ERS163558.8490_6_45.15",
+        "end": 26163,
+        "id": 1,
+        "start": 25663
+      }
+    ],
+    "dnaN": [
+      {
+        "contig": "ERS163558.8490_6_45.20",
+        "end": 57856,
+        "id": 1,
+        "start": 57356
+      }
+    ],
+    "hemD": [
+      {
+        "contig": "ERS163558.8490_6_45.19",
+        "end": 67835,
+        "id": 2,
+        "start": 68266
+      }
+    ],
+    "hisD": [
+      {
+        "contig": "ERS163558.8490_6_45.1",
+        "end": 266474,
+        "id": 1,
+        "start": 265974
+      }
+    ],
+    "purE": [
+      {
+        "contig": "ERS163558.8490_6_45.13",
+        "end": 82573,
+        "id": 1,
+        "start": 82971
+      }
+    ],
+    "sucA": [
+      {
+        "contig": "ERS163558.8490_6_45.3",
+        "end": 213225,
+        "id": 665,
+        "start": 212725
+      }
+    ],
+    "thrA": [
+      {
+        "contig": "ERS163558.8490_6_45.6",
+        "end": 62292,
+        "id": 5,
+        "start": 62792
+      }
+    ]
+  },
+  "bins": [],
+  "code": "1_1_2_1_1_665_5",
+  "genes": [
+    "aroC",
+    "dnaN",
+    "hemD",
+    "hisD",
+    "purE",
+    "sucA",
+    "thrA"
+  ],
+  "raw": {
+    "aroC": [
+      {
+        "allele": "aroC_1",
+        "alleleEnd": 501,
+        "alleleLength": 501,
+        "alleleStart": 1,
+        "contig": "ERS163558.8490_6_45.15",
+        "contigEnd": 26163,
+        "contigId": "contig_14",
+        "contigLength": 501,
+        "contigStart": 25663,
+        "exact": true,
+        "gene": "aroC",
+        "matchingBases": 501,
+        "pident": 100,
+        "reverse": false,
+        "st": 1
+      }
+    ],
+    "dnaN": [
+      {
+        "allele": "dnaN_1",
+        "alleleEnd": 501,
+        "alleleLength": 501,
+        "alleleStart": 1,
+        "contig": "ERS163558.8490_6_45.20",
+        "contigEnd": 57856,
+        "contigId": "contig_19",
+        "contigLength": 501,
+        "contigStart": 57356,
+        "exact": true,
+        "gene": "dnaN",
+        "matchingBases": 501,
+        "pident": 100,
+        "reverse": false,
+        "st": 1
+      }
+    ],
+    "hemD": [
+      {
+        "allele": "hemD_2",
+        "alleleEnd": 432,
+        "alleleLength": 432,
+        "alleleStart": 1,
+        "contig": "ERS163558.8490_6_45.19",
+        "contigEnd": 68266,
+        "contigId": "contig_18",
+        "contigLength": 432,
+        "contigStart": 67835,
+        "exact": true,
+        "gene": "hemD",
+        "matchingBases": 432,
+        "pident": 100,
+        "reverse": true,
+        "st": 2
+      }
+    ],
+    "hisD": [
+      {
+        "allele": "hisD_1",
+        "alleleEnd": 501,
+        "alleleLength": 501,
+        "alleleStart": 1,
+        "contig": "ERS163558.8490_6_45.1",
+        "contigEnd": 266474,
+        "contigId": "contig_0",
+        "contigLength": 501,
+        "contigStart": 265974,
+        "exact": true,
+        "gene": "hisD",
+        "matchingBases": 501,
+        "pident": 100,
+        "reverse": false,
+        "st": 1
+      }
+    ],
+    "purE": [
+      {
+        "allele": "purE_1",
+        "alleleEnd": 399,
+        "alleleLength": 399,
+        "alleleStart": 1,
+        "contig": "ERS163558.8490_6_45.13",
+        "contigEnd": 82971,
+        "contigId": "contig_12",
+        "contigLength": 399,
+        "contigStart": 82573,
+        "exact": true,
+        "gene": "purE",
+        "matchingBases": 399,
+        "pident": 100,
+        "reverse": true,
+        "st": 1
+      }
+    ],
+    "sucA": [
+      {
+        "allele": "sucA_665",
+        "alleleLength": 501,
+        "contig": "ERS163558.8490_6_45.3",
+        "contigEnd": 213225,
+        "contigId": "contig_2",
+        "contigLength": 501,
+        "contigStart": 212725,
+        "exact": true,
+        "gene": "sucA",
+        "matchingBases": 501,
+        "pident": 100,
+        "reverse": false,
+        "st": 665
+      }
+    ],
+    "thrA": [
+      {
+        "allele": "thrA_5",
+        "alleleLength": 501,
+        "contig": "ERS163558.8490_6_45.6",
+        "contigEnd": 62792,
+        "contigId": "contig_5",
+        "contigLength": 501,
+        "contigStart": 62292,
+        "exact": true,
+        "gene": "thrA",
+        "matchingBases": 501,
+        "pident": 100,
+        "reverse": true,
+        "st": 5
+      }
+    ]
+  },
+  "scheme": "senterica",
+  "st": "3677",
+  "url": "http://mlst.warwick.ac.uk/mlst/dbs/Senterica"
+}

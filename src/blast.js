@@ -1,18 +1,18 @@
-#!/usr/bin/env node
-
 const { spawn } = require("child_process");
 const _ = require("lodash");
 const fasta = require("bionode-fasta");
 const logger = require("debug");
-const tmp = require("tmp");
 const path = require("path");
+const tmp = require("tmp-promise");
 
 const { Transform } = require("stream");
 
-const { FastaString } = require("./mlst-database");
-const { parseAlleleName, DeferredPromise, loadSequencesFromStream } = require("./utils");
-
-tmp.setGracefulCleanup();
+const { parseAlleleName } = require("./mlst-database");
+const {
+  DeferredPromise,
+  loadSequencesFromStream,
+  FastaString
+} = require("./utils");
 
 class RenameContigs extends Transform {
   constructor(options = {}) {
@@ -30,57 +30,61 @@ class RenameContigs extends Transform {
   }
 }
 
-function makeBlastDb(inputFileStream) {
-  const whenContigNameMap = new DeferredPromise();
-  const whenRenamedSequences = new DeferredPromise();
-  const whenBlastDb = new DeferredPromise();
-
-  const whenBlastDirCreated = new Promise((resolve, reject) => {
-    tmp.dir({ mode: "0750", prefix: "mlst_blast_" }, (err, blastDir) => {
-      if (err) reject(err);
-      resolve(blastDir);
-    });
+async function makeBlastDb(inputFileStream) {
+  const output = new DeferredPromise();
+  const { path: blastDir } = await tmp.dir({
+    mode: "0750",
+    prefix: "mlst_blast_",
+    unsafeCleanup: true
   });
-
   const contigRenamer = new RenameContigs();
-  const renamedFasta = inputFileStream
-    .pipe(fasta.obj())
+  const originalFasta = fasta.obj();
+  const renamedFasta = originalFasta
     .pipe(contigRenamer)
     .pipe(new FastaString());
 
-  whenBlastDirCreated.then(dir => {
-    const databasePath = path.join(dir, "blast.db");
-    const command =
-      `makeblastdb -title mlst -in - ` + `-dbtype nucl -out ${databasePath}`;
-    logger("debug:blast:makeBlastDb")(
-      `Creating Blast database '${databasePath}'`
-    );
-    logger("trace:blast:makeBlastDb")(`Running '${command}'`);
-    const shell = spawn(command, { shell: true });
-    renamedFasta.pipe(shell.stdin);
-    loadSequencesFromStream(renamedFasta).then(
-      whenRenamedSequences.resolve.bind(whenRenamedSequences)
-    );
-    shell.on("exit", (code, signal) => {
-      if (code === 0) {
-        logger("debug:blast:makeBlastDb")(
-          `Created Blast database '${databasePath}'`
-        );
-        whenContigNameMap.resolve(contigRenamer.nameMap);
-        whenBlastDb.resolve(databasePath);
-      } else {
-        whenContigNameMap.reject(
-          `Got ${code}:${signal} while building BlastDB`
-        );
-        whenBlastDb.reject(`Got ${code}:${signal} while building BlastDB`);
-      }
-    });
+  const whenRenamedSequences = loadSequencesFromStream(renamedFasta);
+
+  const databasePath = path.join(blastDir, "blast.db");
+  const command = `makeblastdb -title mlst -in - -dbtype nucl -out ${databasePath}`;
+  logger("debug:blast:makeBlastDb")(
+    `Creating Blast database '${databasePath}'`
+  );
+  logger("trace:blast:makeBlastDb")(`Running '${command}'`);
+  const shell = spawn(command, { shell: true });
+
+  shell.stdin.on("error", err => {
+    logger("error:blast:makeBlastDb")(err);
+    output.reject(err);
   });
 
-  return { whenContigNameMap, whenRenamedSequences, whenBlastDb };
+  shell.on("error", err => {
+    logger("error:blast:makeBlastDb")(err);
+    output.reject(err);
+  });
+  shell.on("exit", async (code, signal) => {
+    if (code === 0) {
+      logger("debug:blast:makeBlastDb")(
+        `Created Blast database '${databasePath}'`
+      );
+      const renamedSequences = await whenRenamedSequences;
+      output.resolve({
+        contigNameMap: contigRenamer.nameMap,
+        blastDb: databasePath,
+        renamedSequences
+      });
+    } else {
+      output.reject(`Got ${code}:${signal} while building BlastDB`);
+    }
+  });
+
+  renamedFasta.pipe(shell.stdin);
+  inputFileStream.pipe(originalFasta);
+  return output;
 }
 
 function createBlastProcess(db, wordSize = 11, percIdentity = 0) {
+  const blastExit = new DeferredPromise();
   const command =
     "blastn -task blastn " +
     "-max_target_seqs 10000 " +
@@ -92,9 +96,15 @@ function createBlastProcess(db, wordSize = 11, percIdentity = 0) {
     `-perc_identity ${percIdentity}`;
   logger("debug:blast:run")(`Running '${command}'`);
   const blastShell = spawn(command, { shell: true });
+  blastShell.stdin.on("error", err => blastExit.reject(err));
+  blastShell.on("error", err => blastExit.reject(err));
+  blastShell.on("exit", (code, signal) => {
+    if (code !== 0) blastExit.reject(`Blast exited with ${code} (${signal})`);
+    blastExit.resolve();
+  });
 
   blastShell.stderr.pipe(process.stderr);
-  return blastShell;
+  return [blastShell, blastExit];
 }
 
 function parseBlastLine(line) {
@@ -118,10 +128,10 @@ function parseBlastLine(line) {
     Number(row[SSTART]) < Number(row[SEND])
       ? [Number(row[SSTART]), Number(row[SEND]), false]
       : [Number(row[SEND]), Number(row[SSTART]), true];
-  const [alleleStart, alleleEnd] = 
+  const [alleleStart, alleleEnd] =
     Number(row[QSTART]) < Number(row[QEND])
-    ? [Number(row[QSTART]), Number(row[QEND])]
-    : [Number(row[QEND]), Number(row[QSTART])];
+      ? [Number(row[QSTART]), Number(row[QEND])]
+      : [Number(row[QEND]), Number(row[QSTART])];
   const contigLength = contigEnd - contigStart + 1;
   const matchingBases = Number(row[NIDENT]);
 

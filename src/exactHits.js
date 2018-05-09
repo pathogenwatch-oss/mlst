@@ -1,25 +1,5 @@
 const _ = require("lodash");
 const hasha = require("hasha");
-const logger = require("debug");
-
-const { parseAlleleName } = require("./utils");
-
-function buildHit(idx, allele, alleleLength, seq, contigId, reverse) {
-  const {gene, st} = parseAlleleName(allele);
-  return {
-    allele,
-    contigId,
-    gene,
-    st,
-    alleleLength,
-    pident: 100.0,
-    contigStart: idx + 1,
-    contigEnd: idx + alleleLength,
-    contigLength: alleleLength,
-    matchingBases: alleleLength,
-    reverse
-  };
-}
 
 function findExactHits(renamedSequences, alleleLookup, prefixLength) {
   const hits = [];
@@ -29,7 +9,7 @@ function findExactHits(renamedSequences, alleleLookup, prefixLength) {
       const hashCache = {};
       const prefix = sequence.slice(idx, idx + prefixLength);
       const alleles = alleleLookup[prefix] || [];
-      _.forEach(alleles, ([allele, alleleLength, alleleHash, reverse]) => {
+      _.forEach(alleles, ([gene, st, alleleLength, alleleHash, reverse]) => {
         let hash = hashCache[alleleLength];
         if (!hash) {
           const possibleMatch = sequence.slice(idx, idx + alleleLength);
@@ -37,8 +17,19 @@ function findExactHits(renamedSequences, alleleLookup, prefixLength) {
           hashCache[alleleLength] = hash;
         }
         if (hash === alleleHash) {
-          const hit = buildHit(idx, allele, alleleLength, seq, contigId, reverse);
-          hits.push(hit);
+          hits.push({
+            allele: `${gene}_${st}`,
+            contigId,
+            gene,
+            st,
+            alleleLength,
+            pident: 100.0,
+            contigStart: idx + 1,
+            contigEnd: idx + alleleLength,
+            contigLength: alleleLength,
+            matchingBases: alleleLength,
+            reverse
+          });
         }
       });
     });

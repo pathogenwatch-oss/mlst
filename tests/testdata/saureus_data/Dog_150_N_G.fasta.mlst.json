@@ -1,0 +1,197 @@
+{
+  "alleles": {
+    "arcC": [
+      {
+        "contig": ".10770_5_25.3",
+        "end": 171894,
+        "id": 7,
+        "start": 171439
+      }
+    ],
+    "aroE": [
+      {
+        "contig": ".10770_5_25.6",
+        "end": 184679,
+        "id": 6,
+        "start": 185134
+      }
+    ],
+    "glpF": [
+      {
+        "contig": ".10770_5_25.19",
+        "end": 16117,
+        "id": 1,
+        "start": 16581
+      }
+    ],
+    "gmk": [
+      {
+        "contig": ".10770_5_25.9",
+        "end": 92886,
+        "id": 5,
+        "start": 93302
+      }
+    ],
+    "pta": [
+      {
+        "contig": ".10770_5_25.1",
+        "end": 455048,
+        "id": 8,
+        "start": 455521
+      }
+    ],
+    "tpi": [
+      {
+        "contig": ".10770_5_25.1",
+        "end": 258691,
+        "id": 8,
+        "start": 259092
+      }
+    ],
+    "yqiL": [
+      {
+        "contig": ".10770_5_25.8",
+        "end": 115344,
+        "id": 6,
+        "start": 115859
+      }
+    ]
+  },
+  "bins": [],
+  "code": "7_6_1_5_8_8_6",
+  "genes": [
+    "arcC",
+    "aroE",
+    "glpF",
+    "gmk",
+    "pta",
+    "tpi",
+    "yqiL"
+  ],
+  "raw": {
+    "arcC": [
+      {
+        "allele": "arcC_7",
+        "alleleLength": 456,
+        "contig": ".10770_5_25.3",
+        "contigEnd": 171894,
+        "contigId": "contig_2",
+        "contigLength": 456,
+        "contigStart": 171439,
+        "exact": true,
+        "gene": "arcC",
+        "matchingBases": 456,
+        "pident": 100,
+        "reverse": false,
+        "st": 7
+      }
+    ],
+    "aroE": [
+      {
+        "allele": "aroE_6",
+        "alleleLength": 456,
+        "contig": ".10770_5_25.6",
+        "contigEnd": 185134,
+        "contigId": "contig_5",
+        "contigLength": 456,
+        "contigStart": 184679,
+        "exact": true,
+        "gene": "aroE",
+        "matchingBases": 456,
+        "pident": 100,
+        "reverse": true,
+        "st": 6
+      }
+    ],
+    "glpF": [
+      {
+        "allele": "glpF_1",
+        "alleleEnd": 465,
+        "alleleLength": 465,
+        "alleleStart": 1,
+        "contig": ".10770_5_25.19",
+        "contigEnd": 16581,
+        "contigId": "contig_18",
+        "contigLength": 465,
+        "contigStart": 16117,
+        "exact": true,
+        "gene": "glpF",
+        "matchingBases": 465,
+        "pident": 100,
+        "reverse": true,
+        "st": 1
+      }
+    ],
+    "gmk": [
+      {
+        "allele": "gmk_5",
+        "alleleLength": 417,
+        "contig": ".10770_5_25.9",
+        "contigEnd": 93302,
+        "contigId": "contig_8",
+        "contigLength": 417,
+        "contigStart": 92886,
+        "exact": true,
+        "gene": "gmk",
+        "matchingBases": 417,
+        "pident": 100,
+        "reverse": true,
+        "st": 5
+      }
+    ],
+    "pta": [
+      {
+        "allele": "pta_8",
+        "alleleLength": 474,
+        "contig": ".10770_5_25.1",
+        "contigEnd": 455521,
+        "contigId": "contig_0",
+        "contigLength": 474,
+        "contigStart": 455048,
+        "exact": true,
+        "gene": "pta",
+        "matchingBases": 474,
+        "pident": 100,
+        "reverse": true,
+        "st": 8
+      }
+    ],
+    "tpi": [
+      {
+        "allele": "tpi_8",
+        "alleleLength": 402,
+        "contig": ".10770_5_25.1",
+        "contigEnd": 259092,
+        "contigId": "contig_0",
+        "contigLength": 402,
+        "contigStart": 258691,
+        "exact": true,
+        "gene": "tpi",
+        "matchingBases": 402,
+        "pident": 100,
+        "reverse": true,
+        "st": 8
+      }
+    ],
+    "yqiL": [
+      {
+        "allele": "yqiL_6",
+        "alleleLength": 516,
+        "contig": ".10770_5_25.8",
+        "contigEnd": 115859,
+        "contigId": "contig_7",
+        "contigLength": 516,
+        "contigStart": 115344,
+        "exact": true,
+        "gene": "yqiL",
+        "matchingBases": 516,
+        "pident": 100,
+        "reverse": true,
+        "st": 6
+      }
+    ]
+  },
+  "scheme": "saureus",
+  "st": "22",
+  "url": "https://pubmlst.org/saureus"
+}
