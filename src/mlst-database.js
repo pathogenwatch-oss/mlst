@@ -21,6 +21,7 @@ const { reverseCompliment, DeferredPromise, loadSequencesFromStream } = require(
 const openAsync = promisify(fs.open);
 const closeAsync = promisify(fs.close);
 const readFileAsync = promisify(fs.readFile);
+const writeFileAsync = promisify(fs.writeFile);
 const writeAsync = promisify(fs.write);
 const parseXmlAsync = promisify(parseXml);
 
@@ -203,18 +204,9 @@ class Scheme {
   }
 
   async write(schemeDir, gene, alleles) {
-    const alleleFile = path.join(schemeDir, `${gene}.fasta`);
-    const fd = await openAsync(alleleFile, "w");
-    await Promise.map(
-      alleles,
-      async allele => {
-        const alleleString = `>${allele.gene}_${allele.st}\n${allele.seq}\n`;
-        await writeAsync(fd, alleleString);
-      },
-      { concurrency: 1 }
-    );
-    await closeAsync(fd);
-    const outpath = path.resolve(alleleFile);
+    const outpath = path.join(schemeDir, `${gene}.fasta`);
+    const contents = _(alleles).map(allele => `>${allele.gene}_${allele.st}\n${allele.seq}\n`).join("");
+    await writeFileAsync(outpath, contents)
     logger("trace:index")(`Wrote ${alleles.length} alleles for ${gene} to ${outpath}`)
     return outpath
   }
@@ -311,7 +303,8 @@ class PubMlstSevenGeneSchemes {
 
   async read(taxid) {
     const metadata = await this.loadMetadata();
-    const schemeMetadataPath = metadata[taxid].path;
+    const schemeMetadata = metadata[taxid] || {};
+    const schemeMetadataPath = schemeMetadata.path;
     if (!schemeMetadataPath) return undefined;
     try {
       return await readJsonAsync(schemeMetadataPath);
@@ -778,75 +771,76 @@ class CgMlstSchemes {
           }
         }),
         schemeTargets: [{ name: "Staphylococcus aureus", taxid: 1280 }]
-      },
-      {
-        scheme: new RidomScheme({
-          schemeUrl: "http://www.cgmlst.org/ncs/schema/3956907/alleles/",
-          lociCount: 2390,
-        downloadFn: this.downloadFn,
-        metadata: {
-            schemeName: "Acinetobacter baumannii",
-            cite: [
-              {
-                text: "Higgins PG et al. (2017) PLoS ONE. 12",
-                url: "https://www.ncbi.nlm.nih.gov/pubmed/28594944",
-                long:
-                  "Higgins PG, Prior K, Harmsen D, and Seifert H. Development and evaluation of a core genome multilocus typing scheme for whole-genome sequence-based typing of Acinetobacter baumannii. PLoS ONE. 2017, 12: e0179228: e0179228"
-              }
-            ]
-          }
-        }),
-        schemeTargets: [{ name: "Acinetobacter baumannii", taxid: 470 }]
-      },
-      {
-        scheme: new RidomScheme({
-          schemeUrl: "http://www.cgmlst.org/ncs/schema/991893/alleles/",
-          lociCount: 1423,
-        downloadFn: this.downloadFn,
-        metadata: {
-            schemeName: "Enterococcus faecium",
-            cite: [
-              {
-                text: "de Been M et al. (2015) J. Clin. Microbiol. 53",
-                url: "https://www.ncbi.nlm.nih.gov/pubmed/26400782",
-                long:
-                  "de Been M, Pinholt M, Top J, Bletz S, Mellmann A, van Schaik W, Brouwer E, Rogers M, Kraat Y, Bonten M, Corander J, Westh H, Harmsen D, and Willems RJ. Core Genome Multilocus Sequence Typing Scheme for High- Resolution Typing of Enterococcus faecium. J. Clin. Microbiol. 2015, 53: 3788-97: 3788-97"
-              }
-            ]
-          }
-        }),
-        schemeTargets: [{ name: "Enterococcus faecium", taxid: 1352 }]
-      },
-      {
-        scheme: new RidomScheme({
-          schemeUrl: "http://www.cgmlst.org/ncs/schema/741110/alleles/",
-          lociCount: 2891,
-        downloadFn: this.downloadFn,
-        metadata: {
-            schemeName: "Mycobacterium tuberculosis/bovis/africanum/canettii",
-            cite: [
-              {
-                text: "Kohl TA et al. (2014) J. Clin. Microbiol. 52",
-                url: "https://www.ncbi.nlm.nih.gov/pubmed/24789177",
-                long:
-                  "Kohl TA, Diel R, Harmsen D, Rothgänger J, Walter KM, Merker M, Weniger T, and Niemann S. Whole-genome-based Mycobacterium tuberculosis surveillance: a standardized, portable, and expandable approach. J. Clin. Microbiol. 2014, 52: 2479-86: 2479-86"
-              }
-            ]
-          }
-        }),
-        schemeTargets: [
-          { name: "Mycobacterium tuberculosis", taxid: 1773 },
-          { name: "Mycobacterium bovis", taxid: 1765 },
-          { name: "Mycobacterium africanum", taxid: 33894 },
-          { name: "Mycobacterium canettii", taxid: 78331 }
-        ]
+      // },
+      // {
+      //   scheme: new RidomScheme({
+      //     schemeUrl: "http://www.cgmlst.org/ncs/schema/3956907/alleles/",
+      //     lociCount: 2390,
+      //   downloadFn: this.downloadFn,
+      //   metadata: {
+      //       schemeName: "Acinetobacter baumannii",
+      //       cite: [
+      //         {
+      //           text: "Higgins PG et al. (2017) PLoS ONE. 12",
+      //           url: "https://www.ncbi.nlm.nih.gov/pubmed/28594944",
+      //           long:
+      //             "Higgins PG, Prior K, Harmsen D, and Seifert H. Development and evaluation of a core genome multilocus typing scheme for whole-genome sequence-based typing of Acinetobacter baumannii. PLoS ONE. 2017, 12: e0179228: e0179228"
+      //         }
+      //       ]
+      //     }
+      //   }),
+      //   schemeTargets: [{ name: "Acinetobacter baumannii", taxid: 470 }]
+      // },
+      // {
+      //   scheme: new RidomScheme({
+      //     schemeUrl: "http://www.cgmlst.org/ncs/schema/991893/alleles/",
+      //     lociCount: 1423,
+      //   downloadFn: this.downloadFn,
+      //   metadata: {
+      //       schemeName: "Enterococcus faecium",
+      //       cite: [
+      //         {
+      //           text: "de Been M et al. (2015) J. Clin. Microbiol. 53",
+      //           url: "https://www.ncbi.nlm.nih.gov/pubmed/26400782",
+      //           long:
+      //             "de Been M, Pinholt M, Top J, Bletz S, Mellmann A, van Schaik W, Brouwer E, Rogers M, Kraat Y, Bonten M, Corander J, Westh H, Harmsen D, and Willems RJ. Core Genome Multilocus Sequence Typing Scheme for High- Resolution Typing of Enterococcus faecium. J. Clin. Microbiol. 2015, 53: 3788-97: 3788-97"
+      //         }
+      //       ]
+      //     }
+      //   }),
+      //   schemeTargets: [{ name: "Enterococcus faecium", taxid: 1352 }]
+      // },
+      // {
+      //   scheme: new RidomScheme({
+      //     schemeUrl: "http://www.cgmlst.org/ncs/schema/741110/alleles/",
+      //     lociCount: 2891,
+      //   downloadFn: this.downloadFn,
+      //   metadata: {
+      //       schemeName: "Mycobacterium tuberculosis/bovis/africanum/canettii",
+      //       cite: [
+      //         {
+      //           text: "Kohl TA et al. (2014) J. Clin. Microbiol. 52",
+      //           url: "https://www.ncbi.nlm.nih.gov/pubmed/24789177",
+      //           long:
+      //             "Kohl TA, Diel R, Harmsen D, Rothgänger J, Walter KM, Merker M, Weniger T, and Niemann S. Whole-genome-based Mycobacterium tuberculosis surveillance: a standardized, portable, and expandable approach. J. Clin. Microbiol. 2014, 52: 2479-86: 2479-86"
+      //         }
+      //       ]
+      //     }
+      //   }),
+      //   schemeTargets: [
+      //     { name: "Mycobacterium tuberculosis", taxid: 1773 },
+      //     { name: "Mycobacterium bovis", taxid: 1765 },
+      //     { name: "Mycobacterium africanum", taxid: 33894 },
+      //     { name: "Mycobacterium canettii", taxid: 78331 }
+      //   ]
       }
     ];
   }
 
   async read(taxid) {
     const metadata = await this.loadMetadata();
-    const schemeMetadataPath = metadata[taxid].path;
+    const schemeMetadata = metadata[taxid] || {};
+    const schemeMetadataPath = schemeMetadata.path;
     if (!schemeMetadataPath) return undefined;
     try {
       return await readJsonAsync(schemeMetadataPath);
@@ -903,7 +897,7 @@ class CgMlstSchemes {
   }
 }
 
-module.exports = { PubMlstSevenGeneSchemes, CgMlstSchemes, parseAlleleName };
+module.exports = { Scheme, PubMlstSevenGeneSchemes, CgMlstSchemes, parseAlleleName };
 
 if (require.main === module) {
   const { shouldRunCgMlst } = require("./parseEnvVariables");
