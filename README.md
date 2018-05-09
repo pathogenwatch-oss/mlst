@@ -1,5 +1,7 @@
 ## Running MLST
 
+[![pipeline status](https://gitlab.com/cgps/cgps-mlst/badges/master/pipeline.svg)](https://gitlab.com/cgps/cgps-mlst/commits/master)
+
 You can manually run seven gene as follows:
 
 ```
