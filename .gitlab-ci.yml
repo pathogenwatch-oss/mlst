@@ -19,7 +19,7 @@ download:
     -e http_proxy=$http_proxy
     -e https_proxy=$https_proxy
     -e ftp_proxy=$https_proxy
-    node:8 npm install && npm run download
+    node:8 sh -c "pwd && ls && npm install && npm run download"
   only:
   - tags
 
@@ -44,7 +44,7 @@ fresh_download:
     -e http_proxy=$http_proxy
     -e https_proxy=$https_proxy
     -e ftp_proxy=$https_proxy
-    node:8 npm install && npm run download
+    node:8 sh -c "pwd && ls && npm install && npm run download"
   only:
   - schedules
 
