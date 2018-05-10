@@ -1,47 +1,30 @@
 image: docker:latest
 
 download:
+  image: gitlab/dind
   stage: build
-  image: node:8
   cache:
     key: data
     untracked: true
     paths:
     - data/
     - node_modules/
-  variables:
-    DEBUG: '*,-follow-redirects'
-    ftp_proxy: $https_proxy
   script:
-  - echo "container:$(pwd)>"
+  - echo "builder:$(pwd)>"
   - ls
-  - ln -s $(pwd)/data /opt/mlst
-  - npm install
-  - npm run download
+  - echo "container:"
+  - docker run --rm
+    -v $(cd data && pwd):/opt/mlst
+    -v $(pwd):/usr/local/mlst
+    -w /usr/local/mlst
+    -e ENTEROBASE_API_KEY="$ENTEROBASE_API_KEY"
+    -e DEBUG='*,-follow-redirects'
+    -e http_proxy=$http_proxy
+    -e https_proxy=$https_proxy
+    -e ftp_proxy=$https_proxy
+    node:8 sh -c "pwd && ls && npm install && npm run download"
   only:
   - tags
-
-fresh_download:
-  stage: build
-  image: node:8
-  cache:
-    key: data
-    untracked: true
-    paths:
-    - data/
-    - node_modules/
-  variables:
-    DEBUG: '*,-follow-redirects'
-    ftp_proxy: $https_proxy
-  script:
-  - echo "container:$(pwd)>"
-  - ls
-  - ln -s $(pwd)/data /opt/mlst
-  - rm -r data/*
-  - npm install
-  - npm run download
-  only:
-  - schedules
 
 deploy:
   stage: deploy
