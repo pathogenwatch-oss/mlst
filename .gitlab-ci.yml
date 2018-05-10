@@ -12,7 +12,7 @@ download:
     DEBUG: "*,-follow-redirects"
     ftp_proxy: $https_proxy
   script:
-  - apk add --update nodejs nodejs-npm
+  - apk add --update git nodejs nodejs-npm
   - mkdir -p /opt
   - ln -s $(pwd)/data /opt/mlst
   - npm install
