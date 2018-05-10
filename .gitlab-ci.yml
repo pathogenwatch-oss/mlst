@@ -10,6 +10,9 @@ download:
     - node_modules/
   script:
   - docker login -u "$CI_REGISTRY_USER" -p "$CI_REGISTRY_PASSWORD" $CI_REGISTRY
+  - echo "builder:$(pwd)>"
+  - ls
+  - echo "container:"
   - docker run --rm
     -v $(cd data && pwd):/opt/mlst
     -v $(pwd):/usr/local/mlst
