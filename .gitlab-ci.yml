@@ -1,6 +1,7 @@
 image: docker:latest
 
 download:
+  image: node:8
   stage: build
   cache:
     key: data
@@ -11,7 +12,6 @@ download:
   variables:
     ftp_proxy: $https_proxy
   script:
-  - apk add --update git nodejs nodejs-npm
   - mkdir -p /opt
   - ln -s $(pwd)/data /opt/mlst
   - npm install
