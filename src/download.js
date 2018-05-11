@@ -1,6 +1,6 @@
 const axios = require("axios");
 const Promise = require("bluebird");
-const { Client: FtpClient } = require("ftp");
+const FtpClient = require("ftp");
 const logger = require("debug");
 const fs = require("fs");
 const hasha = require("hasha");
