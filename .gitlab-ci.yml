@@ -15,6 +15,6 @@ download:
   script:
   - mkdir -p /opt
   - ln -s $(pwd)/data /opt/mlst
-  - npm install
+  - yarn
   only:
   - tags
