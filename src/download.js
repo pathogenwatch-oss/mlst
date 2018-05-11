@@ -196,7 +196,7 @@ async function ftpDownloadFile(url) {
   const tmpPath = await whenTempPath;
   const command = `wget --quiet --timeout=60 --output-document=${tmpPath} ${url}`;
   logger("trace:ftpDownloadFile")(`Running ${command}`);
-  const shell = spawn(command);
+  const shell = spawn(command, { shell: true });
   const whenDownloaded = new DeferredPromise();
   shell.on("error", err => {
     logger("error:ftpDownloadFile")(err);
