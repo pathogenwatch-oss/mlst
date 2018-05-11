@@ -306,7 +306,6 @@ class PubMlstSevenGeneScheme extends Scheme {
 class PubMlstSevenGeneSchemes {
   constructor(options) {
     this.downloadFn = options.downloadFn;
-    this.ftpDownloadFn = options.ftpDownloadFn;
     this.schemesUrl = "https://pubmlst.org/data/dbases.xml";
     this.taxdumpUrl = "ftp://ftp.ncbi.nih.gov/pub/taxonomy/taxdump.tar.gz";
     this.schemeAliases = {
@@ -343,7 +342,7 @@ class PubMlstSevenGeneSchemes {
   }
 
   async download() {
-    await this.ftpDownloadFn(this.taxdumpUrl);
+    await this.downloadFn(this.taxdumpUrl);
     const schemes = await this.getSchemes();
     return Promise.map(schemes, scheme => scheme.download(), {
       concurrency: 3
@@ -352,7 +351,7 @@ class PubMlstSevenGeneSchemes {
 
   async index() {
     const schemes = this.getSchemes();
-    const taxDumpPath = await this.ftpDownloadFn(this.taxdumpUrl);
+    const taxDumpPath = await this.downloadFn(this.taxdumpUrl);
     const speciesTaxIdsMap = await loadSpeciesTaxidMap(taxDumpPath);
     const metadata = await this.loadMetadata();
 
@@ -573,18 +572,17 @@ class EnterobaseScheme extends Scheme {
   constructor(options) {
     super(options);
     const API_KEY = process.env.ENTEROBASE_API_KEY;
-    const authOptions = {};
     if (API_KEY) {
-      authOptions.auth = { username: API_KEY, password: "" };
+      const auth = { username: API_KEY, password: "" };
+      this.downloadFn = url => {
+        try {
+          return options.downloadFn(url, auth);
+        } catch (err) {
+          logger("error")("Check your ENTEROBASE_API_KEY");
+          throw err;
+        }
+      };
     }
-    this.downloadFn = (url, downloadOpts) => {
-      try {
-        return options.downloadFn(url, { ...downloadOpts, ...authOptions });
-      } catch (err) {
-        logger("error")("Check your ENTEROBASE_API_KEY");
-        throw err;
-      }
-    };
   }
 
   async lociUrls() {
@@ -928,7 +926,7 @@ module.exports = {
 
 if (require.main === module) {
   const { shouldRunCgMlst } = require("./parseEnvVariables");
-  const { downloadFile, getFromCache, ftpDownloadFile } = require("./download");
+  const { downloadFile, getFromCache } = require("./download");
   const { fail } = require("./utils");
 
   process.on("unhandledRejection", reason =>
@@ -945,8 +943,7 @@ if (require.main === module) {
       });
     } else {
       schemes = new PubMlstSevenGeneSchemes({
-        downloadFn: downloadFile,
-        ftpDownloadFn: ftpDownloadFile
+        downloadFn: downloadFile
       });
     }
     const results = await schemes.download();
@@ -963,8 +960,7 @@ if (require.main === module) {
       });
     } else {
       schemes = new PubMlstSevenGeneSchemes({
-        downloadFn: getFromCache,
-        ftpDownloadFn: getFromCache
+        downloadFn: getFromCache
       });
     }
     const results = await schemes.index();

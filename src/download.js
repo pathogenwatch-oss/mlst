@@ -1,7 +1,5 @@
-const axios = require("axios");
 const Promise = require("bluebird");
 const { spawn } = require("child_process");
-const FtpClient = require("ftp");
 const logger = require("debug");
 const fs = require("fs");
 const hasha = require("hasha");
@@ -18,8 +16,7 @@ const DOWNLOAD_RETRIES = 5;
 const CACHE_DIR = "/opt/mlst/cache";
 const TMP_CACHE_DIR = path.join(CACHE_DIR, "tmp");
 
-axios.defaults.headers.common["User-Agent"] =
-  "mlst-downloader (https://gist.github.com/bewt85/16f2b7b9c3b331f751ce40273240a2eb)";
+const USER_AGENT = "mlst-downloader (https://gist.github.com/bewt85/16f2b7b9c3b331f751ce40273240a2eb)";
 
 const existsAsync = promisify(fs.exists);
 
@@ -47,21 +44,6 @@ function delay(wait) {
   });
 }
 
-async function createTempFileStream() {
-  const whenTempFile = new Promise((resolve, reject) => {
-    tmp.file(
-      { mode: 0o644, prefix: "mlst-download-", dir: TMP_CACHE_DIR },
-      (err, tmpPath, tmpFd) => {
-        if (err) reject(err);
-        resolve({ tmpPath, tmpFd });
-      }
-    );
-  });
-  const { tmpPath, tmpFd } = await whenTempFile;
-  const tmpStream = fs.createWriteStream("", { fd: tmpFd });
-  return { tmpPath, tmpFd, tmpStream };
-}
-
 class SlowDownloader {
   constructor(minWait = 1000) {
     this.minWait = minWait; // ms
@@ -69,13 +51,57 @@ class SlowDownloader {
     this.queueLength = 0;
   }
 
-  async get(...options) {
-    this.queueLength += 1;
-    let onOurRequestComplete;
-    logger("trace:SlowDownloader")(`Queueing ${options[0]}`);
-    const whenOurRequestComplete = new Promise(resolve => {
-      onOurRequestComplete = resolve;
+  async _tempPath() {
+    return new Promise((resolve, reject) => {
+      tmp.tmpName(
+        { mode: 0o644, prefix: "mlst-download-", dir: TMP_CACHE_DIR },
+        (err, tmpPath) => {
+          if (err) reject(err);
+          resolve(tmpPath);
+        }
+      );
+    })
+  }
+
+  async wget(url, outPath, auth) {
+    // This looks and is stupid but we have a corporate proxy and I lost the will to try
+    // yet another library to reliably download things.  wget always seemed to work so that's
+    // what we're using.  I'm sorry, I'm a little embarased, but life is short.
+    const whenDownloaded = new DeferredPromise();
+
+    let command;
+    if (!auth) {
+      command = `wget --user-agent="${USER_AGENT}" --quiet --timeout=60 --output-document=${outPath} ${url}`;
+    } else {
+      const { username="", password="" } = auth;
+      command = `wget --http-user=${username} --http-passwd=${password} --quiet `
+                `--user-agent="${USER_AGENT}"  --timeout=60 --output-document=${outPath} ${url}`;
+    }
+
+    const shell = spawn(command, { shell: true });
+    shell.on("error", err => {
+      logger("error:wget")(err);
+      whenDownloaded.reject(err);
     });
+    shell.on("exit", async (code, signal) => {
+      if (code === 0) {
+        logger("trace:wget")(
+          `Downloaded ${url} to ${outPath}`
+        );
+        whenDownloaded.resolve(outPath);
+      } else {
+        whenDownloaded.reject(`Got ${code}:${signal} while downloading ${url}`);
+      }
+    });
+
+    return whenDownloaded;
+  }
+
+  async downloadToTempFile(url, auth) {
+    const tmpPath = this._tempPath();
+    this.queueLength += 1;
+    const whenOurRequestComplete = new DeferredPromise();
+    logger("trace:SlowDownloader")(`Queueing ${url}`);
     const earliestNextRequest = this.nextRequestAllowed.then(() =>
       delay(this.minWait)
     );
@@ -85,27 +111,13 @@ class SlowDownloader {
       whenOurRequestComplete
     ]);
     await whenWeCanMakeRequest;
-    const response = await axios.get(...options);
+    await this.wget(url, tmpPath, auth)
+    whenOurRequestComplete.resolve();
     this.queueLength -= 1;
-    onOurRequestComplete();
-    return response;
-  }
-
-  async downloadToTempFile(url, options) {
-    const { tmpPath, tmpStream } = await createTempFileStream();
-    const response = await this.get(url, options);
-    const whenTmpFileClosed = new Promise(resolve => {
-      tmpStream.on("close", () => {
-        logger("trace:SlowDownloader")(`Written ${url} to ${tmpPath}`);
-        resolve(tmpPath);
-      });
-    });
-    response.data.pipe(tmpStream);
-    await whenTmpFileClosed;
     return tmpPath;
   }
 
-  async downloadFile(url, options = {}) {
+  async downloadFile(url, auth) {
     const downloadPath = urlToPath(url);
     const dirname = path.dirname(downloadPath);
     await mkdirp(dirname, { mode: 0o755 });
@@ -119,10 +131,9 @@ class SlowDownloader {
     } catch (err) {
       (() => true)(); // Statement left intentionally blank to make linter happy
     }
-    options.responseType = "stream"; // eslint-disable-line no-param-reassign
     let tmpPath;
     try {
-      tmpPath = await this.downloadToTempFile(url, options);
+      tmpPath = await this.downloadToTempFile(url, auth);
     } catch (err) {
       throw new Error(`Downloading ${url} to ${downloadPath}\n${err}`);
     }
@@ -135,7 +146,7 @@ class SlowDownloader {
 const downloaders = {};
 const downloadCache = {};
 
-async function downloadFile(url, options = {}) {
+async function downloadFile(url, auth=null) {
   if (_.has(downloadCache, url)) {
     return downloadCache[url];
   }
@@ -152,7 +163,7 @@ async function downloadFile(url, options = {}) {
   for (let attempt = 1; attempt <= DOWNLOAD_RETRIES; attempt++) {
     logger("trace:downloadFile")(`Attempt ${attempt} to download ${url}`);
     try {
-      const outPath = await downloader.downloadFile(url, options);
+      const outPath = await downloader.downloadFile(url, auth);
       logger("trace:downloadFile")(
         `${downloader.queueLength} files left in ${hostname} queue`
       );
@@ -169,58 +180,6 @@ async function downloadFile(url, options = {}) {
   return response;
 }
 
-async function ftpDownloadFile(url) {
-  const outPath = urlToPath(url);
-  const dirname = path.dirname(outPath);
-  await mkdirp(dirname, { mode: 0o755 });
-
-  try {
-    // Don't start a download if we already have a copy of the file
-    await promisify(fs.access)(outPath, fs.constants.F_OK);
-    logger("trace:ftpDownloadFile")(`${outPath} already exists, skipping`);
-    return outPath;
-  } catch (err) {
-    // File isn't already downloaded
-    (() => true)(); // Statement left intentionally blank to make linter happy
-  }
-
-  const whenTempPath = new Promise((resolve, reject) => {
-    tmp.tmpName(
-      { mode: 0o644, prefix: "mlst-download-", dir: TMP_CACHE_DIR },
-      (err, tmpPath) => {
-        if (err) reject(err);
-        resolve(tmpPath);
-      }
-    );
-  })
-
-  const tmpPath = await whenTempPath;
-  const command = `wget --quiet --timeout=60 --output-document=${tmpPath} ${url}`;
-  logger("trace:ftpDownloadFile")(`Running ${command}`);
-  const shell = spawn(command, { shell: true });
-  const whenDownloaded = new DeferredPromise();
-  shell.on("error", err => {
-    logger("error:ftpDownloadFile")(err);
-    whenDownloaded.reject(err);
-  });
-  shell.on("exit", async (code, signal) => {
-    if (code === 0) {
-      logger("trace:ftpDownloadFile")(
-        `Downloaded ${url} to ${tmpPath}`
-      );
-      whenDownloaded.resolve(tmpPath);
-    } else {
-      whenDownloaded.reject(`Got ${code}:${signal} while downloading ${url}`);
-    }
-  });
-
-  await whenDownloaded;
-  await promisify(fs.rename)(tmpPath, outPath);
-  await promisify(fs.chmod)(outPath, 0o444);
-
-  return outPath;
-}
-
 async function getFromCache(url) {
   const expectedPath = urlToPath(url);
   const exists = await existsAsync(expectedPath);
@@ -228,4 +187,4 @@ async function getFromCache(url) {
   throw new Error(`${url} hasn't been downloaded`);
 }
 
-module.exports = { downloadFile, ftpDownloadFile, getFromCache };
+module.exports = { downloadFile, getFromCache };
