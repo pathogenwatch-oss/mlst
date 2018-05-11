@@ -1,5 +1,6 @@
 const axios = require("axios");
 const Promise = require("bluebird");
+const { spawn } = require("child_process");
 const FtpClient = require("ftp");
 const logger = require("debug");
 const fs = require("fs");
@@ -168,8 +169,6 @@ async function downloadFile(url, options = {}) {
 }
 
 async function ftpDownloadFile(url) {
-  const urlParts = new URL(url);
-  const { host, urlPath } = urlParts;
   const outPath = urlToPath(url);
   const dirname = path.dirname(outPath);
   await mkdirp(dirname, { mode: 0o755 });
@@ -177,38 +176,44 @@ async function ftpDownloadFile(url) {
   try {
     // Don't start a download if we already have a copy of the file
     await promisify(fs.access)(outPath, fs.constants.F_OK);
-    logger("trace:SlowDownloader")(`${outPath} already exists, skipping`);
+    logger("trace:ftpDownloadFile")(`${outPath} already exists, skipping`);
     return outPath;
   } catch (err) {
     // File isn't already downloaded
     (() => true)(); // Statement left intentionally blank to make linter happy
   }
 
-  const { tmpPath, tmpStream } = await createTempFileStream();
-  const whenStreaming = new DeferredPromise();
+  const whenTempPath = new Promise((resolve, reject) => {
+    tmp.tmpName(
+      { mode: 0o644, prefix: "mlst-download-", dir: TMP_CACHE_DIR },
+      (err, tmpPath) => {
+        if (err) reject(err);
+        resolve(tmpPath);
+      }
+    );
+  })
 
-  const ftp = new FtpClient();
-  ftp.on("error", err => whenStreaming.reject(err));
-  ftp.on("ready", () => {
-    logger("debug:ftpDownloadFile")(`Dowloading '${urlPath}' from ${host}`);
-    ftp.get(urlPath, (err, stream) => {
-      if (err) whenStreaming.reject(err);
-      stream.once("close", () => ftp.end());
-      whenStreaming.resolve(stream);
-    });
+  const tmpPath = await whenTempPath;
+  const command = `wget --quiet --timeout=60 --output-document=${tmpPath} ${url}`;
+  logger("trace:ftpDownloadFile")(`Running ${command}`);
+  const shell = spawn(command);
+  const whenDownloaded = new DeferredPromise();
+  shell.on("error", err => {
+    logger("error:ftpDownloadFile")(err);
+    whenDownloaded.reject(err);
   });
-  ftp.connect({ host });
-  const taxdumpStream = await whenStreaming;
-
-  const whenTmpFileClosed = new Promise(resolve => {
-    tmpStream.on("close", () => {
-      logger("trace:ftpDownloadFile")(`Written ${urlParts} to ${tmpPath}`);
-      resolve(tmpPath);
-    });
+  shell.on("exit", async (code, signal) => {
+    if (code === 0) {
+      logger("trace:ftpDownloadFile")(
+        `Downloaded ${url} to ${tmpPath}`
+      );
+      whenDownloaded.resolve(tmpPath);
+    } else {
+      whenDownloaded.reject(`Got ${code}:${signal} while downloading ${url}`);
+    }
   });
-  taxdumpStream.pipe(tmpStream);
-  await whenTmpFileClosed;
 
+  await whenDownloaded;
   await promisify(fs.rename)(tmpPath, outPath);
   await promisify(fs.chmod)(outPath, 0o444);
 
