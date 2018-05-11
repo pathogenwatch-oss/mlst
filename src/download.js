@@ -149,7 +149,8 @@ async function downloadFile(url, options = {}) {
   }
   const downloader = downloaders[hostname];
 
-  for (let i = 0; i < DOWNLOAD_RETRIES; i++) {
+  for (let attempt = 1; attempt <= DOWNLOAD_RETRIES; attempt++) {
+    logger("trace:downloadFile")(`Attempt ${attempt} to download ${url}`);
     try {
       const outPath = await downloader.downloadFile(url, options);
       logger("trace:downloadFile")(
@@ -158,8 +159,8 @@ async function downloadFile(url, options = {}) {
       response.resolve(outPath);
       break;
     } catch (err) {
-      logger("trace:downloadFile")(`Error: requeueing ${url}`);
-      if (i === DOWNLOAD_RETRIES - 1) {
+      logger("trace:downloadFile")(`Error: requeueing ${url} because\n${err}`);
+      if (attempt === DOWNLOAD_RETRIES) {
         response.reject(err);
       }
     }
