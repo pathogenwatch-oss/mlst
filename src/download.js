@@ -78,6 +78,7 @@ class SlowDownloader {
                 `--user-agent="${USER_AGENT}"  --timeout=60 --output-document=${outPath} ${url}`;
     }
 
+    logger("trace:command")(command);
     const shell = spawn(command, { shell: true });
     shell.on("error", err => {
       logger("error:wget")(err);

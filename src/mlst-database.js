@@ -948,6 +948,7 @@ if (require.main === module) {
     }
     const results = await schemes.download();
     logger("info")(`Downloaded ${results.length} schemes`);
+    return results
   }
 
   // eslint-disable-next-line no-inner-declarations
@@ -965,6 +966,7 @@ if (require.main === module) {
     }
     const results = await schemes.index();
     logger("info")(`Indexed ${results.length} schemes`);
+    return results
   }
 
   if (process.argv[2] === "download") downloadAll().catch(fail("download"));

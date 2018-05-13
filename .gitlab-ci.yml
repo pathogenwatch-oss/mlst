@@ -16,6 +16,7 @@ download:
   - mkdir -p /opt
   - ln -s $(pwd)/data /opt/mlst
   - yarn
+  - sleep 3600
   - DEBUG="*,-follow-redirects" npm run download
   only:
   - tags
