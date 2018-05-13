@@ -28,10 +28,10 @@ deploy:
     paths:
     - data/
   script:
-  - sleep 3600
+  - docker pull ubuntu:latest
+  - docker pull node:8
   - docker login -u "$CI_REGISTRY_USER" -p "$CI_REGISTRY_PASSWORD" $CI_REGISTRY
   - docker build
-    --pull
     --build-arg http_proxy=$http_proxy
     --build-arg https_proxy=$https_proxy
     --build-arg ftp_proxy=$https_proxy
