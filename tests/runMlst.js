@@ -116,6 +116,7 @@ test("compare alleles", t => {
 
 test("Run specific MLST cases", async t => {
   if (shouldRunCgMlst()) {
+    t.pass("Skipped");
     return;
   }
   const testCases = [
@@ -228,6 +229,7 @@ test("Run specific MLST cases", async t => {
 
 test("Run more staph MLST cases", async t => {
   if (shouldRunCgMlst()) {
+    t.pass("Skipped");
     return;
   }
 
@@ -269,6 +271,7 @@ test("Run more staph MLST cases", async t => {
 
 test("Run synthetic CgMLST", async t => {
   if (!shouldRunCgMlst()) {
+    t.pass("Skipped");
     return;
   }
 
@@ -293,6 +296,7 @@ test("Run synthetic CgMLST", async t => {
 
 test("Run more staph CgMLST cases", async t => {
   if (!shouldRunCgMlst()) {
+    t.pass("Skipped");
     return;
   }
 
