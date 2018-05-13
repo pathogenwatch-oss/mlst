@@ -16,7 +16,6 @@ RUN     mkdir -p /usr/local/mlst /opt/mlst/databases && \
         chmod -R a+w /opt/mlst/databases
 COPY    *.js *.json /usr/local/mlst/
 COPY    src /usr/local/mlst/src/
-COPY    schemes /usr/local/mlst/schemes/
 SHELL   ["/bin/bash", "-c"]
 ARG     RUN_CORE_GENOME_MLST
 RUN     DEBUG='*' \
