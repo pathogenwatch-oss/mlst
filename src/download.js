@@ -111,7 +111,7 @@ class SlowDownloader {
   }
 
   async downloadToTempFile(url, auth) {
-    const tmpPath = this._tempPath();
+    const tmpPath = await this._tempPath();
     this.queueLength += 1;
     const whenOurRequestComplete = new DeferredPromise();
     logger("trace:SlowDownloader")(`Queueing ${url}`);
