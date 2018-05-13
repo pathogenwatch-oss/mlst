@@ -1,4 +1,4 @@
-FROM ubuntu as blast_build
+FROM ubuntu:latest as blast_build
 
 RUN apt-get update && apt-get install -y wget tar
 RUN wget ftp://ftp.ncbi.nlm.nih.gov/blast/executables/LATEST/ncbi-blast-2.7.1+-x64-linux.tar.gz
@@ -30,7 +30,7 @@ COPY    tests /usr/local/mlst/tests/
 RUN     npm install
 
 ARG     RUN_CORE_GENOME_MLST
-RUN     npm test
+RUN     CI=true npm test
  
 
 FROM node:8
