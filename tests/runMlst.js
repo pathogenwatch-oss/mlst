@@ -115,6 +115,9 @@ test("compare alleles", t => {
 });
 
 test("Run specific MLST cases", async t => {
+  if (shouldRunCgMlst()) {
+    return;
+  }
   const testCases = [
     {
       name: "saureus_synthetic_ones",
@@ -224,6 +227,10 @@ test("Run specific MLST cases", async t => {
 });
 
 test("Run more staph MLST cases", async t => {
+  if (shouldRunCgMlst()) {
+    return;
+  }
+
   const staphDir = path.join(TESTDATA_DIR, "saureus_data");
   const contents = await promisify(fs.readdir)(staphDir);
   const testCases = _(contents)
@@ -261,6 +268,10 @@ test("Run more staph MLST cases", async t => {
 });
 
 test("Run synthetic CgMLST", async t => {
+  if (!shouldRunCgMlst()) {
+    return;
+  }
+
   const name = "saureus_synthetic_cg";
 
   const expectedResults = await readJson(
@@ -281,6 +292,10 @@ test("Run synthetic CgMLST", async t => {
 });
 
 test("Run more staph CgMLST cases", async t => {
+  if (!shouldRunCgMlst()) {
+    return;
+  }
+
   const staphDir = path.join(TESTDATA_DIR, "saureus_data");
   const contents = await promisify(fs.readdir)(staphDir);
   const testCases = _(contents)
