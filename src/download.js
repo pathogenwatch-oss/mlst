@@ -71,15 +71,24 @@ class SlowDownloader {
 
     let command;
     if (!auth) {
-      command = `wget --user-agent="${USER_AGENT}" --quiet --timeout=60 --output-document=${outPath} ${url}`;
+      command = `wget --user-agent="${USER_AGENT}" --no-verbose --timeout=60 --output-document=${outPath} ${url}`;
     } else {
       const { username="", password="" } = auth;
-      command = `wget --http-user=${username} --http-passwd=${password} --quiet `
+      command = `wget --http-user=${username} --http-passwd=${password} --no-verbose `
                 `--user-agent="${USER_AGENT}"  --timeout=60 --output-document=${outPath} ${url}`;
     }
 
     logger("trace:command")(command);
     const shell = spawn(command, { shell: true });
+
+    let error = "";
+    const whenError = new DeferredPromise();
+    shell.stderr.on("data", chunk => {
+      error += chunk;
+    }).on("end", () => {
+      whenError.resolve(error);
+    })
+
     shell.on("error", err => {
       logger("error:wget")(err);
       whenDownloaded.reject(err);
@@ -91,7 +100,10 @@ class SlowDownloader {
         );
         whenDownloaded.resolve(outPath);
       } else {
-        whenDownloaded.reject(`Got ${code}:${signal} while downloading ${url}`);
+        whenError.then(err => {
+          const message = `Got ${code}:${signal} while downloading ${url}:\n${err}`;
+          whenDownloaded.reject(message);
+        })
       }
     });
 
