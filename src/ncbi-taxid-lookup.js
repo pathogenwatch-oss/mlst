@@ -21,7 +21,7 @@ function extractNcbiNamesFile(ftpStream) {
     }
   });
   ftpStream.pipe(extractor);
-  return output;
+  return output.promise;
 }
 
 function parseNcbiNamesFile(namesFileStream) {
@@ -57,7 +57,7 @@ function parseNcbiNamesFile(namesFileStream) {
 
   namesFileStream.pipe(taxIDSpeciesStreamInput);
 
-  return output;
+  return output.promise;
 }
 
 function mapSpeciesToTaxids(taxIdSpeciesList) {

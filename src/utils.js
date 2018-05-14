@@ -19,6 +19,7 @@ function fail(title) {
 }
 
 class DeferredPromise {
+  // WARNING: async doesn't like awaiting these; return this.promise from async functions
   constructor() {
     this.promise = new Promise((resolve, reject) => {
       this._resolve = resolve;
@@ -89,7 +90,7 @@ function loadSequencesFromStream(inputStream) {
   fastaStream.on("end", () => output.resolve(sequences));
   fastaStream.on("error", err => output.reject(err));
   inputStream.pipe(fastaStream);
-  return output;
+  return output.promise;
 }
 
 class FastaString extends Transform {

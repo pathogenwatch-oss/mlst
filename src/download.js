@@ -157,7 +157,7 @@ class SlowDownloader {
       }
     });
 
-    return whenDownloaded;
+    return whenDownloaded.promise;
   }
 
   async downloadFile(url, auth) {
@@ -196,7 +196,7 @@ async function downloadFile(url, auth=null) {
     return downloadCache[url];
   }
   const response = new DeferredPromise();
-  downloadCache[url] = response;
+  downloadCache[url] = response.promise;
 
   const urlObj = new URL(url);
   const { hostname } = urlObj;

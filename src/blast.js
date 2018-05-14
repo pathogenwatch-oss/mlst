@@ -80,7 +80,7 @@ async function makeBlastDb(inputFileStream) {
 
   renamedFasta.pipe(shell.stdin);
   inputFileStream.pipe(originalFasta);
-  return output;
+  return output.promise;
 }
 
 function createBlastProcess(db, wordSize = 11, percIdentity = 0) {
@@ -104,7 +104,7 @@ function createBlastProcess(db, wordSize = 11, percIdentity = 0) {
   });
 
   blastShell.stderr.pipe(process.stderr);
-  return [blastShell, blastExit];
+  return [blastShell, blastExit.promise];
 }
 
 function parseBlastLine(line) {

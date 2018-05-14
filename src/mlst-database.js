@@ -300,7 +300,7 @@ class PubMlstSevenGeneScheme extends Scheme {
       .on("error", err => {
         output.reject(err);
       });
-    return output;
+    return output.promise;
   }
 }
 
@@ -611,7 +611,7 @@ class EnterobaseScheme extends Scheme {
     const zippedAlleleFile = fs.createReadStream(inputPath);
     unzippedAlleleFile.on("close", () => whenUnzipComplete.resolve(outputPath));
     zippedAlleleFile.pipe(new Unzip()).pipe(unzippedAlleleFile);
-    return whenUnzipComplete;
+    return whenUnzipComplete.promise;
   }
 
   async alleles(gene) {
