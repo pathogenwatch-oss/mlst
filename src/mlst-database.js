@@ -880,7 +880,15 @@ class CgMlstSchemes {
   }
 
   async download() {
-    return Promise.map(this.schemes, ({ scheme }) => scheme.download());
+    return Promise.map(this.schemes, ({ scheme }) => {
+      try {
+        scheme.download();
+      } catch (err) {
+        const { schemeName } = scheme.metadata;
+        logger("error")(`Problem downloading ${schemeName}`);
+        throw err;
+      }
+    });
   }
 
   async index() {
