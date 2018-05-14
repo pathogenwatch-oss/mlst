@@ -56,7 +56,7 @@ deploy_mlst:
     --build-arg http_proxy=$http_proxy
     --build-arg https_proxy=$https_proxy
     --build-arg ftp_proxy=$https_proxy
-    -t "$CI_REGISTRY_IMAGE:$CI_COMMIT_REF_NAME" .
+    -t "$CI_REGISTRY_IMAGE:mlst-$CI_COMMIT_REF_NAME" .
   - docker push "$CI_REGISTRY_IMAGE:mlst-$CI_COMMIT_REF_NAME"
   only:
   - tags
@@ -78,7 +78,7 @@ deploy_cgmlst:
     --build-arg https_proxy=$https_proxy
     --build-arg ftp_proxy=$https_proxy
     --build-arg RUN_CORE_GENOME_MLST=yes
-    -t "$CI_REGISTRY_IMAGE:$CI_COMMIT_REF_NAME" .
+    -t "$CI_REGISTRY_IMAGE:cgmlst-$CI_COMMIT_REF_NAME" .
   - docker push "$CI_REGISTRY_IMAGE:cgmlst-$CI_COMMIT_REF_NAME"
   only:
   - tags
