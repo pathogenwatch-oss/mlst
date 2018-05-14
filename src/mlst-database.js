@@ -151,6 +151,7 @@ class Scheme {
           lengths[gene][allele.st] = allele.length;
         });
         logger("trace:index")(`Hashed ${alleles.length} alleles of ${gene}`);
+        return
       },
       { concurrency: 3 }
     );
@@ -882,7 +883,7 @@ class CgMlstSchemes {
   async download() {
     return Promise.map(this.schemes, ({ scheme }) => {
       try {
-        scheme.download();
+        return scheme.download();
       } catch (err) {
         const { schemeName } = scheme.metadata;
         logger("error")(`Problem downloading ${schemeName}`);
