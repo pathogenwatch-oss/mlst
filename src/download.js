@@ -60,13 +60,27 @@ class RateLimiter {
     const whenWeStart = this.whenNextTaskStart;
     this.whenNextTaskStart = Promise.all([earliestNextRequest, whenDone.catch(() => true)]);
     await whenWeStart;
+    this.queueLength -= 1;
     try {
-      whenDone.resolve(await fn());
+      const result = await fn()
+      whenDone.resolve(result);
+      return result
     } catch (err) {
       whenDone.reject(err);
+      throw err
     }
-    this.queueLength -= 1;
-    return whenDone
+  }
+}
+
+async function retry(fn, count, message="") {
+  if (count === 1) {
+    return fn()
+  }
+  try {
+    return await fn()
+  } catch (err) {
+    if (message.length > 0) logger("trace:retry")(`Retrying: ${message}`)
+    return await retry(fn, count-1, message);
   }
 }
 
@@ -161,16 +175,16 @@ class SlowDownloader {
       (() => true)(); // Statement left intentionally blank to make linter happy
     }
 
-    const tmpPath = await this._tempPath();
     try {
+      const tmpPath = await this._tempPath();
       logger("trace:SlowDownloader")(`Queueing ${url}`);
       await this.rateLimiter.queue(() => this.curl(url, tmpPath, auth));
+      await promisify(fs.rename)(tmpPath, downloadPath);
+      await promisify(fs.chmod)(downloadPath, 0o444);
+      return downloadPath
     } catch (err) {
       throw new Error(`Downloading ${url} to ${downloadPath}\n${err}`);
     }
-    await promisify(fs.rename)(tmpPath, downloadPath);
-    await promisify(fs.chmod)(downloadPath, 0o444);
-    return downloadPath;
   }
 }
 
@@ -190,25 +204,10 @@ async function downloadFile(url, auth=null) {
     downloaders[hostname] = new SlowDownloader(1000);
   }
   const downloader = downloaders[hostname];
-
-  for (let attempt = 1; attempt <= DOWNLOAD_RETRIES; attempt++) {
-    logger("trace:downloadFile")(`Attempt ${attempt} to download ${url}`);
-    try {
-      const outPath = await downloader.downloadFile(url, auth);
-      logger("trace:downloadFile")(
-        `${downloader.queueLength} files left in ${hostname} queue`
-      );
-      response.resolve(outPath);
-      break;
-    } catch (err) {
-      logger("trace:downloadFile")(`Error: requeueing ${url} because\n${err}`);
-      if (attempt === DOWNLOAD_RETRIES) {
-        response.reject(err);
-      }
-    }
-  }
-
-  return response;
+  const fn = () => downloader.downloadFile(url, auth);
+  const outPath = await retry(fn, DOWNLOAD_RETRIES, `Download ${url}`)
+  response.resolve(outPath)
+  return outPath;
 }
 
 async function getFromCache(url) {
