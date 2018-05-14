@@ -880,9 +880,7 @@ class CgMlstSchemes {
   }
 
   async download() {
-    return Promise.map(this.schemes, ({ scheme }) => scheme.download(), {
-      concurrency: 1
-    });
+    return Promise.map(this.schemes, ({ scheme }) => scheme.download());
   }
 
   async index() {
