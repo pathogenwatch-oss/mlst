@@ -63,7 +63,7 @@ class SlowDownloader {
     })
   }
 
-  async curl(url, outPath, auth) {
+  curl(url, outPath, auth) {
     // This looks and is stupid but we have a corporate proxy and I lost the will to try
     // yet another library to reliably download things.  curl always seemed to work so that's
     // what we're using.  I'm sorry, I'm a little embarased, but life is short.
@@ -73,7 +73,7 @@ class SlowDownloader {
     if (!auth) {
       args = [
         "--user-agent", USER_AGENT,
-        "-s",
+        "-s", "-S",
         "--max-time", "60",
         "--output", outPath,
         url
@@ -83,13 +83,14 @@ class SlowDownloader {
       args = [
         "--user", `${username}:${password}`,
         "--user-agent", USER_AGENT,
-        "-s",
+        "-s", "-S",
         "--max-time", "60",
         "--output", outPath,
         url
       ];
     }
 
+    logger("trace:SlowDownloader")(`Downloading ${url}`);
     const shell = spawn("curl", args);
 
     let error = "";
@@ -104,7 +105,7 @@ class SlowDownloader {
       logger("error:curl")(err);
       whenDownloaded.reject(err);
     });
-    shell.on("exit", async (code, signal) => {
+    shell.on("exit", (code, signal) => {
       if (code === 0) {
         logger("trace:curl")(
           `Downloaded ${url} to ${outPath}`
