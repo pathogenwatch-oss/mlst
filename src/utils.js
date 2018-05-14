@@ -12,9 +12,8 @@ function warn(title) {
 
 function fail(title) {
   return message => {
-    const content = `${new Date()}:fatal:${title}|${message}`
+    const content = `${new Date()}:fatal:${title}|${message}\n`
     fs.writeSync(2, content);
-    fs.fsyncSync(2);
     process.exit(1);
   };
 }
