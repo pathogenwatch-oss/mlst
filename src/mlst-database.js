@@ -888,7 +888,7 @@ class CgMlstSchemes {
         logger("error")(`Problem downloading ${schemeName}`);
         throw err;
       }
-    });
+    }, { concurrency: 1 });
   }
 
   async index() {
