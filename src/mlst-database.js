@@ -530,7 +530,7 @@ class RidomScheme extends Scheme {
     });
 
     logger("trace:RidomSchemes")(
-      `Found ${allAllelePaths.length} genes in ${allelesDownloadPath}`
+      `Found ${_.keys(allAllelePaths).length} genes in ${allelesDownloadPath}`
     );
     return allAllelePaths;
   }
