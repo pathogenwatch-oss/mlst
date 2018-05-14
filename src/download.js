@@ -63,23 +63,34 @@ class SlowDownloader {
     })
   }
 
-  async wget(url, outPath, auth) {
+  async curl(url, outPath, auth) {
     // This looks and is stupid but we have a corporate proxy and I lost the will to try
-    // yet another library to reliably download things.  wget always seemed to work so that's
+    // yet another library to reliably download things.  curl always seemed to work so that's
     // what we're using.  I'm sorry, I'm a little embarased, but life is short.
     const whenDownloaded = new DeferredPromise();
 
-    let command;
+    let args;
     if (!auth) {
-      command = `wget --user-agent="${USER_AGENT}" --no-verbose --timeout=60 --output-document=${outPath} ${url}`;
+      args = [
+        "--user-agent", USER_AGENT,
+        "-s",
+        "--max-time", "60",
+        "--output", outPath,
+        url
+      ];
     } else {
       const { username="", password="" } = auth;
-      command = `wget --http-user=${username} --http-passwd=${password} --no-verbose `
-                `--user-agent="${USER_AGENT}"  --timeout=60 --output-document=${outPath} ${url}`;
+      args = [
+        "--user", `${username}:${password}`,
+        "--user-agent", USER_AGENT,
+        "-s",
+        "--max-time", "60",
+        "--output", outPath,
+        url
+      ];
     }
 
-    logger("trace:command")(command);
-    const shell = spawn(command, { shell: true });
+    const shell = spawn("curl", args);
 
     let error = "";
     const whenError = new DeferredPromise();
@@ -90,12 +101,12 @@ class SlowDownloader {
     })
 
     shell.on("error", err => {
-      logger("error:wget")(err);
+      logger("error:curl")(err);
       whenDownloaded.reject(err);
     });
     shell.on("exit", async (code, signal) => {
       if (code === 0) {
-        logger("trace:wget")(
+        logger("trace:curl")(
           `Downloaded ${url} to ${outPath}`
         );
         whenDownloaded.resolve(outPath);
@@ -124,7 +135,7 @@ class SlowDownloader {
       whenOurRequestComplete
     ]);
     await whenWeCanMakeRequest;
-    await this.wget(url, tmpPath, auth)
+    await this.curl(url, tmpPath, auth)
     whenOurRequestComplete.resolve();
     this.queueLength -= 1;
     return tmpPath;
