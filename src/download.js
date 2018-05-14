@@ -58,7 +58,7 @@ class RateLimiter {
       delay(this.minWait)
     );
     const whenWeStart = this.whenNextTaskStart;
-    this.whenNextTaskStart = Promise.all([earliestNextRequest, whenDone]);
+    this.whenNextTaskStart = Promise.all([earliestNextRequest, whenDone.catch(() => true)]);
     await whenWeStart;
     try {
       whenDone.resolve(await fn());
