@@ -46,29 +46,6 @@ class DeferredPromise {
   }
 }
 
-function splitResolveReject(promises) {
-  const resolved = [];
-  const rejected = [];
-
-  const waiting = [];
-
-  _.forEach(promises, p => {
-    const waitingPromise = new DeferredPromise();
-    waiting.push(waitingPromise);
-    p
-      .then(() => {
-        resolved.push(p);
-        waitingPromise.resolve();
-      })
-      .catch(() => {
-        rejected.push(p);
-        waitingPromise.resolve();
-      });
-  });
-
-  return Promise.all(waiting).then(() => ({ resolved, rejected }));
-}
-
 function fastaSlice(path, start, end = 0) {
   let count = -1;
   const inputStream = fs.createReadStream(path);
@@ -117,7 +94,6 @@ module.exports = {
   warn,
   fail,
   FastaString,
-  splitResolveReject,
   DeferredPromise,
   fastaSlice,
   loadSequencesFromStream,
