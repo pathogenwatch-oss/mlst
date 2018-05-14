@@ -9,7 +9,7 @@ download_mlst:
     paths:
     - data/
     - node_modules/
-    - package-lock.json
+    - yarn.lock
   variables:
     ftp_proxy: $https_proxy
   script:
@@ -29,7 +29,7 @@ download_cgmlst:
     paths:
     - data/
     - node_modules/
-    - package-lock.json
+    - yarn.lock
   variables:
     ftp_proxy: $https_proxy
     RUN_CORE_GENOME_MLST: "yes"
