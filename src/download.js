@@ -44,11 +44,35 @@ function delay(wait) {
   });
 }
 
+class RateLimiter {
+  constructor(minWait) {
+    this.minWait = minWait; // ms
+    this.whenNextTaskStart = Promise.resolve(null);
+    this.queueLength = 0;
+  }
+
+  async queue(fn) {
+    this.queueLength += 1;
+    const whenDone = new DeferredPromise();
+    const earliestNextRequest = this.whenNextTaskStart.then(() =>
+      delay(this.minWait)
+    );
+    const whenWeStart = this.whenNextTaskStart;
+    this.whenNextTaskStart = Promise.all([earliestNextRequest, whenDone]);
+    await whenWeStart;
+    try {
+      whenDone.resolve(await fn());
+    } catch (err) {
+      whenDone.reject(err);
+    }
+    this.queueLength -= 1;
+    return whenDone
+  }
+}
+
 class SlowDownloader {
   constructor(minWait = 1000) {
-    this.minWait = minWait; // ms
-    this.nextRequestAllowed = Promise.resolve(null);
-    this.queueLength = 0;
+    this.rateLimiter = new RateLimiter(minWait);
   }
 
   async _tempPath() {
@@ -122,26 +146,6 @@ class SlowDownloader {
     return whenDownloaded;
   }
 
-  async downloadToTempFile(url, auth) {
-    const tmpPath = await this._tempPath();
-    this.queueLength += 1;
-    const whenOurRequestComplete = new DeferredPromise();
-    logger("trace:SlowDownloader")(`Queueing ${url}`);
-    const earliestNextRequest = this.nextRequestAllowed.then(() =>
-      delay(this.minWait)
-    );
-    const whenWeCanMakeRequest = this.nextRequestAllowed;
-    this.nextRequestAllowed = Promise.all([
-      earliestNextRequest,
-      whenOurRequestComplete
-    ]);
-    await whenWeCanMakeRequest;
-    await this.curl(url, tmpPath, auth)
-    whenOurRequestComplete.resolve();
-    this.queueLength -= 1;
-    return tmpPath;
-  }
-
   async downloadFile(url, auth) {
     const downloadPath = urlToPath(url);
     const dirname = path.dirname(downloadPath);
@@ -156,9 +160,11 @@ class SlowDownloader {
     } catch (err) {
       (() => true)(); // Statement left intentionally blank to make linter happy
     }
-    let tmpPath;
+
+    const tmpPath = await this._tempPath();
     try {
-      tmpPath = await this.downloadToTempFile(url, auth);
+      logger("trace:SlowDownloader")(`Queueing ${url}`);
+      await this.rateLimiter.queue(() => this.curl(url, tmpPath, auth));
     } catch (err) {
       throw new Error(`Downloading ${url} to ${downloadPath}\n${err}`);
     }
