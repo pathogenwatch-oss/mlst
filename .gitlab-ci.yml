@@ -34,6 +34,7 @@ download_cgmlst:
     ftp_proxy: $https_proxy
     RUN_CORE_GENOME_MLST: "yes"
   script:
+  - rm -r data/cache/www.cgmlst.org || true
   - mkdir -p /opt
   - ln -s $(pwd)/data /opt/mlst
   - yarn
