@@ -167,8 +167,8 @@ class SlowDownloader {
     try {
       // Don't start a download if we already have a copy of the file
       await promisify(fs.access)(downloadPath, fs.constants.F_OK);
-      logger("trace:SlowDownloader")(
-        `${downloadPath} already exists, skipping`
+      logger("trace:SlowDownloader:skip")(
+        `${downloadPath} already exists`
       );
       return downloadPath;
     } catch (err) {
