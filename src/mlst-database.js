@@ -899,19 +899,24 @@ class CgMlstSchemes {
       this.schemes,
       async ({ scheme, schemeTargets }) => {
         const { schemeName } = scheme.metadata;
-        const schemeSlug = `cgmlst_${slugify(schemeName)}`;
-        const schemeDir = path.join(this.dataDir, schemeSlug);
-        const schemeMetadataPath = await scheme.index(schemeDir, this.maxSeqs);
-        _.forEach(schemeTargets, ({ name, taxid }) => {
-          metadata[taxid] = {
-            path: schemeMetadataPath,
-            species: name,
-            schemeName,
-            url: scheme.schemeUrl,
-            maxSeqs: this.maxSeqs
-          };
-        });
-        await this.writeMetadata(metadata);
+        try {
+          const schemeSlug = `cgmlst_${slugify(schemeName)}`;
+          const schemeDir = path.join(this.dataDir, schemeSlug);
+          const schemeMetadataPath = await scheme.index(schemeDir, this.maxSeqs);
+          _.forEach(schemeTargets, ({ name, taxid }) => {
+            metadata[taxid] = {
+              path: schemeMetadataPath,
+              species: name,
+              schemeName,
+              url: scheme.schemeUrl,
+              maxSeqs: this.maxSeqs
+            };
+          });
+          await this.writeMetadata(metadata);
+        } catch (err) {
+          logger("error")(`Problem indexing ${schemeName}`)
+          throw err
+        }
       },
       { concurrency: 1 }
     );
