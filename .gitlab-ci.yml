@@ -13,12 +13,11 @@ download_cgmlst:
     ftp_proxy: $https_proxy
     RUN_CORE_GENOME_MLST: "yes"
   script:
-  - rm -r data/cache/www.cgmlst.org || true
-  - touch wait.lock
-  - while [[ -f wait.lock ]]; do sleep 10; done
   - mkdir -p /opt
   - ln -s $(pwd)/data /opt/mlst
   - yarn
+  - touch wait.lock
+  - while [[ -f wait.lock ]]; do sleep 10; done
   - DEBUG="*,-follow-redirects" npm run download
   only:
   - tags
