@@ -13,31 +13,4 @@ download_cgmlst:
     ftp_proxy: $https_proxy
     RUN_CORE_GENOME_MLST: "yes"
   script:
-  - mkdir -p /opt
-  - ln -s $(pwd)/data /opt/mlst
-  - yarn
-  - DEBUG="*,-follow-redirects" npm run download
-  only:
-  - tags
-
-deploy_cgmlst:
-  stage: deploy
-  cache:
-    key: data
-    untracked: true
-    paths:
-    - data/
-  script:
-  - docker pull ubuntu:latest
-  - docker pull node:8
-  - docker login -u "$CI_REGISTRY_USER" -p "$CI_REGISTRY_PASSWORD" $CI_REGISTRY
-  - docker build
-    --build-arg http_proxy=$http_proxy
-    --build-arg https_proxy=$https_proxy
-    --build-arg ftp_proxy=$https_proxy
-    --build-arg RUN_CORE_GENOME_MLST=yes
-    -t "$CI_REGISTRY_IMAGE:cgmlst-$CI_COMMIT_REF_NAME" .
-  - docker push "$CI_REGISTRY_IMAGE:cgmlst-$CI_COMMIT_REF_NAME"
-  only:
-  - tags
-  - schedules
+  - rm -r data/cache/www.cgmlst.org package-lock.json yarn.lock node_modules/*
