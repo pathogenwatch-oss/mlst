@@ -16,23 +16,8 @@ download_cgmlst:
   - ln -s $(pwd)/data /opt/mlst
   - yarn install
   - if [[ -f /nfs/wgsa/gitlab-cache/cgps-mlst/latest.tgz ]]; then tar -xzvf /nfs/wgsa/gitlab-cache/cgps-mlst/latest.tgz; echo "[$(date)] Used cache"; else echo "[$(date)] No cache found"; fi
+  - touch wait.lock
+  - while [[ -f wait.lock ]]; do sleep 10; done
   - DEBUG="*,-follow-redirects" npm run download
   only:
   - tags
-
-deploy_cgmlst:
-  stage: deploy
-  script:
-  - docker pull ubuntu:latest
-  - docker pull node:8
-  - docker login -u "$CI_REGISTRY_USER" -p "$CI_REGISTRY_PASSWORD" $CI_REGISTRY
-  - docker build
-    --build-arg http_proxy=$http_proxy
-    --build-arg https_proxy=$https_proxy
-    --build-arg ftp_proxy=$https_proxy
-    --build-arg RUN_CORE_GENOME_MLST=yes
-    -t "$CI_REGISTRY_IMAGE:cgmlst-$CI_COMMIT_REF_NAME" .
-  - docker push "$CI_REGISTRY_IMAGE:cgmlst-$CI_COMMIT_REF_NAME"
-  only:
-  - tags
-  - schedules
