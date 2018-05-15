@@ -6,7 +6,7 @@ const glob = require("glob");
 const _ = require("lodash");
 const { promisify } = require("util");
 
-const { shouldRunCgMlst } = require("../src/download");
+const { shouldRunCgMlst } = require("../src/parseEnvVariables");
 
 const globAsync = promisify(glob);
 async function readJson(p) {
