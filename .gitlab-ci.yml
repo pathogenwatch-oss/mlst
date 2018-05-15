@@ -15,7 +15,7 @@ download_cgmlst:
   script:
   - mkdir -p /opt
   - ln -s $(pwd)/data /opt/mlst
-  - yarn
+  - yarn install
   - DEBUG="*,-follow-redirects" npm run download
   only:
   - tags
