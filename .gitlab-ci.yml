@@ -1,26 +1,5 @@
 image: docker:latest
 
-download_cgmlst:
-  image: node:8
-  stage: build
-  cache:
-    key: data
-    untracked: true
-    paths:
-    - data/
-    - node_modules/
-  variables:
-    ftp_proxy: $https_proxy
-    RUN_CORE_GENOME_MLST: "yes"
-  script:
-  - rm -r data/cache/www.cgmlst.org || true
-  - mkdir -p /opt
-  - ln -s $(pwd)/data /opt/mlst
-  - yarn
-  - DEBUG="*,-follow-redirects" npm run download
-  only:
-  - tags
-
 deploy_cgmlst:
   stage: deploy
   cache:
