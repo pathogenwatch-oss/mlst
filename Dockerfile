@@ -9,8 +9,8 @@ RUN mv ncbi-blast-2.7.1+/bin /blast
 FROM node:8 as index_build
 
 WORKDIR /usr/local/mlst
-COPY    package.json /usr/local/mlst
-RUN     npm install --production
+COPY    package.json yarn.lock /usr/local/mlst
+RUN     yarn install --production
 COPY    data/cache /opt/mlst/cache
 RUN     mkdir -p /usr/local/mlst /opt/mlst/databases && \
         chmod -R a+w /opt/mlst/databases
@@ -27,7 +27,7 @@ FROM index_build as test_build
 
 COPY    --from=blast_build /blast/blastn /blast/makeblastdb /usr/local/bin/
 COPY    tests /usr/local/mlst/tests/
-RUN     npm install
+RUN     yarn install
 
 ARG     RUN_CORE_GENOME_MLST
 RUN     CI=true npm test
