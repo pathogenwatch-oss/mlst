@@ -1,24 +1,5 @@
 image: docker:latest
 
-download_mlst:
-  image: node:8
-  stage: build
-  cache:
-    key: data
-    untracked: true
-    paths:
-    - data/
-    - node_modules/
-  variables:
-    ftp_proxy: $https_proxy
-  script:
-  - mkdir -p /opt
-  - ln -s $(pwd)/data /opt/mlst
-  - yarn
-  - DEBUG="*,-follow-redirects" npm run download
-  only:
-  - tags
-
 download_cgmlst:
   image: node:8
   stage: build
@@ -39,27 +20,6 @@ download_cgmlst:
   - DEBUG="*,-follow-redirects" npm run download
   only:
   - tags
-
-deploy_mlst:
-  stage: deploy
-  cache:
-    key: data
-    untracked: true
-    paths:
-    - data/
-  script:
-  - docker pull ubuntu:latest
-  - docker pull node:8
-  - docker login -u "$CI_REGISTRY_USER" -p "$CI_REGISTRY_PASSWORD" $CI_REGISTRY
-  - docker build
-    --build-arg http_proxy=$http_proxy
-    --build-arg https_proxy=$https_proxy
-    --build-arg ftp_proxy=$https_proxy
-    -t "$CI_REGISTRY_IMAGE:mlst-$CI_COMMIT_REF_NAME" .
-  - docker push "$CI_REGISTRY_IMAGE:mlst-$CI_COMMIT_REF_NAME"
-  only:
-  - tags
-  - schedules
 
 deploy_cgmlst:
   stage: deploy
