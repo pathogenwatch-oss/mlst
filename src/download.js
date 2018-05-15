@@ -114,6 +114,7 @@ class SlowDownloader {
         "-s", "-S", "-L",
         "--max-time", "60",
         "--output", outPath,
+        "--fail",
         url
       ];
     } else {
@@ -124,6 +125,7 @@ class SlowDownloader {
         "-s", "-S", "-L",
         "--max-time", "60",
         "--output", outPath,
+        "--fail",
         url
       ];
     }
