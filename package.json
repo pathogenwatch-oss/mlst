@@ -21,6 +21,7 @@
     "child_process": "^1.0.2",
     "commander": "^2.11.0",
     "csv": "^1.1.1",
+    "debug": "^3.1.0",
     "event-stream": "^3.3.4",
     "ftp": "^0.3.10",
     "hasha": "^3.0.0",
