@@ -679,9 +679,9 @@ class CgMlstSchemes {
         ]
       },
       {
-        scheme: new BigsDbHtmlScheme({
+        scheme: new BigsDbRestScheme({
           schemeUrl:
-            "http://bigsdb.pasteur.fr/perl/bigsdb/bigsdb.pl?db=pubmlst_klebsiella_seqdef_public&page=downloadAlleles&scheme_id=3",
+            "http://api.bigsdb.pasteur.fr/db/pubmlst_klebsiella_seqdef_public/schemes/3",
           downloadFn: this.downloadFn,
           lociCount: 632,
           metadata: {
@@ -697,9 +697,9 @@ class CgMlstSchemes {
         ]
       },
       {
-        scheme: new BigsDbHtmlScheme({
+        scheme: new BigsDbRestScheme({
           schemeUrl:
-            "http://bigsdb.pasteur.fr/perl/bigsdb/bigsdb.pl?db=pubmlst_listeria_seqdef_public&page=downloadAlleles&scheme_id=3",
+            "http://api.bigsdb.pasteur.fr/db/pubmlst_listeria_seqdef_public/schemes/3",
           downloadFn: this.downloadFn,
           lociCount: 1748,
           metadata: {
