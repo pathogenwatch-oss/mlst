@@ -4,10 +4,9 @@ download_cgmlst:
   image: node:8
   stage: build
   cache:
-    key: data
+    key: node
     untracked: true
     paths:
-    - data/
     - node_modules/
   variables:
     ftp_proxy: $https_proxy
@@ -16,17 +15,13 @@ download_cgmlst:
   - mkdir -p /opt
   - ln -s $(pwd)/data /opt/mlst
   - yarn install
+  - if [[ -f /nfs/wgsa/gitlab-cache/cgps-mlst/latest.tgz ]]; then tar -xzvf /nfs/wgsa/gitlab-cache/cgps-mlst/latest.tgz; echo "[$(date)] Used cache"; else echo "[$(date)] No cache found"; fi
   - DEBUG="*,-follow-redirects" npm run download
   only:
   - tags
 
 deploy_cgmlst:
   stage: deploy
-  cache:
-    key: data
-    untracked: true
-    paths:
-    - data/
   script:
   - docker pull ubuntu:latest
   - docker pull node:8
