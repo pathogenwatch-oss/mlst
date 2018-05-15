@@ -9,7 +9,7 @@ RUN mv ncbi-blast-2.7.1+/bin /blast
 FROM node:8 as index_build
 
 WORKDIR /usr/local/mlst
-COPY    package.json yarn.lock /usr/local/mlst
+COPY    package.json yarn.lock /usr/local/mlst/
 RUN     yarn install --production
 COPY    data/cache /opt/mlst/cache
 RUN     mkdir -p /usr/local/mlst /opt/mlst/databases && \
