@@ -6,6 +6,8 @@ const glob = require("glob");
 const _ = require("lodash");
 const { promisify } = require("util");
 
+const { shouldRunCgMlst } = require("../src/download");
+
 const globAsync = promisify(glob);
 async function readJson(p) {
   const contents = await promisify(fs.readFile)(p);
@@ -14,7 +16,6 @@ async function readJson(p) {
 
 test("Check genes are ordered", async t => {
   const metadataFiles = await globAsync("/opt/mlst/databases/**/metadata.json");
-  t.truthy(metadataFiles.length > 100, "Expected more metadata files");
   await Promise.map(
     metadataFiles,
     async f => {
@@ -29,6 +30,11 @@ test("Check genes are ordered", async t => {
 });
 
 test("MLST have profiles", async t => {
+  if (shouldRunCgMlst()) {
+    t.pass("Skipping for cgmlst")
+    return
+  }
+
   const metadataFiles = await globAsync(
     "/opt/mlst/databases/mlst_**/metadata.json"
   );
