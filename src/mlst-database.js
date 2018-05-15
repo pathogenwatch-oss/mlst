@@ -455,45 +455,49 @@ class PubMlstSevenGeneSchemes {
   }
 }
 
-class BigsDbHtmlScheme extends Scheme {
-  async parseBigsDbHtml(downloadUrl, downloadPath) {
-    const content = await readFileAsync(downloadPath);
-    const $ = cheerio.load(content.toString());
-    const { origin: urlRoot } = new URL(downloadUrl);
+// There was a period when Pasteur's API broke so I used this
+// It's included here for entertainment purposes (and in case)
+// we need it again.
 
-    function parseRow(row) {
-      const columns = $(row).find("td");
-      if (columns.length < 2) {
-        return null;
-      }
-      const urlPath = $(columns[1])
-        .find("a")
-        .attr("href");
-      if (!urlPath) return null;
-      const locus = $(columns[0]).text();
-      return { locus, url: `${urlRoot}${urlPath}` };
-    }
+// class BigsDbHtmlScheme extends Scheme {
+//   async parseBigsDbHtml(downloadUrl, downloadPath) {
+//     const content = await readFileAsync(downloadPath);
+//     const $ = cheerio.load(content.toString());
+//     const { origin: urlRoot } = new URL(downloadUrl);
 
-    const rows = $("table.resultstable").find("tr");
-    const lociUrls = {};
-    rows.each((i, row) => {
-      const locus = parseRow(row);
-      if (locus) {
-        lociUrls[locus.locus] = locus.url;
-      }
-    });
+//     function parseRow(row) {
+//       const columns = $(row).find("td");
+//       if (columns.length < 2) {
+//         return null;
+//       }
+//       const urlPath = $(columns[1])
+//         .find("a")
+//         .attr("href");
+//       if (!urlPath) return null;
+//       const locus = $(columns[0]).text();
+//       return { locus, url: `${urlRoot}${urlPath}` };
+//     }
 
-    return lociUrls;
-  }
+//     const rows = $("table.resultstable").find("tr");
+//     const lociUrls = {};
+//     rows.each((i, row) => {
+//       const locus = parseRow(row);
+//       if (locus) {
+//         lociUrls[locus.locus] = locus.url;
+//       }
+//     });
 
-  async lociUrls() {
-    if (!this._lociUrls) {
-      const schemePath = await this.downloadFn(this.schemeUrl);
-      this._lociUrls = await this.parseBigsDbHtml(this.schemeUrl, schemePath);
-    }
-    return this._lociUrls;
-  }
-}
+//     return lociUrls;
+//   }
+
+//   async lociUrls() {
+//     if (!this._lociUrls) {
+//       const schemePath = await this.downloadFn(this.schemeUrl);
+//       this._lociUrls = await this.parseBigsDbHtml(this.schemeUrl, schemePath);
+//     }
+//     return this._lociUrls;
+//   }
+// }
 
 class BigsDbRestScheme extends Scheme {
   async lociUrls() {
