@@ -790,7 +790,7 @@ class CgMlstSchemes {
       },
       {
         scheme: new RidomScheme({
-          schemeUrl: "http://www.cgmlst.org/ncs/schema/3956907/alleles/",
+          schemeUrl: "https://www.cgmlst.org/ncs/schema/3956907/alleles/",
           lociCount: 2390,
           downloadFn: this.downloadFn,
           metadata: {
@@ -809,7 +809,7 @@ class CgMlstSchemes {
       },
       {
         scheme: new RidomScheme({
-          schemeUrl: "http://www.cgmlst.org/ncs/schema/991893/alleles/",
+          schemeUrl: "https://www.cgmlst.org/ncs/schema/991893/alleles/",
           lociCount: 1423,
           downloadFn: this.downloadFn,
           metadata: {
@@ -828,7 +828,7 @@ class CgMlstSchemes {
       },
       {
         scheme: new RidomScheme({
-          schemeUrl: "http://www.cgmlst.org/ncs/schema/741110/alleles/",
+          schemeUrl: "https://www.cgmlst.org/ncs/schema/741110/alleles/",
           lociCount: 2891,
           downloadFn: this.downloadFn,
           metadata: {

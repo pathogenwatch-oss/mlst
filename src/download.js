@@ -111,7 +111,7 @@ class SlowDownloader {
     if (!auth) {
       args = [
         "--user-agent", USER_AGENT,
-        "-s", "-S",
+        "-s", "-S", "-L",
         "--max-time", "60",
         "--output", outPath,
         url
@@ -121,7 +121,7 @@ class SlowDownloader {
       args = [
         "--user", `${username}:${password}`,
         "--user-agent", USER_AGENT,
-        "-s", "-S",
+        "-s", "-S", "-L",
         "--max-time", "60",
         "--output", outPath,
         url
