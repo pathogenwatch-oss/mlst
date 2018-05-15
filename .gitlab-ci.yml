@@ -16,8 +16,6 @@ download_cgmlst:
   - mkdir -p /opt
   - ln -s $(pwd)/data /opt/mlst
   - yarn
-  - touch wait.lock
-  - while [[ -f wait.lock ]]; do sleep 10; done
   - DEBUG="*,-follow-redirects" npm run download
   only:
   - tags
