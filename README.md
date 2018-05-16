@@ -5,21 +5,21 @@
 You can manually run seven gene as follows:
 
 ```
-cat FILE_TO_BE_TYPED.fasta | docker run -i -e WGSA_ORGANISM_TAXID=ORGANISM_TAXID --rm registry.gitlab.com/cgps/wgsa-tasks/mlst:latest
+cat FILE_TO_BE_TYPED.fasta | docker run -i -e WGSA_ORGANISM_TAXID=ORGANISM_TAXID --rm registry.gitlab.com/cgps/cgps-mlst:mlst-v1.5.58
 # or
-cat FILE_TO_BE_TYPED.fasta | docker run -i -e WGSA_ORGANISM_TAXID=ORGANISM_TAXID --rm registry.gitlab.com/cgps/wgsa-tasks/cgmlst:latest
+cat FILE_TO_BE_TYPED.fasta | docker run -i -e WGSA_ORGANISM_TAXID=ORGANISM_TAXID --rm registry.gitlab.com/cgps/cgps-mlst:mlst-v1.5.58
 ```
 
 For example:
 
 ```
-cat tests/testdata/saureus_duplicate.fasta | docker run -i -e WGSA_ORGANISM_TAXID=1280 --rm registry.gitlab.com/cgps/wgsa-tasks/mlst:latest
+cat tests/testdata/saureus_duplicate.fasta | docker run -i -e WGSA_ORGANISM_TAXID=1280 --rm registry.gitlab.com/cgps/cgps-mlst:mlst-v1.5.58
 ```
 
 You can get information for debugging by passing in the `DEBUG` environment variable:
 
 ```
-cat tests/testdata/saureus_duplicate.fasta | docker run -i -e WGSA_ORGANISM_TAXID=1280 -e DEBUG='*,-trace*' --rm registry.gitlab.com/cgps/wgsa-tasks/mlst:latest
+cat tests/testdata/saureus_duplicate.fasta | docker run -i -e WGSA_ORGANISM_TAXID=1280 -e DEBUG='*,-trace*' --rm registry.gitlab.com/cgps/cgps-mlst:mlst-v1.5.58
 ```
 
 The output data also includes more details if you set the `DEBUG` environment variable.  This includes 
@@ -29,7 +29,7 @@ by setting `DEBUG='.'`.
 You can run Core Genome MLST by running the `cgmlst` container instead of the `mlst` container.
 
 ```
-cat tests/testdata/saureus_duplicate.fasta | docker run -i -e WGSA_ORGANISM_TAXID=1280 -e DEBUG='*' --rm registry.gitlab.com/cgps/wgsa-tasks/cgmlst:latest
+cat tests/testdata/saureus_duplicate.fasta | docker run -i -e WGSA_ORGANISM_TAXID=1280 -e DEBUG='*' --rm registry.gitlab.com/cgps/cgps-mlst:cgmlst-v1.5.58
 ```
 
 ## Making a release
@@ -40,6 +40,9 @@ pipeline.  It will also (slowly) run some tests.
 ```
 ./bin/release.sh
 ```
+
+We cache the downloads between builds for speed and to be polite.  If you've made a significant change or
+just need the latest data, trigger the build pipeline manually and it will clear the cache.
 
 ## Building the containers locally
 
@@ -70,16 +73,14 @@ docker run -it --rm \
     -v $(pwd):/src:ro \
     -w /src \
     -e ENTEROBASE_API_KEY="your enterobase api key" \
-    -e DEBUG='*,-follow-redirects' \
+    -e DEBUG='*' \
     node:8 \
         npm install && \
         npm run download
 ```
 
 Downloaded files are stored in `data/cache` in a hierarcy similar to 
-their URL.  If the download fails, you'll find a load of files which are 
-zero bytes (`find data/cache -type f -size 0`).  Delete those files and 
-rerun the command to try again.
+their URL.
 
 You can also update just a section of the data by deleting the relevant 
 files from the cache and rerunning this command.
@@ -93,8 +94,8 @@ calculates things like hashes of alleles to enable quick exact matches.
 We build separate containers for 7 gene and core genome MLST as follows.
 
 ```
-docker build -t registry.gitlab.com/cgps/wgsa-tasks/mlst -f Dockerfile .
-docker build -t --build-arg RUN_CORE_GENOME_MLST=yes registry.gitlab.com/cgps/wgsa-tasks/cgmlst -f Dockerfile .
+docker build -t mlst -f Dockerfile .
+docker build -t --build-arg RUN_CORE_GENOME_MLST=yes cgmlst -f Dockerfile .
 ```
 
 ## Running the tests
