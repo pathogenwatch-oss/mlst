@@ -17,8 +17,8 @@ update_cache:
   script:
   - mkdir -p /opt
   - ln -s $(pwd)/data /opt/mlst
-  - find node_modules -maxdepth 1 -mindepth 1 -type d | xargs -n 10 rm -r
-  - find . -type f
+  - rm -r node_modules || true
+  - find . -type f | grep -v '.git\|tests' | xargs -n 10 ls -l
   - yarn install
   - DEBUG="*" npm run download
   - rm data/cache/tmp || true
