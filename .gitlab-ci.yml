@@ -1,8 +1,37 @@
 image: docker:latest
 
 stages:
+- update_cache
 - download
 - deploy
+
+update_cache:
+  image: node:8
+  stage: update_cache
+  cache:
+    key: node
+    paths:
+    - node_modules/
+  variables:
+    ftp_proxy: $https_proxy
+  script:
+  - mkdir -p /opt
+  - ln -s $(pwd)/data /opt/mlst
+  - rm -r node_modules/*
+  - yarn install
+  - DEBUG="*" npm run download
+  - DEBUG="*" RUN_CORE_GENOME_MLST="yes" npm run download
+  - rm data/cache/tmp || true
+  - completed=$(date "+%Y%m%d%H%M%S")
+  - echo -n "$completed" > data/cache/updated.txt
+  - tar -zcf /nfs/wgsa/gitlab-cache/cgps-mlst/${completed}.tgz data/cache
+  - ln -sfn /nfs/wgsa/gitlab-cache/cgps-mlst/${completed}.tgz /nfs/wgsa/gitlab-cache/cgps-mlst/latest.tgz
+  only:
+  - web
+  artifacts:
+    paths:
+    - data/cache/
+    expire_in: 60 minutes
 
 download_mlst:
   image: node:8
@@ -70,6 +99,7 @@ deploy_mlst:
   - echo "Pushed $CI_REGISTRY_IMAGE:mlst-$TAG"
   only:
   - tags
+  - web
 
 deploy_cgmlst:
   stage: deploy
@@ -91,3 +121,4 @@ deploy_cgmlst:
   - echo "Pushed $CI_REGISTRY_IMAGE:cgmlst-$TAG"
   only:
   - tags
+  - web
