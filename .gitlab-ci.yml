@@ -17,7 +17,8 @@ update_cache:
   script:
   - mkdir -p /opt
   - ln -s $(pwd)/data /opt/mlst
-  - rm -r node_modules/*
+  - find node_modules -d 1 -type d | xargs -n 10 rm -r
+  - find . -type f
   - yarn install
   - DEBUG="*" npm run download
   - rm data/cache/tmp || true
