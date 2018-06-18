@@ -7,7 +7,7 @@
     "test": "ava tests/",
     "lint": "eslint **/*.js *.js",
     "download": "node ./src/mlst-database.js download",
-    "index": "node --max_old_space_size=2048 ./src/mlst-database.js index"
+    "index": "node --max_old_space_size=4096 ./src/mlst-database.js index"
   },
   "author": "",
   "license": "MIT",
