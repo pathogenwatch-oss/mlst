@@ -1,6 +1,5 @@
 const AdmZip = require("adm-zip");
 const Promise = require("bluebird");
-const cheerio = require("cheerio");
 const logger = require("debug");
 const fs = require("fs");
 const hasha = require("hasha");
@@ -9,7 +8,6 @@ const mkdirp = require("mkdirp-promise");
 const path = require("path");
 const readline = require("readline");
 const slugify = require("slugify");
-const { URL } = require("url");
 const { promisify } = require("util");
 const { parseString: parseXml } = require("xml2js");
 const { Unzip } = require("zlib");
