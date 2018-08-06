@@ -75,7 +75,6 @@ docker run -it --rm \
     -e ENTEROBASE_API_KEY="your enterobase api key" \
     -e DEBUG='*' \
     node:8 \
-        npm install && \
         npm run download
 ```
 

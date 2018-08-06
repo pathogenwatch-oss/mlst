@@ -591,9 +591,10 @@ class EnterobaseScheme extends Scheme {
 
   async lociUrls() {
     if (!this._lociUrls) {
-      this._lociUrls = await readJsonAsync(
+      const urls = await readJsonAsync(
         path.join(__dirname, "enterobaseAlleles.json")
       );
+      this._lociUrls = urls[this.metadata.schemeName];
     }
     return this._lociUrls;
   }
