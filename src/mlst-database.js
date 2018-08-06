@@ -50,7 +50,7 @@ class Scheme {
   constructor(options) {
     this.downloadFn = options.downloadFn;
     this.schemeUrl = options.schemeUrl;
-    this.lociCount = options.lociCount;
+    this.schemeSize = options.schemeSize;
     this.alleleLookupPrefixLength = 20;
     this.metadata = options.metadata;
   }
@@ -63,9 +63,9 @@ class Scheme {
     if (this.schemeUrl) await this.downloadFn(this.schemeUrl);
     const alleleUrls = await this.lociUrls();
     const alleleCount = _.keys(alleleUrls).length;
-    if (this.lociCount && alleleCount !== this.lociCount) {
+    if (this.schemeSize && alleleCount !== this.schemeSize) {
       throw new Error(
-        `Expected ${this.lociCount} for ${
+        `Expected ${this.schemeSize} for ${
           this.metadata.schemeName
         }, got ${alleleCount}`
       );
@@ -149,7 +149,7 @@ class Scheme {
           lengths[gene][allele.st] = allele.length;
         });
         logger("trace:index")(`Hashed ${alleles.length} alleles of ${gene}`);
-        return
+        return;
       },
       { concurrency: 3 }
     );
@@ -164,6 +164,7 @@ class Scheme {
       allelePaths,
       alleleCounts,
       lengths,
+      schemeSize: this.schemeSize,
       alleleLookup,
       alleleLookupPrefixLength: this.alleleLookupPrefixLength,
       profiles: await this.profiles(),
@@ -310,7 +311,7 @@ class PubMlstSevenGeneSchemes {
     this.schemeAliases = {
       1336: 40041 // If we don't find a Streptococcus equi scheme (1336), re-use Streptococcus zooepidemicus (40041)
     };
-    this.dataDir = options.dataDit || "/opt/mlst/databases";
+    this.dataDir = options.dataDir || "/opt/mlst/databases";
   }
 
   async read(taxid) {
@@ -641,13 +642,12 @@ class CgMlstSchemes {
   constructor(options) {
     this.downloadFn = options.downloadFn;
     this.maxSeqs = options.maxSeqs;
-    this.dataDir = options.dataDit || "/opt/mlst/databases";
+    this.dataDir = options.dataDir || "/opt/mlst/databases";
     this.schemes = [
       {
         scheme: new EnterobaseScheme({
-          schemeUrl:
-            "http://enterobase.warwick.ac.uk/api/v2.0/senterica/cgMLST_v2/loci?scheme=cgMLST_v2&limit=50",
           downloadFn: this.downloadFn,
+          schemeSize: 3002,
           metadata: {
             schemeName: "Salmonella enterica cgMLST V2",
             cite: [
@@ -662,9 +662,8 @@ class CgMlstSchemes {
       },
       {
         scheme: new EnterobaseScheme({
-          schemeUrl:
-            "http://enterobase.warwick.ac.uk/api/v2.0/ecoli/cgMLST/loci?scheme=cgMLST&limit=50",
           downloadFn: this.downloadFn,
+          schemeSize: 2513,
           metadata: {
             schemeName: "Escherichia/Shigella cgMLSTv1",
             cite: [
@@ -685,7 +684,7 @@ class CgMlstSchemes {
           schemeUrl:
             "http://api.bigsdb.pasteur.fr/db/pubmlst_klebsiella_seqdef_public/schemes/3",
           downloadFn: this.downloadFn,
-          lociCount: 632,
+          schemeSize: 632,
           metadata: {
             schemeName:
               "Klebsiella pneumoniae/quasipneumoniae/variicola scgMLST634",
@@ -703,7 +702,7 @@ class CgMlstSchemes {
           schemeUrl:
             "http://api.bigsdb.pasteur.fr/db/pubmlst_listeria_seqdef_public/schemes/3",
           downloadFn: this.downloadFn,
-          lociCount: 1748,
+          schemeSize: 1748,
           metadata: {
             schemeName: "Listeria cgMLST1748",
             cite: []
@@ -716,6 +715,7 @@ class CgMlstSchemes {
           schemeUrl:
             "http://rest.pubmlst.org/db/pubmlst_campylobacter_seqdef/schemes/4",
           downloadFn: this.downloadFn,
+          schemeSize: 1343,
           metadata: {
             schemeName: "C. jejuni / C. coli cgMLST v1.0",
             cite: [
@@ -738,6 +738,7 @@ class CgMlstSchemes {
           schemeUrl:
             "http://rest.pubmlst.org/db/pubmlst_neisseria_seqdef/schemes/47",
           downloadFn: this.downloadFn,
+          schemeSize: 1605,
           metadata: {
             schemeName: "N. meningitidis cgMLST v1.0",
             cite: [
@@ -757,6 +758,7 @@ class CgMlstSchemes {
           schemeUrl:
             "http://rest.pubmlst.org/db/pubmlst_neisseria_seqdef/schemes/62",
           downloadFn: this.downloadFn,
+          schemeSize: 1649,
           metadata: {
             schemeName: "N. gonorrhoeae cgMLST v1.0",
             cite: [
@@ -776,6 +778,7 @@ class CgMlstSchemes {
           schemeUrl:
             "http://rest.pubmlst.org/db/pubmlst_saureus_seqdef/schemes/2",
           downloadFn: this.downloadFn,
+          schemeSize: 2208,
           metadata: {
             schemeName: "S. aureus Core 2208",
             cite: [
@@ -793,7 +796,7 @@ class CgMlstSchemes {
       {
         scheme: new RidomScheme({
           schemeUrl: "https://www.cgmlst.org/ncs/schema/3956907/alleles/",
-          lociCount: 2390,
+          schemeSize: 2390,
           downloadFn: this.downloadFn,
           metadata: {
             schemeName: "Acinetobacter baumannii",
@@ -812,7 +815,7 @@ class CgMlstSchemes {
       {
         scheme: new RidomScheme({
           schemeUrl: "https://www.cgmlst.org/ncs/schema/991893/alleles/",
-          lociCount: 1423,
+          schemeSize: 1423,
           downloadFn: this.downloadFn,
           metadata: {
             schemeName: "Enterococcus faecium",
@@ -831,7 +834,7 @@ class CgMlstSchemes {
       {
         scheme: new RidomScheme({
           schemeUrl: "https://www.cgmlst.org/ncs/schema/741110/alleles/",
-          lociCount: 2891,
+          schemeSize: 2891,
           downloadFn: this.downloadFn,
           metadata: {
             schemeName: "Mycobacterium tuberculosis/bovis/africanum/canettii",
@@ -904,7 +907,10 @@ class CgMlstSchemes {
         try {
           const schemeSlug = `cgmlst_${slugify(schemeName)}`;
           const schemeDir = path.join(this.dataDir, schemeSlug);
-          const schemeMetadataPath = await scheme.index(schemeDir, this.maxSeqs);
+          const schemeMetadataPath = await scheme.index(
+            schemeDir,
+            this.maxSeqs
+          );
           _.forEach(schemeTargets, ({ name, taxid }) => {
             metadata[taxid] = {
               path: schemeMetadataPath,
@@ -916,8 +922,8 @@ class CgMlstSchemes {
           });
           await this.writeMetadata(metadata);
         } catch (err) {
-          logger("error")(`Problem indexing ${schemeName}`)
-          throw err
+          logger("error")(`Problem indexing ${schemeName}`);
+          throw err;
         }
       },
       { concurrency: 1 }
@@ -962,7 +968,7 @@ if (require.main === module) {
     }
     const results = await schemes.download();
     logger("info")(`Downloaded ${results.length} schemes`);
-    return results
+    return results;
   }
 
   // eslint-disable-next-line no-inner-declarations
@@ -980,7 +986,7 @@ if (require.main === module) {
     }
     const results = await schemes.index();
     logger("info")(`Indexed ${results.length} schemes`);
-    return results
+    return results;
   }
 
   if (process.argv[2] === "download") downloadAll().catch(fail("download"));

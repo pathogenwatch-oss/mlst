@@ -91,14 +91,15 @@ function formatOutput({ alleleMetadata, renamedSequences, bestHits }) {
     ? profiles[code]
     : hasha(code.toLowerCase(), { algorithm: "sha1" });
 
-  const { schemeName: scheme, url } = alleleMetadata;
+  const { schemeName: scheme, schemeSize, url } = alleleMetadata;
   return {
     alleles,
     code,
     st,
     scheme,
     url,
-    genes
+    genes,
+    schemeSize
   };
 }
 
