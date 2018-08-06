@@ -591,17 +591,9 @@ class EnterobaseScheme extends Scheme {
 
   async lociUrls() {
     if (!this._lociUrls) {
-      let nextPath = await this.downloadFn(this.schemeUrl);
-      const lociUrls = {};
-      while (nextPath) {
-        const { loci, links } = await readJsonAsync(nextPath);
-        _.forEach(loci, ({ download_alleles_link: url, locus: gene }) => {
-          lociUrls[gene] = url;
-        });
-        const nextUrl = _.get(links, "paging.next", null);
-        nextPath = nextUrl ? await this.downloadFn(nextUrl) : null;
-      }
-      this._lociUrls = lociUrls;
+      this._lociUrls = await readJsonAsync(
+        path.join(__dirname, "enterobaseAlleles.json")
+      );
     }
     return this._lociUrls;
   }
