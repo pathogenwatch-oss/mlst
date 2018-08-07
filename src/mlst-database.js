@@ -264,7 +264,9 @@ class PubMlstSevenGeneScheme extends Scheme {
         .fromPairs()
         .value();
       const alleles = _.map(genes, gene => rowObj[gene]);
-      const st = rowObj.ST;
+      // Saprolegnia parasitica has a DST column, not ST.  I'm not sure why
+      const st =
+        rowObj.ST || (genes.indexOf("DST") === -1 ? rowObj.DST : undefined);
       return { st, alleles };
     };
   }
