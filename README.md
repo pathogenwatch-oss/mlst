@@ -72,7 +72,20 @@ docker run -it --rm \
     -v $(cd data && pwd):/opt/mlst \
     -v $(pwd):/src:ro \
     -w /src \
+    -e DEBUG='*' \
+    node:8 \
+        npm run download
+```
+
+or for cgmlst:
+
+```
+docker run -it --rm \
+    -v $(cd data && pwd):/opt/mlst \
+    -v $(pwd):/src:ro \
+    -w /src \
     -e ENTEROBASE_API_KEY="your enterobase api key" \
+    -e RUN_CORE_GENOME_MLST='yes' \
     -e DEBUG='*' \
     node:8 \
         npm run download
@@ -93,8 +106,8 @@ calculates things like hashes of alleles to enable quick exact matches.
 We build separate containers for 7 gene and core genome MLST as follows.
 
 ```
-docker build -t mlst -f Dockerfile .
-docker build -t --build-arg RUN_CORE_GENOME_MLST=yes cgmlst -f Dockerfile .
+docker build -t mlst .
+docker build -t cgmlst --build-arg RUN_CORE_GENOME_MLST=yes .
 ```
 
 ## Running the tests
