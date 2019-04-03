@@ -643,7 +643,8 @@ class CgMlstSchemes {
     this.schemes = [
       {
         scheme: new EnterobaseScheme({
-          schemeUrl: "http://enterobase.warwick.ac.uk/api/v2.0/senterica/cgMLST_v2/loci",
+          schemeUrl:
+            "http://enterobase.warwick.ac.uk/api/v2.0/senterica/cgMLST_v2/loci",
           downloadFn: this.downloadFn,
           schemeSize: 3002,
           metadata: {
