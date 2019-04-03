@@ -526,7 +526,7 @@ class RidomScheme extends Scheme {
     const alleleDir = path.dirname(allelesDownloadPath);
     await mkdirp(alleleDir, { mode: 0o755 });
 
-    const filenameRegex = /\.(fa|fasta|mfa|tfa)$/
+    const filenameRegex = /\.(fa|fasta|mfa|tfa)$/;
     _.forEach(alleleZip.getEntries(), ({ entryName }) => {
       const filename = path.basename(entryName);
       if (!filenameRegex.test(filename)) return;
@@ -595,10 +595,17 @@ class EnterobaseScheme extends Scheme {
 
   async lociUrls() {
     if (!this._lociUrls) {
-      const urls = await readJsonAsync(
-        path.join(__dirname, "enterobaseAlleles.json")
-      );
-      this._lociUrls = urls[this.metadata.schemeName];
+      let nextPath = await this.downloadFn(this.schemeUrl);
+      const lociUrls = {};
+      while (nextPath) {
+        const { loci, links } = await readJsonAsync(nextPath);
+        _.forEach(loci, ({ download_alleles_link: url, locus: gene }) => {
+          lociUrls[gene] = url;
+        });
+        const nextUrl = _.get(links, "paging.next", null);
+        nextPath = nextUrl ? await this.downloadFn(nextUrl) : null;
+      }
+      this._lociUrls = lociUrls;
     }
     return this._lociUrls;
   }
