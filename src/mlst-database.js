@@ -526,9 +526,11 @@ class RidomScheme extends Scheme {
     const alleleDir = path.dirname(allelesDownloadPath);
     await mkdirp(alleleDir, { mode: 0o755 });
 
+    const filenameRegex = /\.(fa|fasta|mfa|tfa)$/
     _.forEach(alleleZip.getEntries(), ({ entryName }) => {
       const filename = path.basename(entryName);
-      const gene = filename.replace(/\.(fa|fasta|mfa|tfa)$/, "");
+      if (!filenameRegex.test(filename)) return;
+      const gene = filename.replace(filenameRegex, "");
       alleleZip.extractEntryTo(entryName, alleleDir, false, true);
       const allelePath = path.join(alleleDir, filename);
       allAllelePaths[gene] = allelePath;
