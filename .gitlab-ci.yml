@@ -15,7 +15,7 @@ update_cache:
   variables:
     ftp_proxy: $https_proxy
   script:
-  - if [ ! -d /mnt/cache/cgps-mlst/cgps-mlst/ ]; then echo "Cache directory is missing"; exit 1; fi
+  - if [ ! -d /mnt/cache/cgps-mlst/ ]; then echo "Cache directory is missing"; exit 1; fi
   - mkdir -p /opt
   - ln -s $(pwd)/data /opt/mlst
   - rm -r node_modules || true
@@ -26,8 +26,8 @@ update_cache:
   - rm data/cache/tmp || true
   - completed=$(date "+%Y%m%d%H%M%S")
   - echo -n "$completed" > data/cache/updated.txt
-  - tar -zcf /mnt/cache/cgps-mlst/cgps-mlst/${completed}.tgz data/cache
-  - ln -sfn /mnt/cache/cgps-mlst/cgps-mlst/${completed}.tgz /mnt/cache/cgps-mlst/cgps-mlst/latest.tgz
+  - tar -zcf /mnt/cache/cgps-mlst/${completed}.tgz data/cache
+  - ln -sfn /mnt/cache/cgps-mlst/${completed}.tgz /mnt/cache/cgps-mlst/latest.tgz
   only:
   - web
   artifacts:
@@ -48,7 +48,7 @@ download_mlst:
   - mkdir -p /opt
   - ln -s $(pwd)/data /opt/mlst
   - yarn install
-  - if [[ -f /mnt/cache/cgps-mlst/cgps-mlst/latest.tgz ]]; then tar -xzf /mnt/cache/cgps-mlst/cgps-mlst/latest.tgz; fi
+  - if [[ -f /mnt/cache/cgps-mlst/latest.tgz ]]; then tar -xzf /mnt/cache/cgps-mlst/latest.tgz; fi
   - if [[ -f data/cache/updated.txt ]]; then echo "[$(date)] Using cache from $(cat data/cache/updated.txt)"; else "[$(date)] No cache"; fi
   - DEBUG="*" npm run download
   only:
@@ -72,7 +72,7 @@ download_cgmlst:
   - mkdir -p /opt
   - ln -s $(pwd)/data /opt/mlst
   - yarn install
-  - if [[ -f /mnt/cache/cgps-mlst/cgps-mlst/latest.tgz ]]; then tar -xzf /mnt/cache/cgps-mlst/cgps-mlst/latest.tgz; fi
+  - if [[ -f /mnt/cache/cgps-mlst/latest.tgz ]]; then tar -xzf /mnt/cache/cgps-mlst/latest.tgz; fi
   - if [[ -f data/cache/updated.txt ]]; then echo "[$(date)] Using cache from $(cat data/cache/updated.txt)"; else "[$(date)] No cache"; fi
   - DEBUG="*" npm run download
   only:
