@@ -16,7 +16,8 @@ const DOWNLOAD_RETRIES = 5;
 const CACHE_DIR = "/opt/mlst/cache";
 const TMP_CACHE_DIR = path.join(CACHE_DIR, "tmp");
 
-const USER_AGENT = "mlst-downloader (https://gist.github.com/bewt85/16f2b7b9c3b331f751ce40273240a2eb)";
+const USER_AGENT =
+  "mlst-downloader (https://gist.github.com/bewt85/16f2b7b9c3b331f751ce40273240a2eb)";
 
 const existsAsync = promisify(fs.exists);
 
@@ -58,29 +59,32 @@ class RateLimiter {
       delay(this.minWait)
     );
     const whenWeStart = this.whenNextTaskStart;
-    this.whenNextTaskStart = Promise.all([earliestNextRequest, whenDone.catch(() => true)]);
+    this.whenNextTaskStart = Promise.all([
+      earliestNextRequest,
+      whenDone.catch(() => true)
+    ]);
     await whenWeStart;
     this.queueLength -= 1;
     try {
-      const result = await fn()
+      const result = await fn();
       whenDone.resolve(result);
-      return result
+      return result;
     } catch (err) {
       whenDone.reject(err);
-      throw err
+      throw err;
     }
   }
 }
 
-async function retry(fn, count, message="") {
+async function retry(fn, count, message = "") {
   if (count === 1) {
-    return fn()
+    return fn();
   }
   try {
-    return await fn()
+    return await fn();
   } catch (err) {
-    if (message.length > 0) logger("trace:retry")(`Retrying: ${message}`)
-    return await retry(fn, count-1, message);
+    if (message.length > 0) logger("trace:retry")(`Retrying: ${message}`);
+    return await retry(fn, count - 1, message);
   }
 }
 
@@ -98,7 +102,7 @@ class SlowDownloader {
           resolve(tmpPath);
         }
       );
-    })
+    });
   }
 
   curl(url, outPath, auth) {
@@ -110,36 +114,49 @@ class SlowDownloader {
     let args;
     if (!auth) {
       args = [
-        "--user-agent", USER_AGENT,
-        "-s", "-S", "-L",
-        "--max-time", "60",
-        "--output", outPath,
+        "--user-agent",
+        USER_AGENT,
+        "-s",
+        "-S",
+        "-L",
+        "--max-time",
+        "60",
+        "--output",
+        outPath,
         "--fail",
         url
       ];
     } else {
-      const { username="", password="" } = auth;
+      const { username = "", password = "" } = auth;
       args = [
-        "--user", `${username}:${password}`,
-        "--user-agent", USER_AGENT,
-        "-s", "-S", "-L",
-        "--max-time", "60",
-        "--output", outPath,
+        "--user",
+        `${username}:${password}`,
+        "--user-agent",
+        USER_AGENT,
+        "-s",
+        "-S",
+        "-L",
+        "--max-time",
+        "60",
+        "--output",
+        outPath,
         "--fail",
         url
       ];
     }
 
-    logger("trace:SlowDownloader")(`Downloading ${url}`);
+    logger("trace:curl")(`Downloading ${url} to ${outPath}`);
     const shell = spawn("curl", args);
 
     let error = "";
     const whenError = new DeferredPromise();
-    shell.stderr.on("data", chunk => {
-      error += chunk;
-    }).on("end", () => {
-      whenError.resolve(error);
-    })
+    shell.stderr
+      .on("data", chunk => {
+        error += chunk;
+      })
+      .on("end", () => {
+        whenError.resolve(error);
+      });
 
     shell.on("error", err => {
       logger("error:curl")(err);
@@ -147,15 +164,13 @@ class SlowDownloader {
     });
     shell.on("exit", (code, signal) => {
       if (code === 0) {
-        logger("trace:curl")(
-          `Downloaded ${url} to ${outPath}`
-        );
+        logger("trace:curl")(`Downloaded ${url} to ${outPath}`);
         whenDownloaded.resolve(outPath);
       } else {
         whenError.then(err => {
           const message = `Got ${code}:${signal} while downloading ${url}:\n${err}`;
           whenDownloaded.reject(message);
-        })
+        });
       }
     });
 
@@ -169,9 +184,7 @@ class SlowDownloader {
     try {
       // Don't start a download if we already have a copy of the file
       await promisify(fs.access)(downloadPath, fs.constants.F_OK);
-      logger("trace:SlowDownloader:skip")(
-        `${downloadPath} already exists`
-      );
+      logger("trace:SlowDownloader:skip")(`${downloadPath} already exists`);
       return downloadPath;
     } catch (err) {
       (() => true)(); // Statement left intentionally blank to make linter happy
@@ -183,7 +196,8 @@ class SlowDownloader {
       await this.rateLimiter.queue(() => this.curl(url, tmpPath, auth));
       await promisify(fs.rename)(tmpPath, downloadPath);
       await promisify(fs.chmod)(downloadPath, 0o444);
-      return downloadPath
+      logger("trace:SlowDownloader")(`Downloaded ${url} to ${downloadPath}`);
+      return downloadPath;
     } catch (err) {
       throw new Error(`Downloading ${url} to ${downloadPath}\n${err}`);
     }
@@ -193,7 +207,7 @@ class SlowDownloader {
 const downloaders = {};
 const downloadCache = {};
 
-async function downloadFile(url, auth=null) {
+async function downloadFile(url, auth = null) {
   if (_.has(downloadCache, url)) {
     return downloadCache[url];
   }
@@ -207,8 +221,8 @@ async function downloadFile(url, auth=null) {
   }
   const downloader = downloaders[hostname];
   const fn = () => downloader.downloadFile(url, auth);
-  const outPath = await retry(fn, DOWNLOAD_RETRIES, `Download ${url}`)
-  response.resolve(outPath)
+  const outPath = await retry(fn, DOWNLOAD_RETRIES, `Download ${url}`);
+  response.resolve(outPath);
   return outPath;
 }
 
