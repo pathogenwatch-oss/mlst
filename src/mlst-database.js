@@ -614,15 +614,13 @@ class EnterobaseScheme extends Scheme {
 
   async lociUrls() {
     if (!this._lociUrls) {
-      let nextPath = await this.downloadFn(this.schemeUrl);
       const lociUrls = {};
-      while (nextPath) {
-        const { loci, links } = await readJsonAsync(nextPath);
-        _.forEach(loci, ({ download_alleles_link: url, locus: gene }) => {
-          lociUrls[gene] = url;
-        });
-        const nextUrl = _.get(links, "paging.next", null);
-        nextPath = nextUrl ? await this.downloadFn(nextUrl) : null;
+
+      const genes = (await readJsonAsync(
+        path.join(__dirname, "enterobaseGenes.json")
+      ))[this.metadata.schemeName];
+      for (const gene of genes) {
+        lociUrls[gene] = this.schemeUrl.replace(/GENE_NAME_HERE/, gene);
       }
       this._lociUrls = lociUrls;
     }
@@ -670,7 +668,7 @@ class CgMlstSchemes {
       {
         scheme: new EnterobaseScheme({
           schemeUrl:
-            "http://enterobase.warwick.ac.uk/api/v2.0/senterica/cgMLST_v2/loci",
+            "http://enterobase.warwick.ac.uk/schemes/Salmonella.cgMLSTv2/GENE_NAME_HERE.fasta.gz",
           downloadFn: this.downloadFn,
           schemeSize: 3002,
           metadata: {
@@ -688,7 +686,7 @@ class CgMlstSchemes {
       {
         scheme: new EnterobaseScheme({
           schemeUrl:
-            "http://enterobase.warwick.ac.uk/api/v2.0/ecoli/cgMLST/loci",
+            "http://enterobase.warwick.ac.uk/schemes/Escherichia.cgMLSTv1/GENE_NAME_HERE.fasta.gz",
           downloadFn: this.downloadFn,
           schemeSize: 2513,
           metadata: {
