@@ -1,12 +1,12 @@
 FROM ubuntu:latest as blast_build
 
 RUN apt-get update && apt-get install -y wget tar
-RUN wget ftp://ftp.ncbi.nlm.nih.gov/blast/executables/LATEST/ncbi-blast-2.7.1+-x64-linux.tar.gz
-RUN tar xzvf ncbi-blast-2.7.1+-x64-linux.tar.gz
-RUN mv ncbi-blast-2.7.1+/bin /blast
+RUN wget ftp://ftp.ncbi.nlm.nih.gov/blast/executables/LATEST/ncbi-blast-2.9.0+-x64-linux.tar.gz
+RUN tar xzvf ncbi-blast-2.9.0+-x64-linux.tar.gz
+RUN mv ncbi-blast-2.9.0+/bin /blast
 
 
-FROM node:8 as index_build
+FROM node:10-alpine as index_build
 
 WORKDIR /usr/local/mlst
 COPY    package.json yarn.lock /usr/local/mlst/
@@ -33,7 +33,7 @@ ARG     RUN_CORE_GENOME_MLST
 RUN     CI=true npm test
  
 
-FROM node:8
+FROM node:10-alpine
 
 COPY    --from=blast_build /blast/blastn /blast/makeblastdb /usr/local/bin/
 COPY    --from=index_build /opt/mlst/databases /opt/mlst/databases
