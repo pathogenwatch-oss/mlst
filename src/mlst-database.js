@@ -60,7 +60,6 @@ class Scheme {
   }
 
   async download() {
-    if (this.schemeUrl) await this.downloadFn(this.schemeUrl);
     const alleleUrls = await this.lociUrls();
     const alleleCount = _.keys(alleleUrls).length;
     if (this.schemeSize && alleleCount !== this.schemeSize) {
@@ -520,12 +519,13 @@ class BigsDbRestScheme extends Scheme {
 
 class RidomScheme extends Scheme {
   async _extractAlleleZip(allelesDownloadPath) {
-    logger("trace:RidomSchemes:parsing")(`Parsing ${allelesDownloadPath}`);
+    logger(`trace:${this.constructor.name}:parsing`)(
+      `Parsing ${allelesDownloadPath}`
+    );
     const allAllelePaths = {};
     const alleleZip = new AdmZip(allelesDownloadPath);
     const alleleDir = path.dirname(allelesDownloadPath);
     await mkdirp(alleleDir, { mode: 0o755 });
-
     const filenameRegex = /\.(fa|fasta|mfa|tfa)$/;
     _.forEach(alleleZip.getEntries(), ({ entryName }) => {
       const filename = path.basename(entryName);
@@ -536,7 +536,7 @@ class RidomScheme extends Scheme {
       allAllelePaths[gene] = allelePath;
     });
 
-    logger("trace:RidomSchemes")(
+    logger(`trace:${this.constructor.name}`)(
       `Found ${_.keys(allAllelePaths).length} genes in ${allelesDownloadPath}`
     );
     return allAllelePaths;
@@ -549,7 +549,14 @@ class RidomScheme extends Scheme {
   async allAllelePaths() {
     if (!this._allAllelePaths) {
       const allelesDownloadPath = await this.download();
-      this._allAllelePaths = this._extractAlleleZip(allelesDownloadPath);
+      this._allAllelePaths = await this._extractAlleleZip(allelesDownloadPath);
+      const alleleCount = Object.keys(this._allAllelePaths).length;
+      if (alleleCount !== this.schemeSize)
+        throw new Error(
+          `Expected ${this.schemeSize} for ${
+            this.metadata.schemeName
+          }, got ${alleleCount}.`
+        );
     }
     return this._allAllelePaths;
   }
@@ -573,6 +580,18 @@ class RidomScheme extends Scheme {
       const st = Number(id);
       return { gene, st, length, seq };
     });
+  }
+}
+
+class GithubScheme extends RidomScheme {
+  async download() {
+    const releasesPath = await this.downloadFn(this.schemeUrl);
+    const releases = await readJsonAsync(releasesPath);
+    const latestSchemeUrl = releases.zipball_url;
+    logger(`trace:${this.constructor.name}`)(
+      `Downloading from ${latestSchemeUrl}`
+    );
+    return this.downloadFn(latestSchemeUrl);
   }
 }
 
@@ -862,6 +881,26 @@ class CgMlstSchemes {
           { name: "Mycobacterium africanum", taxid: 33894 },
           { name: "Mycobacterium canettii", taxid: 78331 }
         ]
+      },
+      {
+        scheme: new GithubScheme({
+          schemeUrl:
+            "https://api.github.com/repos/bewt85/pneumo-cgmlst/releases/latest",
+          schemeSize: 1447,
+          downloadFn: this.downloadFn,
+          metadata: {
+            schemeName: "Core genome COGs for S. pneumoniae",
+            cite: [
+              {
+                text: "Corander et al 2017 Nat. Ecol. Evol. 1:1950-60",
+                url: "https://www.ncbi.nlm.nih.gov/pubmed/29038424",
+                long:
+                  "Corander J, Fraser C, Gutmann MU, Arnold B, Hanage WP, Bentley SD, Lipsitch M, and Croucher NJ. Frequency-dependent selection in vaccine-associated pneumococcal population dynamics. Nature ecology & evolution, 2017, 1(12), 1950–1960"
+              }
+            ]
+          }
+        }),
+        schemeTargets: [{ name: "Streptococcus pneumoniae", taxid: 1313 }]
       }
     ];
   }
