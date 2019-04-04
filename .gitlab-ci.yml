@@ -15,6 +15,7 @@ update_cache:
   variables:
     ftp_proxy: $https_proxy
   script:
+  - if [ ! -d /nfs/wgsa/gitlab-cache/cgps-mlst/ ]; then echo "Cache directory is missing"; exit 1; fi
   - mkdir -p /opt
   - ln -s $(pwd)/data /opt/mlst
   - rm -r node_modules || true
