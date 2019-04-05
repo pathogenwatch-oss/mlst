@@ -192,11 +192,11 @@ class SlowDownloader {
 
     try {
       const tmpPath = await this._tempPath();
-      logger("trace:SlowDownloader")(`Queueing ${url}`);
+      logger("trace:SlowDownloader:queued")(url);
       await this.rateLimiter.queue(() => this.curl(url, tmpPath, auth));
       await promisify(fs.rename)(tmpPath, downloadPath);
       await promisify(fs.chmod)(downloadPath, 0o444);
-      logger("trace:SlowDownloader")(`Downloaded ${url} to ${downloadPath}`);
+      logger("trace:SlowDownloader:downloaded")(`${url} to ${downloadPath}`);
       return downloadPath;
     } catch (err) {
       throw new Error(`Downloading ${url} to ${downloadPath}\n${err}`);

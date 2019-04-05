@@ -21,8 +21,8 @@ update_cache:
   - rm -r node_modules || true
   - find . -type f | grep -v '.git\|tests' | xargs -n 10 ls -l
   - yarn install
-  - DEBUG="*" npm run download
-  - DEBUG="*" RUN_CORE_GENOME_MLST="yes" npm run download
+  - DEBUG="*,-trace:curl,-trace:SlowDownloader:queued" npm run download
+  - DEBUG="*,-trace:curl,-trace:SlowDownloader:queued" RUN_CORE_GENOME_MLST="yes" npm run download
   - rm data/cache/tmp || true
   - completed=$(date "+%Y%m%d%H%M%S")
   - echo -n "$completed" > data/cache/updated.txt
@@ -50,7 +50,7 @@ download_mlst:
   - yarn install
   - if [[ -f /mnt/cache/cgps-mlst/latest.tgz ]]; then tar -xzf /mnt/cache/cgps-mlst/latest.tgz; fi
   - if [[ -f data/cache/updated.txt ]]; then echo "[$(date)] Using cache from $(cat data/cache/updated.txt)"; else "[$(date)] No cache"; fi
-  - DEBUG="*" npm run download
+  - DEBUG="*,-trace:curl,-trace:SlowDownloader:queued" npm run download
   only:
   - tags
   artifacts:
