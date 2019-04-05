@@ -15,13 +15,15 @@ update_cache:
   variables:
     ftp_proxy: $https_proxy
   script:
+  - id
+  - touch /mnt/cache/cgps-mlst/test-delete-me
   - if [ ! -d /mnt/cache/cgps-mlst/ ]; then echo "Cache directory is missing"; exit 1; fi
   - mkdir -p /opt
   - ln -s $(pwd)/data /opt/mlst
   - rm -r node_modules || true
   - find . -type f | grep -v '.git\|tests' | xargs -n 10 ls -l
   - yarn install
-  - DEBUG="*,-trace:curl,-trace:SlowDownloader:queued" npm run download
+  # - DEBUG="*,-trace:curl,-trace:SlowDownloader:queued" npm run download
   - DEBUG="*,-trace:curl,-trace:SlowDownloader:queued" RUN_CORE_GENOME_MLST="yes" npm run download
   - rm data/cache/tmp || true
   - completed=$(date "+%Y%m%d%H%M%S")
