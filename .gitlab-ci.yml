@@ -15,7 +15,7 @@ update_cache:
   variables:
     ftp_proxy: $https_proxy
   script:
-  - touch /mnt/cache/cgps-mlst/test-delete-me
+  - touch /mnt/cache/cgps-mlst/test-delete-me || sleep 1800
   - if [ ! -d /mnt/cache/cgps-mlst/ ]; then echo "Cache directory is missing"; exit 1; fi
   - mkdir -p /opt
   - ln -s $(pwd)/data /opt/mlst
