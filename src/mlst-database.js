@@ -775,47 +775,47 @@ class CgMlstSchemes {
               }
             ]
           }
-          }),
-          schemeTargets: [{ name: "Neisseria meningitidis", taxid: 487 }]
-        },
-        {
-          scheme: new BigsDbRestScheme({
-            schemeUrl:
-              "http://rest.pubmlst.org/db/pubmlst_neisseria_seqdef/schemes/62",
+        }),
+        schemeTargets: [{ name: "Neisseria meningitidis", taxid: 487 }]
+      },
+      {
+        scheme: new BigsDbRestScheme({
+          schemeUrl:
+            "http://rest.pubmlst.org/db/pubmlst_neisseria_seqdef/schemes/62",
           downloadFn: this.downloadFn,
           schemeSize: 1649,
-            metadata: {
-              schemeName: "N. gonorrhoeae cgMLST v1.0",
-              cite: [
-                {
-                  text: "Jolley & Maiden 2010, BMC Bioinformatics, 11:595",
-                  url: "http://www.biomedcentral.com/1471-2105/11/595/abstract",
-                  long:
-                    "This tool made use of the Neisseria Multi Locus Sequence Typing website (https://pubmlst.org/neisseria/) developed by Keith Jolley and sited at the University of Oxford"
-                }
-              ]
+          metadata: {
+            schemeName: "N. gonorrhoeae cgMLST v1.0",
+            cite: [
+              {
+                text: "Jolley & Maiden 2010, BMC Bioinformatics, 11:595",
+                url: "http://www.biomedcentral.com/1471-2105/11/595/abstract",
+                long:
+                  "This tool made use of the Neisseria Multi Locus Sequence Typing website (https://pubmlst.org/neisseria/) developed by Keith Jolley and sited at the University of Oxford"
+              }
+            ]
           }
         }),
         schemeTargets: [{ name: "Neisseria gonorrhoeae", taxid: 485 }]
       },
-        {
-          scheme: new BigsDbRestScheme({
-            schemeUrl:
-              "http://rest.pubmlst.org/db/pubmlst_saureus_seqdef/schemes/2",
-            downloadFn: this.downloadFn,
-            schemeSize: 2208,
-            metadata: {
+      {
+        scheme: new BigsDbRestScheme({
+          schemeUrl:
+            "http://rest.pubmlst.org/db/pubmlst_saureus_seqdef/schemes/2",
+          downloadFn: this.downloadFn,
+          schemeSize: 2208,
+          metadata: {
             schemeName: "S. aureus Core 2208",
-              cite: [
-                {
-                  text: "Jolley & Maiden 2010, BMC Bioinformatics, 11:595",
-                  url: "http://www.biomedcentral.com/1471-2105/11/595/abstract",
-                  long:
-                    "This tool made use of the Staphylococcus aureus MLST website (https://pubmlst.org/saureus/) sited at the University of Oxford"
-                }
-              ]
+            cite: [
+              {
+                text: "Jolley & Maiden 2010, BMC Bioinformatics, 11:595",
+                url: "http://www.biomedcentral.com/1471-2105/11/595/abstract",
+                long:
+                  "This tool made use of the Staphylococcus aureus MLST website (https://pubmlst.org/saureus/) sited at the University of Oxford"
+              }
+            ]
           }
-          }),
+        }),
         schemeTargets: [{ name: "Staphylococcus aureus", taxid: 1280 }]
       },
       {

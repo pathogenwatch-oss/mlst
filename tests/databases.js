@@ -31,8 +31,8 @@ test("Check genes are ordered", async t => {
 
 test("MLST have profiles", async t => {
   if (shouldRunCgMlst()) {
-    t.pass("Skipping for cgmlst")
-    return
+    t.pass("Skipping for cgmlst");
+    return;
   }
 
   const metadataFiles = await globAsync(

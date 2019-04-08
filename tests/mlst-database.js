@@ -1,5 +1,5 @@
 const { test } = require("ava");
-const logger = require("debug");
+// const logger = require("debug");
 const _ = require("lodash");
 
 const { Scheme } = require("../src/mlst-database");

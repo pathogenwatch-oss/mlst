@@ -12,7 +12,7 @@ function warn(title) {
 
 function fail(title) {
   return message => {
-    const content = `${new Date()}:fatal:${title}|${message}\n`
+    const content = `${new Date()}:fatal:${title}|${message}\n`;
     fs.writeSync(2, content);
     process.exit(1);
   };

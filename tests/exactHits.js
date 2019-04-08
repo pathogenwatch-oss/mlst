@@ -1,10 +1,8 @@
 const { test } = require("ava");
 const fs = require("fs");
 const path = require("path");
-const { promisify } = require("util");
-const Promise = require("bluebird");
 const _ = require("lodash");
-const logger = require("debug");
+// const logger = require("debug");
 
 const { findExactHits } = require("../src/exactHits");
 const { loadSequencesFromStream } = require("../src/utils");
