@@ -797,7 +797,7 @@ class CgMlstSchemes {
           }
         }),
         schemeTargets: [{ name: "Neisseria gonorrhoeae", taxid: 485 }]
-        },
+      },
         {
           scheme: new BigsDbRestScheme({
             schemeUrl:
@@ -883,7 +883,7 @@ class CgMlstSchemes {
       {
         scheme: new GithubScheme({
           schemeUrl:
-            "https://api.github.com/repos/bewt85/pneumo-cgmlst/releases/latest",
+            "https://api.github.com/repos/nickjcroucher/pneumo-cgmlst/releases/latest",
           schemeSize: 1447,
           downloadFn: this.downloadFn,
           metadata: {
