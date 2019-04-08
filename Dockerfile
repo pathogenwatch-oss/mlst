@@ -16,7 +16,7 @@ RUN     mkdir -p /usr/local/mlst /opt/mlst/databases && \
         chmod -R a+w /opt/mlst/databases
 COPY    *.js *.json /usr/local/mlst/
 COPY    src /usr/local/mlst/src/
-SHELL   ["/bin/bash", "-c"]
+SHELL   ["/bin/sh", "-c"]
 ARG     RUN_CORE_GENOME_MLST
 RUN     DEBUG='*,-trace:index' \
         npm run index && \

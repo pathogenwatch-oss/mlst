@@ -665,221 +665,221 @@ class CgMlstSchemes {
     this.maxSeqs = options.maxSeqs;
     this.dataDir = options.dataDir || "/opt/mlst/databases";
     this.schemes = [
-      // {
-      //   scheme: new EnterobaseScheme({
-      //     schemeUrl:
-      //       "http://enterobase.warwick.ac.uk/schemes/Salmonella.cgMLSTv2/GENE_NAME_HERE.fasta.gz",
-      //     downloadFn: this.downloadFn,
-      //     schemeSize: 3002,
-      //     metadata: {
-      //       schemeName: "Salmonella enterica cgMLST V2",
-      //       cite: [
-      //         {
-      //           text: "Alikhan et al. (2018) PLoS Genet 14 (4): e1007261",
-      //           url: "https://doi.org/10.1371/journal.pgen.1007261"
-      //         }
-      //       ]
-      //     }
-      //   }),
-      //   schemeTargets: [{ name: "Salmonella enterica", taxid: 28901 }]
-      // },
-      // {
-      //   scheme: new EnterobaseScheme({
-      //     schemeUrl:
-      //       "http://enterobase.warwick.ac.uk/schemes/Escherichia.cgMLSTv1/GENE_NAME_HERE.fasta.gz",
-      //     downloadFn: this.downloadFn,
-      //     schemeSize: 2513,
-      //     metadata: {
-      //       schemeName: "Escherichia/Shigella cgMLSTv1",
-      //       cite: [
-      //         {
-      //           text: "Alikhan et al. (2018) PLoS Genet 14 (4): e1007261",
-      //           url: "https://doi.org/10.1371/journal.pgen.1007261"
-      //         }
-      //       ]
-      //     }
-      //   }),
-      //   schemeTargets: [
-      //     { name: "Escherichia", taxid: 561 },
-      //     { name: "Shigella", taxid: 620 }
-      //   ]
-      // },
-      // {
-      //   scheme: new BigsDbRestScheme({
-      //     schemeUrl:
-      //       "http://api.bigsdb.pasteur.fr/db/pubmlst_klebsiella_seqdef_public/schemes/3",
-      //     downloadFn: this.downloadFn,
-      //     schemeSize: 632,
-      //     metadata: {
-      //       schemeName:
-      //         "Klebsiella pneumoniae/quasipneumoniae/variicola scgMLST634",
-      //       cite: []
-      //     }
-      //   }),
-      //   schemeTargets: [
-      //     { name: "Klebsiella pneumoniae", taxid: 573 },
-      //     { name: "Klebsiella quasipneumoniae", taxid: 1463165 },
-      //     { name: "Klebsiella variicola", taxid: 244366 }
-      //   ]
-      // },
-      // {
-      //   scheme: new BigsDbRestScheme({
-      //     schemeUrl:
-      //       "http://api.bigsdb.pasteur.fr/db/pubmlst_listeria_seqdef_public/schemes/3",
-      //     downloadFn: this.downloadFn,
-      //     schemeSize: 1748,
-      //     metadata: {
-      //       schemeName: "Listeria cgMLST1748",
-      //       cite: []
-      //     }
-      //   }),
-      //   schemeTargets: [{ name: "Listeria", taxid: 1637 }]
-      // },
-      // {
-      //   scheme: new BigsDbRestScheme({
-      //     schemeUrl:
-      //       "http://rest.pubmlst.org/db/pubmlst_campylobacter_seqdef/schemes/4",
-      //     downloadFn: this.downloadFn,
-      //     schemeSize: 1343,
-      //     metadata: {
-      //       schemeName: "C. jejuni / C. coli cgMLST v1.0",
-      //       cite: [
-      //         {
-      //           text: "Jolley & Maiden 2010, BMC Bioinformatics, 11:595",
-      //           url: "http://www.biomedcentral.com/1471-2105/11/595/abstract",
-      //           long:
-      //             "This tool made use of the Campylobacter Multi Locus Sequence Typing website (https://pubmlst.org/campylobacter/) sited at the University of Oxford"
-      //         }
-      //       ]
-      //     }
-      //   }),
-      //   schemeTargets: [
-      //     { name: "Campylobacter jejuni", taxid: 197 },
-      //     { name: "Campylobacter coli", taxid: 195 }
-      //   ]
-      // },
-      // {
-      //   scheme: new BigsDbRestScheme({
-      //     schemeUrl:
-      //       "http://rest.pubmlst.org/db/pubmlst_neisseria_seqdef/schemes/47",
-      //     downloadFn: this.downloadFn,
-      //     schemeSize: 1605,
-      //     metadata: {
-      //       schemeName: "N. meningitidis cgMLST v1.0",
-      //       cite: [
-      //         {
-      //           text: "Jolley & Maiden 2010, BMC Bioinformatics, 11:595",
-      //           url: "http://www.biomedcentral.com/1471-2105/11/595/abstract",
-      //           long:
-      //             "This tool made use of the Neisseria Multi Locus Sequence Typing website (https://pubmlst.org/neisseria/) developed by Keith Jolley and sited at the University of Oxford"
-      //         }
-      //       ]
-      //     }
-      //     }),
-      //     schemeTargets: [{ name: "Neisseria meningitidis", taxid: 487 }]
-      //   },
-      //   {
-      //     scheme: new BigsDbRestScheme({
-      //       schemeUrl:
-      //         "http://rest.pubmlst.org/db/pubmlst_neisseria_seqdef/schemes/62",
-      //     downloadFn: this.downloadFn,
-      //     schemeSize: 1649,
-      //       metadata: {
-      //         schemeName: "N. gonorrhoeae cgMLST v1.0",
-      //         cite: [
-      //           {
-      //             text: "Jolley & Maiden 2010, BMC Bioinformatics, 11:595",
-      //             url: "http://www.biomedcentral.com/1471-2105/11/595/abstract",
-      //             long:
-      //               "This tool made use of the Neisseria Multi Locus Sequence Typing website (https://pubmlst.org/neisseria/) developed by Keith Jolley and sited at the University of Oxford"
-      //           }
-      //         ]
-      //       }
-      //   }),
-      //   schemeTargets: [{ name: "Neisseria gonorrhoeae", taxid: 485 }]
-      //   },
-      //   {
-      //     scheme: new BigsDbRestScheme({
-      //       schemeUrl:
-      //         "http://rest.pubmlst.org/db/pubmlst_saureus_seqdef/schemes/2",
-      //       downloadFn: this.downloadFn,
-      //       schemeSize: 2208,
-      //       metadata: {
-      //       schemeName: "S. aureus Core 2208",
-      //         cite: [
-      //           {
-      //             text: "Jolley & Maiden 2010, BMC Bioinformatics, 11:595",
-      //             url: "http://www.biomedcentral.com/1471-2105/11/595/abstract",
-      //             long:
-      //               "This tool made use of the Staphylococcus aureus MLST website (https://pubmlst.org/saureus/) sited at the University of Oxford"
-      //           }
-      //         ]
-      //     }
-      //     }),
-      //   schemeTargets: [{ name: "Staphylococcus aureus", taxid: 1280 }]
-      // },
-      // {
-      //   scheme: new RidomScheme({
-      //     schemeUrl: "https://www.cgmlst.org/ncs/schema/3956907/alleles/",
-      //     schemeSize: 2390,
-      //     downloadFn: this.downloadFn,
-      //     metadata: {
-      //       schemeName: "Acinetobacter baumannii",
-      //       cite: [
-      //         {
-      //           text: "Higgins PG et al. (2017) PLoS ONE. 12",
-      //           url: "https://www.ncbi.nlm.nih.gov/pubmed/28594944",
-      //           long:
-      //             "Higgins PG, Prior K, Harmsen D, and Seifert H. Development and evaluation of a core genome multilocus typing scheme for whole-genome sequence-based typing of Acinetobacter baumannii. PLoS ONE. 2017, 12: e0179228: e0179228"
-      //         }
-      //       ]
-      //     }
-      //   }),
-      //   schemeTargets: [{ name: "Acinetobacter baumannii", taxid: 470 }]
-      // },
-      // {
-      //   scheme: new RidomScheme({
-      //     schemeUrl: "https://www.cgmlst.org/ncs/schema/991893/alleles/",
-      //     schemeSize: 1423,
-      //     downloadFn: this.downloadFn,
-      //     metadata: {
-      //       schemeName: "Enterococcus faecium",
-      //       cite: [
-      //         {
-      //           text: "de Been M et al. (2015) J. Clin. Microbiol. 53",
-      //           url: "https://www.ncbi.nlm.nih.gov/pubmed/26400782",
-      //           long:
-      //             "de Been M, Pinholt M, Top J, Bletz S, Mellmann A, van Schaik W, Brouwer E, Rogers M, Kraat Y, Bonten M, Corander J, Westh H, Harmsen D, and Willems RJ. Core Genome Multilocus Sequence Typing Scheme for High- Resolution Typing of Enterococcus faecium. J. Clin. Microbiol. 2015, 53: 3788-97: 3788-97"
-      //         }
-      //       ]
-      //     }
-      //   }),
-      //   schemeTargets: [{ name: "Enterococcus faecium", taxid: 1352 }]
-      // },
-      // {
-      //   scheme: new RidomScheme({
-      //     schemeUrl: "https://www.cgmlst.org/ncs/schema/741110/alleles/",
-      //     schemeSize: 2891,
-      //     downloadFn: this.downloadFn,
-      //     metadata: {
-      //       schemeName: "Mycobacterium tuberculosis/bovis/africanum/canettii",
-      //       cite: [
-      //         {
-      //           text: "Kohl TA et al. (2014) J. Clin. Microbiol. 52",
-      //           url: "https://www.ncbi.nlm.nih.gov/pubmed/24789177",
-      //           long:
-      //             "Kohl TA, Diel R, Harmsen D, Rothgänger J, Walter KM, Merker M, Weniger T, and Niemann S. Whole-genome-based Mycobacterium tuberculosis surveillance: a standardized, portable, and expandable approach. J. Clin. Microbiol. 2014, 52: 2479-86: 2479-86"
-      //         }
-      //       ]
-      //     }
-      //   }),
-      //   schemeTargets: [
-      //     { name: "Mycobacterium tuberculosis", taxid: 1773 },
-      //     { name: "Mycobacterium bovis", taxid: 1765 },
-      //     { name: "Mycobacterium africanum", taxid: 33894 },
-      //     { name: "Mycobacterium canettii", taxid: 78331 }
-      //   ]
-      // },
+      {
+        scheme: new EnterobaseScheme({
+          schemeUrl:
+            "http://enterobase.warwick.ac.uk/schemes/Salmonella.cgMLSTv2/GENE_NAME_HERE.fasta.gz",
+          downloadFn: this.downloadFn,
+          schemeSize: 3002,
+          metadata: {
+            schemeName: "Salmonella enterica cgMLST V2",
+            cite: [
+              {
+                text: "Alikhan et al. (2018) PLoS Genet 14 (4): e1007261",
+                url: "https://doi.org/10.1371/journal.pgen.1007261"
+              }
+            ]
+          }
+        }),
+        schemeTargets: [{ name: "Salmonella enterica", taxid: 28901 }]
+      },
+      {
+        scheme: new EnterobaseScheme({
+          schemeUrl:
+            "http://enterobase.warwick.ac.uk/schemes/Escherichia.cgMLSTv1/GENE_NAME_HERE.fasta.gz",
+          downloadFn: this.downloadFn,
+          schemeSize: 2513,
+          metadata: {
+            schemeName: "Escherichia/Shigella cgMLSTv1",
+            cite: [
+              {
+                text: "Alikhan et al. (2018) PLoS Genet 14 (4): e1007261",
+                url: "https://doi.org/10.1371/journal.pgen.1007261"
+              }
+            ]
+          }
+        }),
+        schemeTargets: [
+          { name: "Escherichia", taxid: 561 },
+          { name: "Shigella", taxid: 620 }
+        ]
+      },
+      {
+        scheme: new BigsDbRestScheme({
+          schemeUrl:
+            "http://api.bigsdb.pasteur.fr/db/pubmlst_klebsiella_seqdef_public/schemes/3",
+          downloadFn: this.downloadFn,
+          schemeSize: 632,
+          metadata: {
+            schemeName:
+              "Klebsiella pneumoniae/quasipneumoniae/variicola scgMLST634",
+            cite: []
+          }
+        }),
+        schemeTargets: [
+          { name: "Klebsiella pneumoniae", taxid: 573 },
+          { name: "Klebsiella quasipneumoniae", taxid: 1463165 },
+          { name: "Klebsiella variicola", taxid: 244366 }
+        ]
+      },
+      {
+        scheme: new BigsDbRestScheme({
+          schemeUrl:
+            "http://api.bigsdb.pasteur.fr/db/pubmlst_listeria_seqdef_public/schemes/3",
+          downloadFn: this.downloadFn,
+          schemeSize: 1748,
+          metadata: {
+            schemeName: "Listeria cgMLST1748",
+            cite: []
+          }
+        }),
+        schemeTargets: [{ name: "Listeria", taxid: 1637 }]
+      },
+      {
+        scheme: new BigsDbRestScheme({
+          schemeUrl:
+            "http://rest.pubmlst.org/db/pubmlst_campylobacter_seqdef/schemes/4",
+          downloadFn: this.downloadFn,
+          schemeSize: 1343,
+          metadata: {
+            schemeName: "C. jejuni / C. coli cgMLST v1.0",
+            cite: [
+              {
+                text: "Jolley & Maiden 2010, BMC Bioinformatics, 11:595",
+                url: "http://www.biomedcentral.com/1471-2105/11/595/abstract",
+                long:
+                  "This tool made use of the Campylobacter Multi Locus Sequence Typing website (https://pubmlst.org/campylobacter/) sited at the University of Oxford"
+              }
+            ]
+          }
+        }),
+        schemeTargets: [
+          { name: "Campylobacter jejuni", taxid: 197 },
+          { name: "Campylobacter coli", taxid: 195 }
+        ]
+      },
+      {
+        scheme: new BigsDbRestScheme({
+          schemeUrl:
+            "http://rest.pubmlst.org/db/pubmlst_neisseria_seqdef/schemes/47",
+          downloadFn: this.downloadFn,
+          schemeSize: 1605,
+          metadata: {
+            schemeName: "N. meningitidis cgMLST v1.0",
+            cite: [
+              {
+                text: "Jolley & Maiden 2010, BMC Bioinformatics, 11:595",
+                url: "http://www.biomedcentral.com/1471-2105/11/595/abstract",
+                long:
+                  "This tool made use of the Neisseria Multi Locus Sequence Typing website (https://pubmlst.org/neisseria/) developed by Keith Jolley and sited at the University of Oxford"
+              }
+            ]
+          }
+          }),
+          schemeTargets: [{ name: "Neisseria meningitidis", taxid: 487 }]
+        },
+        {
+          scheme: new BigsDbRestScheme({
+            schemeUrl:
+              "http://rest.pubmlst.org/db/pubmlst_neisseria_seqdef/schemes/62",
+          downloadFn: this.downloadFn,
+          schemeSize: 1649,
+            metadata: {
+              schemeName: "N. gonorrhoeae cgMLST v1.0",
+              cite: [
+                {
+                  text: "Jolley & Maiden 2010, BMC Bioinformatics, 11:595",
+                  url: "http://www.biomedcentral.com/1471-2105/11/595/abstract",
+                  long:
+                    "This tool made use of the Neisseria Multi Locus Sequence Typing website (https://pubmlst.org/neisseria/) developed by Keith Jolley and sited at the University of Oxford"
+                }
+              ]
+          }
+        }),
+        schemeTargets: [{ name: "Neisseria gonorrhoeae", taxid: 485 }]
+        },
+        {
+          scheme: new BigsDbRestScheme({
+            schemeUrl:
+              "http://rest.pubmlst.org/db/pubmlst_saureus_seqdef/schemes/2",
+            downloadFn: this.downloadFn,
+            schemeSize: 2208,
+            metadata: {
+            schemeName: "S. aureus Core 2208",
+              cite: [
+                {
+                  text: "Jolley & Maiden 2010, BMC Bioinformatics, 11:595",
+                  url: "http://www.biomedcentral.com/1471-2105/11/595/abstract",
+                  long:
+                    "This tool made use of the Staphylococcus aureus MLST website (https://pubmlst.org/saureus/) sited at the University of Oxford"
+                }
+              ]
+          }
+          }),
+        schemeTargets: [{ name: "Staphylococcus aureus", taxid: 1280 }]
+      },
+      {
+        scheme: new RidomScheme({
+          schemeUrl: "https://www.cgmlst.org/ncs/schema/3956907/alleles/",
+          schemeSize: 2390,
+          downloadFn: this.downloadFn,
+          metadata: {
+            schemeName: "Acinetobacter baumannii",
+            cite: [
+              {
+                text: "Higgins PG et al. (2017) PLoS ONE. 12",
+                url: "https://www.ncbi.nlm.nih.gov/pubmed/28594944",
+                long:
+                  "Higgins PG, Prior K, Harmsen D, and Seifert H. Development and evaluation of a core genome multilocus typing scheme for whole-genome sequence-based typing of Acinetobacter baumannii. PLoS ONE. 2017, 12: e0179228: e0179228"
+              }
+            ]
+          }
+        }),
+        schemeTargets: [{ name: "Acinetobacter baumannii", taxid: 470 }]
+      },
+      {
+        scheme: new RidomScheme({
+          schemeUrl: "https://www.cgmlst.org/ncs/schema/991893/alleles/",
+          schemeSize: 1423,
+          downloadFn: this.downloadFn,
+          metadata: {
+            schemeName: "Enterococcus faecium",
+            cite: [
+              {
+                text: "de Been M et al. (2015) J. Clin. Microbiol. 53",
+                url: "https://www.ncbi.nlm.nih.gov/pubmed/26400782",
+                long:
+                  "de Been M, Pinholt M, Top J, Bletz S, Mellmann A, van Schaik W, Brouwer E, Rogers M, Kraat Y, Bonten M, Corander J, Westh H, Harmsen D, and Willems RJ. Core Genome Multilocus Sequence Typing Scheme for High- Resolution Typing of Enterococcus faecium. J. Clin. Microbiol. 2015, 53: 3788-97: 3788-97"
+              }
+            ]
+          }
+        }),
+        schemeTargets: [{ name: "Enterococcus faecium", taxid: 1352 }]
+      },
+      {
+        scheme: new RidomScheme({
+          schemeUrl: "https://www.cgmlst.org/ncs/schema/741110/alleles/",
+          schemeSize: 2891,
+          downloadFn: this.downloadFn,
+          metadata: {
+            schemeName: "Mycobacterium tuberculosis/bovis/africanum/canettii",
+            cite: [
+              {
+                text: "Kohl TA et al. (2014) J. Clin. Microbiol. 52",
+                url: "https://www.ncbi.nlm.nih.gov/pubmed/24789177",
+                long:
+                  "Kohl TA, Diel R, Harmsen D, Rothgänger J, Walter KM, Merker M, Weniger T, and Niemann S. Whole-genome-based Mycobacterium tuberculosis surveillance: a standardized, portable, and expandable approach. J. Clin. Microbiol. 2014, 52: 2479-86: 2479-86"
+              }
+            ]
+          }
+        }),
+        schemeTargets: [
+          { name: "Mycobacterium tuberculosis", taxid: 1773 },
+          { name: "Mycobacterium bovis", taxid: 1765 },
+          { name: "Mycobacterium africanum", taxid: 33894 },
+          { name: "Mycobacterium canettii", taxid: 78331 }
+        ]
+      },
       {
         scheme: new GithubScheme({
           schemeUrl:
