@@ -15,14 +15,15 @@ update_cache:
   variables:
     ftp_proxy: $https_proxy
   script:
-  - touch /mnt/cache/cgps-mlst/test-delete-me || sleep 1800
+  # We don't want to download loads of data unless we can cache it.
   - if [ ! -d /mnt/cache/cgps-mlst/ ]; then echo "Cache directory is missing"; exit 1; fi
+  - ( cd /mnt/cache/cgps-mlst && touch delete-me && rm delete-me; ) || { echo "need write access to cache" && exit 100; }
   - mkdir -p /opt
   - ln -s $(pwd)/data /opt/mlst
   - rm -r node_modules || true
   - find . -type f | grep -v '.git\|tests' | xargs -n 10 ls -l
   - yarn install
-  # - DEBUG="*,-trace:curl,-trace:SlowDownloader:queued" npm run download
+  - DEBUG="*,-trace:curl,-trace:SlowDownloader:queued" npm run download
   - DEBUG="*,-trace:curl,-trace:SlowDownloader:queued" RUN_CORE_GENOME_MLST="yes" npm run download
   - rm data/cache/tmp || true
   - completed=$(date "+%Y%m%d%H%M%S")
