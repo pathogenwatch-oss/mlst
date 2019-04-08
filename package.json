@@ -1,6 +1,6 @@
 {
   "name": "cgps-mlst",
-  "version": "1.7.5",
+  "version": "1.7.6",
   "description": "Use PubMLST to type samples",
   "main": "index.js",
   "scripts": {
