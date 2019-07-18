@@ -1,2 +1,4 @@
 node_modules/*
 scratch.js
+index_dir
+.DS_Store

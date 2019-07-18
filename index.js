@@ -27,7 +27,7 @@ async function runMlst(inStream, taxidEnvVariables) {
     alleleLookupPrefixLength,
     genes,
     allelePaths,
-    schemeName
+    name: schemeName
   } = alleleMetadata;
   const maxSeqs = alleleMetadata.maxSeqs || 0;
 

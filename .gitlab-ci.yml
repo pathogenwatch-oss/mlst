@@ -1,128 +1,81 @@
 image: docker:latest
 
-stages:
-- update_cache
-- download
-- deploy
-
-update_cache:
-  image: node:8
-  stage: update_cache
-  cache:
-    key: node
-    paths:
-    - node_modules/
-  variables:
-    ftp_proxy: $https_proxy
-  script:
-  # We don't want to download loads of data unless we can cache it.
-  - if [ ! -d /mnt/cache/cgps-mlst/ ]; then echo "Cache directory is missing"; exit 1; fi
-  - ( cd /mnt/cache/cgps-mlst && touch delete-me && rm delete-me; ) || { echo "need write access to cache" && exit 100; }
-  - mkdir -p /opt
-  - ln -s $(pwd)/data /opt/mlst
-  - rm -r node_modules || true
-  - find . -type f | grep -v '.git\|tests' | xargs -n 10 ls -l
-  - yarn install
-  - DEBUG="*,-trace:curl,-trace:SlowDownloader:queued" npm run download
-  - DEBUG="*,-trace:curl,-trace:SlowDownloader:queued" RUN_CORE_GENOME_MLST="yes" npm run download
-  - rm data/cache/tmp || true
-  - completed=$(date "+%Y%m%d%H%M%S")
-  - echo -n "$completed" > data/cache/updated.txt
-  - tar -zcf /mnt/cache/cgps-mlst/${completed}.tgz data/cache
-  - ln -sfn /mnt/cache/cgps-mlst/${completed}.tgz /mnt/cache/cgps-mlst/latest.tgz
+all_mlst:
+  image: node:10
   only:
-  - web
-  artifacts:
-    paths:
-    - data/cache/
-    expire_in: 60 minutes
-
-download_mlst:
-  image: node:8
-  stage: download
-  cache:
-    key: node
-    paths:
-    - node_modules/
-  variables:
-    ftp_proxy: $https_proxy
+    variables:
+      - $RUN_CORE_GENOME_MLST == "no"
   script:
-  - mkdir -p /opt
-  - ln -s $(pwd)/data /opt/mlst
-  - yarn install
-  - if [[ -f /mnt/cache/cgps-mlst/latest.tgz ]]; then tar -xzf /mnt/cache/cgps-mlst/latest.tgz; fi
-  - if [[ -f data/cache/updated.txt ]]; then echo "[$(date)] Using cache from $(cat data/cache/updated.txt)"; else "[$(date)] No cache"; fi
-  - DEBUG="*,-trace:curl,-trace:SlowDownloader:queued" npm run download
-  only:
-  - tags
-  artifacts:
-    paths:
-    - data/cache/
-    expire_in: 60 minutes
+    - docker login -u "$CI_REGISTRY_USER" -p "$CI_REGISTRY_PASSWORD" $CI_REGISTRY
+    - git pull THE_DATA_REPO
+    - yarn install
+    - npm run index -- --type=mlst --index=index_dir --database=THE_DATA_REPO
+    - DATABASE_UPDATED=$(cat index_dir/updated.txt)
+    - if [[ -z "${CI_COMMIT_TAG:-}" ]]; then TAG="${DATABASE_UPDATED}-${CI_COMMIT_SHA::8}"; else TAG="${DATABASE_UPDATED}-${CI_COMMIT_TAG}"; fi
+    - docker build
+      --build-arg http_proxy=$http_proxy
+      --build-arg https_proxy=$https_proxy
+      --label "git-ref=${CI_COMMIT_REF_NAME},git-commit=${CI_COMMIT_SHA},gitlab-job-id=${CI_JOB_ID},database-updated=${DATABASE_UPDATED}"
+      --target test_build
+      -t "$CI_REGISTRY_IMAGE:mlst-test" .
+    - docker build
+      --build-arg http_proxy=$http_proxy
+      --build-arg https_proxy=$https_proxy
+      --label "git-ref=${CI_COMMIT_REF_NAME},git-commit=${CI_COMMIT_SHA},gitlab-job-id=${CI_JOB_ID},database-updated=${DATABASE_UPDATED}"
+      --target prod_build
+      -t "$CI_REGISTRY_IMAGE:mlst-$TAG" .
+    - docker push "$CI_REGISTRY_IMAGE:mlst-$TAG"
 
-download_cgmlst:
-  image: node:8
-  stage: download
-  cache:
-    key: node
-    paths:
-    - node_modules/
-  variables:
-    ftp_proxy: $https_proxy
-    RUN_CORE_GENOME_MLST: "yes"
-  script:
-  - mkdir -p /opt
-  - ln -s $(pwd)/data /opt/mlst
-  - yarn install
-  - if [[ -f /mnt/cache/cgps-mlst/latest.tgz ]]; then tar -xzf /mnt/cache/cgps-mlst/latest.tgz; fi
-  - if [[ -f data/cache/updated.txt ]]; then echo "[$(date)] Using cache from $(cat data/cache/updated.txt)"; else "[$(date)] No cache"; fi
-  - DEBUG="*" npm run download
+all_cgmlst:
+  image: node:10
   only:
-  - tags
-  artifacts:
-    paths:
-    - data/cache/
-    expire_in: 60 minutes
+    variables:
+      - $RUN_CORE_GENOME_MLST == "yes"
+  except:
+    variables:
+      - $SCHEME
+  script:
+    - docker login -u "$CI_REGISTRY_USER" -p "$CI_REGISTRY_PASSWORD" $CI_REGISTRY
+    - git pull THE_DATA_REPO
+    - yarn install
+    - npm run index -- --type=cgmlst --max-seqs 50 --index=index_dir --database=THE_DATA_REPO
+    - DATABASE_UPDATED=$(cat index_dir/updated.txt)
+    - if [[ -z "${CI_COMMIT_TAG:-}" ]]; then TAG="${DATABASE_UPDATED}-${CI_COMMIT_SHA::8}"; else TAG="${DATABASE_UPDATED}-${CI_COMMIT_TAG}"; fi
+    - docker build
+      --build-arg http_proxy=$http_proxy
+      --build-arg https_proxy=$https_proxy
+      --build-arg RUN_CORE_GENOME_MLST=yes
+      --label "git-ref=${CI_COMMIT_REF_NAME},git-commit=${CI_COMMIT_SHA},gitlab-job-id=${CI_JOB_ID},database-updated=${DATABASE_UPDATED}"
+      --target test_build
+      -t "$CI_REGISTRY_IMAGE:cgmlst-test" .
+    - docker build
+      --build-arg http_proxy=$http_proxy
+      --build-arg https_proxy=$https_proxy
+      --build-arg RUN_CORE_GENOME_MLST=yes
+      --label "git-ref=${CI_COMMIT_REF_NAME},git-commit=${CI_COMMIT_SHA},gitlab-job-id=${CI_JOB_ID},database-updated=${DATABASE_UPDATED}"
+      --target prod_build
+      -t "$CI_REGISTRY_IMAGE:cgmlst-$TAG" .
+    - docker push "$CI_REGISTRY_IMAGE:cgmlst-$TAG"
 
-deploy_mlst:
-  stage: deploy
-  script:
-  - docker pull ubuntu:latest
-  - docker pull node:8
-  - docker login -u "$CI_REGISTRY_USER" -p "$CI_REGISTRY_PASSWORD" $CI_REGISTRY
-  - if [[ -f data/cache/updated.txt ]]; then CACHE_DATE=$(cat data/cache/updated.txt); else echo "[$(date)] Missing cache date"; exit 1; fi
-  - if [[ -z "${CI_COMMIT_TAG:-}" ]]; then TAG="${CACHE_DATE}-${CI_COMMIT_SHA::8}"; else TAG="${CACHE_DATE}-${CI_COMMIT_TAG}"; fi
-  - echo "docker tag will be $TAG"
-  - docker build
-    --build-arg http_proxy=$http_proxy
-    --build-arg https_proxy=$https_proxy
-    --build-arg ftp_proxy=$https_proxy
-    --label "git-ref=${CI_COMMIT_REF_NAME},git-commit=${CI_COMMIT_SHA},gitlab-job-id=${CI_JOB_ID},download-cache-date=${CACHE_DATE}"
-    -t "$CI_REGISTRY_IMAGE:mlst-$TAG" .
-  - docker push "$CI_REGISTRY_IMAGE:mlst-$TAG"
-  - echo "Pushed $CI_REGISTRY_IMAGE:mlst-$TAG"
+cgmlst:
+  image: node:10
   only:
-  - tags
-  - web
-
-deploy_cgmlst:
-  stage: deploy
+    variables:
+      - $RUN_CORE_GENOME_MLST == "yes"
+      - $SCHEME
   script:
-  - docker pull ubuntu:latest
-  - docker pull node:8
-  - docker login -u "$CI_REGISTRY_USER" -p "$CI_REGISTRY_PASSWORD" $CI_REGISTRY
-  - if [[ -f data/cache/updated.txt ]]; then CACHE_DATE=$(cat data/cache/updated.txt); else echo "[$(date)] Missing cache date"; exit 1; fi
-  - if [[ -z "${CI_COMMIT_TAG:-}" ]]; then TAG="${CACHE_DATE}-${CI_COMMIT_SHA::8}"; else TAG="${CACHE_DATE}-${CI_COMMIT_TAG}"; fi
-  - echo "docker tag will be $TAG"
-  - docker build
-    --build-arg http_proxy=$http_proxy
-    --build-arg https_proxy=$https_proxy
-    --build-arg ftp_proxy=$https_proxy
-    --build-arg RUN_CORE_GENOME_MLST=yes
-    --label "git-ref=${CI_COMMIT_REF_NAME},git-commit=${CI_COMMIT_SHA},gitlab-job-id=${CI_JOB_ID},download-cache-date=${CACHE_DATE}"
-    -t "$CI_REGISTRY_IMAGE:cgmlst-$TAG" .
-  - docker push "$CI_REGISTRY_IMAGE:cgmlst-$TAG"
-  - echo "Pushed $CI_REGISTRY_IMAGE:cgmlst-$TAG"
-  only:
-  - tags
-  - web
+    - docker login -u "$CI_REGISTRY_USER" -p "$CI_REGISTRY_PASSWORD" $CI_REGISTRY
+    - git pull THE_DATA_REPO
+    - yarn install
+    - npm run index -- --type=cgmlst --scheme=$SCHEME --max-seqs 50 --index=index_dir --database=THE_DATA_REPO
+    - DATABASE_UPDATED=$(cat index_dir/updated.txt)
+    - if [[ -z "${CI_COMMIT_TAG:-}" ]]; then TAG="${DATABASE_UPDATED}-${CI_COMMIT_SHA::8}"; else TAG="${DATABASE_UPDATED}-${CI_COMMIT_TAG}"; fi
+    # We're not running tests unless we build all the schemes
+    - docker build
+      --build-arg http_proxy=$http_proxy
+      --build-arg https_proxy=$https_proxy
+      --build-arg RUN_CORE_GENOME_MLST=yes
+      --label "git-ref=${CI_COMMIT_REF_NAME},git-commit=${CI_COMMIT_SHA},gitlab-job-id=${CI_JOB_ID},database-updated=${DATABASE_UPDATED}"
+      -t "$CI_REGISTRY_IMAGE:cgmlst-$SCHEME-$TAG" .
+      --target prod_build
+    - docker push "$CI_REGISTRY_IMAGE:cgmlst-$SCHEME-$TAG"

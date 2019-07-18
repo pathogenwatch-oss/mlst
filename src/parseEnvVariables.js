@@ -1,8 +1,7 @@
 const logger = require("debug");
 
-const { getFromCache } = require("./download");
-const { PubMlstSevenGeneSchemes, CgMlstSchemes } = require("./mlst-database");
 const { fail } = require("./utils");
+const { readScheme } = require("./mlst-database");
 
 function shouldRunCgMlst(taxidEnvVariables = process.env) {
   const cgMlstFlag = taxidEnvVariables.RUN_CORE_GENOME_MLST || "";
@@ -10,52 +9,64 @@ function shouldRunCgMlst(taxidEnvVariables = process.env) {
 }
 
 async function getMetadata(taxidEnvVariables = process.env) {
-  const RUN_CORE_GENOME_MLST = shouldRunCgMlst(taxidEnvVariables);
-
-  let schemes;
-  if (RUN_CORE_GENOME_MLST) {
-    schemes = new CgMlstSchemes({
-      downloadFn: getFromCache,
-      maxSeqs: 50
-    });
-  } else {
-    schemes = new PubMlstSevenGeneSchemes({
-      downloadFn: getFromCache,
-      ftpDownloadFn: getFromCache
-    });
-  }
-
   let taxid;
-  let taxidVariableName;
-  let alleleMetadata;
+  let schemeMetadata;
 
-  if (taxidEnvVariables.WGSA_ORGANISM_TAXID) {
-    taxid = taxidEnvVariables.WGSA_ORGANISM_TAXID;
-    taxidVariableName = "WGSA_ORGANISM_TAXID";
-    alleleMetadata = await schemes.read(taxid);
+  const {
+    TAXID,
+    ORGANISM_TAXID,
+    PATHOGENWATCH_ORGANISM_TAXID,
+    WGSA_ORGANISM_TAXID,
+    SPECIES_TAXID,
+    PATHOGENWATCH_SPECIES_TAXID,
+    WGSA_SPECIES_TAXID,
+    GENUS_TAXID,
+    PATHOGENWATCH_GENUS_TAXID,
+    WGSA_GENUS_TAXID
+  } = taxidEnvVariables;
+  
+  const variablesNames = [
+    "TAXID",
+    "ORGANISM_TAXID",
+    "PATHOGENWATCH_ORGANISM_TAXID",
+    "WGSA_ORGANISM_TAXID",
+    "SPECIES_TAXID",
+    "PATHOGENWATCH_SPECIES_TAXID",
+    "WGSA_SPECIES_TAXID",
+    "GENUS_TAXID",
+    "PATHOGENWATCH_GENUS_TAXID",
+    "WGSA_GENUS_TAXID"
+  ]
+  
+  const variableValues = [
+    TAXID,
+    ORGANISM_TAXID,
+    PATHOGENWATCH_ORGANISM_TAXID,
+    WGSA_ORGANISM_TAXID,
+    SPECIES_TAXID,
+    PATHOGENWATCH_SPECIES_TAXID,
+    WGSA_SPECIES_TAXID,
+    GENUS_TAXID,
+    PATHOGENWATCH_GENUS_TAXID,
+    WGSA_GENUS_TAXID
+  ]
+  
+  for (let i=0; i<variableValues.length; i++) {
+    if (variableValues[i] !== undefined) {
+      taxid = variableValues[i];
+      schemeMetadata = await readScheme(taxid)
+      if (schemeMetadata !== undefined) {
+        logger("params")({ [variablesNames[i]]: taxid });
+        return schemeMetadata
+      } else {
+        logger("debug")(`No scheme for ${taxid}`)
+      }
+    }
   }
 
-  if (!alleleMetadata && taxidEnvVariables.WGSA_SPECIES_TAXID) {
-    taxid = taxidEnvVariables.WGSA_SPECIES_TAXID;
-    taxidVariableName = "WGSA_SPECIES_TAXID";
-    alleleMetadata = await schemes.read(taxid);
-  }
-
-  if (!alleleMetadata && taxidEnvVariables.WGSA_GENUS_TAXID) {
-    taxid = taxidEnvVariables.WGSA_GENUS_TAXID;
-    taxidVariableName = "WGSA_GENUS_TAXID";
-    alleleMetadata = await schemes.read(taxid);
-  }
-
-  if (!alleleMetadata) {
-    fail("Missing organism")(
-      "Need one of WGSA_ORGANISM_TAXID, WGSA_SPECIES_TAXID or WGSA_GENUS_TAXID"
-    );
-  }
-
-  logger("params")({ taxidVariableName, taxid });
-
-  return alleleMetadata;
+  return fail("Missing organism")(
+    `Need one of ${variablesNames.join(',')}`
+  );
 }
 
 module.exports = { getMetadata, shouldRunCgMlst };

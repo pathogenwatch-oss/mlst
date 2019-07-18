@@ -6,15 +6,12 @@
   "scripts": {
     "test": "node --max_old_space_size=4096 ./node_modules/.bin/ava tests/",
     "lint": "eslint **/*.js *.js",
-    "download": "node ./src/mlst-database.js download",
     "index": "node --max_old_space_size=4096 ./src/mlst-database.js index"
   },
   "author": "",
   "license": "MIT",
   "dependencies": {
-    "adm-zip": "0.4.9",
     "async-lock": "^1.0.0",
-    "axios": "^0.16.2",
     "bionode-fasta": "^0.5.6",
     "bluebird": "^3.5.1",
     "cheerio": "^1.0.0-rc.2",
@@ -31,8 +28,7 @@
     "tar": "^3.1.9",
     "through": "^2.3.8",
     "tmp": "0.0.31",
-    "tmp-promise": "^1.0.4",
-    "xml2js": "^0.4.17"
+    "tmp-promise": "^1.0.4"
   },
   "devDependencies": {
     "ava": "^0.25.0",
@@ -40,6 +36,7 @@
     "eslint-config-cgps": "github:imperialcollegelondon/eslint-config-cgps",
     "eslint-config-prettier": "^2.3.0",
     "eslint-plugin-prettier": "^2.1.2",
-    "prettier": "^1.5.3"
+    "prettier": "^1.5.3",
+    "yargs": "^13.3.0"
   }
 }
