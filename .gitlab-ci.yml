@@ -28,6 +28,7 @@ deploy all mlst schemes:
   variables:
     GIT_CLEAN_FLAGS: -ffdx -e index_dir/
   script:
+    - ls
     - docker login -u "$CI_REGISTRY_USER" -p "$CI_REGISTRY_PASSWORD" $CI_REGISTRY
     - DATABASE_UPDATED=$(cat index_dir/updated.txt)
     - if [[ -z "${CI_COMMIT_TAG:-}" ]]; then TAG="${DATABASE_UPDATED}-${CI_COMMIT_SHA::8}"; else TAG="${DATABASE_UPDATED}-${CI_COMMIT_TAG}"; fi
