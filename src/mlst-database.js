@@ -275,6 +275,14 @@ function parseAlleleName(allele) {
   }
 }
 
+async function readSchemeUpdatedDate(schemeDir) {
+  try {
+    return await readFileAsync(path.join(schemeDir, 'updated.txt'));
+  } catch (err) {
+    return "0"
+  }
+}
+
 async function main() {
   const yargs = require("yargs")
   const { argv } = yargs
@@ -325,6 +333,8 @@ async function main() {
   }
   logger('info')(`Found ${schemes.length} schemes`)
 
+  let latestSchemeUpdate = await readSchemeUpdatedDate(argv.index)
+
   for (const schemeData of schemes) {
     const { path: path_, targets, ...metadata } = schemeData;
     const { name: schemeName, url, shortname, type } = metadata;
@@ -345,7 +355,11 @@ async function main() {
       }
     }
     await updateMetadata(argv.index, update)
+    const schemeUpdated = await readSchemeUpdatedDate(dataDir);
+    latestSchemeUpdate = schemeUpdated > latestSchemeUpdate ? schemeUpdated : latestSchemeUpdate;
   }
+
+  await writeFileAsync(path.join(argv.index, 'updated.txt'), latestSchemeUpdate)
 }
 
 module.exports = {
