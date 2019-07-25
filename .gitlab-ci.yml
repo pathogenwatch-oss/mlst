@@ -19,6 +19,8 @@ deploy all mlst schemes:
   only:
     variables:
       - $RUN_CORE_GENOME_MLST == "no"
+  variables:
+    GIT_CLEAN_FLAGS: -ffdx -e index_dir/
   script:
     - docker login -u "$CI_REGISTRY_USER" -p "$CI_REGISTRY_PASSWORD" $CI_REGISTRY
     - DATABASE_UPDATED=$(cat index_dir/updated.txt)
@@ -60,6 +62,8 @@ deploy all cgmlst schemes:
   except:
     variables:
       - $SCHEME
+  variables:
+    GIT_CLEAN_FLAGS: -ffdx -e index_dir/
   script:
     - docker login -u "$CI_REGISTRY_USER" -p "$CI_REGISTRY_PASSWORD" $CI_REGISTRY
     - DATABASE_UPDATED=$(cat index_dir/updated.txt)
@@ -100,6 +104,8 @@ deploy some cgmlst schemes:
     variables:
       - $RUN_CORE_GENOME_MLST == "yes"
       - $SCHEME
+  variables:
+    GIT_CLEAN_FLAGS: -ffdx -e index_dir/
   script:
     - docker login -u "$CI_REGISTRY_USER" -p "$CI_REGISTRY_PASSWORD" $CI_REGISTRY
     - DATABASE_UPDATED=$(cat index_dir/updated.txt)
