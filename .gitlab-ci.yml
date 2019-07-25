@@ -1,15 +1,13 @@
 image: docker:latest
 
 all_mlst:
-  image: node:10
   only:
     variables:
       - $RUN_CORE_GENOME_MLST == "no"
   script:
     - docker login -u "$CI_REGISTRY_USER" -p "$CI_REGISTRY_PASSWORD" $CI_REGISTRY
     - git clone https://gitlab.com/cgps/cgps-typing-databases.git
-    - yarn install
-    - npm run index -- --type=mlst --index=index_dir --database=cgps-typing-databases
+    - docker run -i --rm -v $(pwd):$(pwd) -w $(pwd) -e RUN_CORE_GENOME_MLST node:10 bash -c "yarn install && npm run index -- --type=mlst --index=index_dir --database=cgps-typing-databases"
     - DATABASE_UPDATED=$(cat index_dir/updated.txt)
     - if [[ -z "${CI_COMMIT_TAG:-}" ]]; then TAG="${DATABASE_UPDATED}-${CI_COMMIT_SHA::8}"; else TAG="${DATABASE_UPDATED}-${CI_COMMIT_TAG}"; fi
     - docker build
@@ -27,7 +25,6 @@ all_mlst:
     - docker push "$CI_REGISTRY_IMAGE:mlst-$TAG"
 
 all_cgmlst:
-  image: node:10
   only:
     variables:
       - $RUN_CORE_GENOME_MLST == "yes"
@@ -37,8 +34,7 @@ all_cgmlst:
   script:
     - docker login -u "$CI_REGISTRY_USER" -p "$CI_REGISTRY_PASSWORD" $CI_REGISTRY
     - git clone https://gitlab.com/cgps/cgps-typing-databases.git
-    - yarn install
-    - npm run index -- --type=cgmlst --max-seqs 50 --index=index_dir --database=cgps-typing-databases
+    - docker run -i --rm -v $(pwd):$(pwd) -w $(pwd) -e RUN_CORE_GENOME_MLST node:10 bash -c "yarn install && npm run index -- --type=cgmlst --max-seqs 50 --index=index_dir --database=cgps-typing-databases"
     - DATABASE_UPDATED=$(cat index_dir/updated.txt)
     - if [[ -z "${CI_COMMIT_TAG:-}" ]]; then TAG="${DATABASE_UPDATED}-${CI_COMMIT_SHA::8}"; else TAG="${DATABASE_UPDATED}-${CI_COMMIT_TAG}"; fi
     - docker build
@@ -58,7 +54,6 @@ all_cgmlst:
     - docker push "$CI_REGISTRY_IMAGE:cgmlst-$TAG"
 
 cgmlst:
-  image: node:10
   only:
     variables:
       - $RUN_CORE_GENOME_MLST == "yes"
@@ -66,8 +61,7 @@ cgmlst:
   script:
     - docker login -u "$CI_REGISTRY_USER" -p "$CI_REGISTRY_PASSWORD" $CI_REGISTRY
     - git clone https://gitlab.com/cgps/cgps-typing-databases.git
-    - yarn install
-    - npm run index -- --type=cgmlst --scheme=$SCHEME --max-seqs 50 --index=index_dir --database=cgps-typing-databases
+    - docker run -i --rm -v $(pwd):$(pwd) -w $(pwd) -e RUN_CORE_GENOME_MLST -e SCHEME node:10 bash -c "yarn install && npm run index -- --type=cgmlst --scheme=$SCHEME --max-seqs 50 --index=index_dir --database=cgps-typing-databases"
     - DATABASE_UPDATED=$(cat index_dir/updated.txt)
     - if [[ -z "${CI_COMMIT_TAG:-}" ]]; then TAG="${DATABASE_UPDATED}-${CI_COMMIT_SHA::8}"; else TAG="${DATABASE_UPDATED}-${CI_COMMIT_TAG}"; fi
     # We're not running tests unless we build all the schemes
