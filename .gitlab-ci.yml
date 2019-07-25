@@ -9,7 +9,7 @@ index all mlst schemes:
     variables:
       - $RUN_CORE_GENOME_MLST == "no"
   script:
-    - git clone https://gitlab.com/cgps/cgps-typing-databases.git
+    - git clone https://gitlab-ci-token:${CI_JOB_TOKEN}@gitlab.com/cgps/cgps-typing-databases.git
     - yarn install
     - npm run index -- --type=mlst --index=index_dir --database=cgps-typing-databases
 
@@ -47,7 +47,7 @@ index all cgmlst schemes:
     variables:
       - $SCHEME
   script:
-    - git clone https://gitlab.com/cgps/cgps-typing-databases.git
+    - git clone https://gitlab-ci-token:${CI_JOB_TOKEN}@gitlab.com/cgps/cgps-typing-databases.git
     - yarn install
     - npm run index -- --type=cgmlst --max-seqs 50 --index=index_dir --database=cgps-typing-databases
 
@@ -89,7 +89,7 @@ index some cgmlst schemes:
       - $SCHEME
   script:
     - docker login -u "$CI_REGISTRY_USER" -p "$CI_REGISTRY_PASSWORD" $CI_REGISTRY
-    - git clone https://gitlab.com/cgps/cgps-typing-databases.git
+    - git clone https://gitlab-ci-token:${CI_JOB_TOKEN}@gitlab.com/cgps/cgps-typing-databases.git
     - yarn install
     - npm run index -- --type=cgmlst --scheme=$SCHEME --max-seqs 50 --index=index_dir --database=cgps-typing-databases
 
