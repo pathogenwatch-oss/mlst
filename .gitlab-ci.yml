@@ -2,7 +2,7 @@ stages:
   - index
   - deploy
 
-all_mlst:
+index all mlst schemes:
   stage: index
   image: node:10
   only:
@@ -13,7 +13,7 @@ all_mlst:
     - yarn install
     - npm run index -- --type=mlst --index=index_dir --database=cgps-typing-databases
 
-all_mlst:
+deploy all mlst schemes:
   stage: deploy
   image: docker:latest
   only:
@@ -37,7 +37,7 @@ all_mlst:
       -t "$CI_REGISTRY_IMAGE:mlst-$TAG" .
     - docker push "$CI_REGISTRY_IMAGE:mlst-$TAG"
 
-all_cgmlst:
+index all cgmlst schemes:
   stage: index
   image: node:10
   only:
@@ -51,7 +51,7 @@ all_cgmlst:
     - yarn install
     - npm run index -- --type=cgmlst --max-seqs 50 --index=index_dir --database=cgps-typing-databases
 
-all_cgmlst:
+deploy all cgmlst schemes:
   stage: deploy
   image: docker:latest
   only:
@@ -80,7 +80,7 @@ all_cgmlst:
       -t "$CI_REGISTRY_IMAGE:cgmlst-$TAG" .
     - docker push "$CI_REGISTRY_IMAGE:cgmlst-$TAG"
 
-cgmlst:
+index some cgmlst schemes:
   stage: index
   image: node:10
   only:
@@ -93,7 +93,7 @@ cgmlst:
     - yarn install
     - npm run index -- --type=cgmlst --scheme=$SCHEME --max-seqs 50 --index=index_dir --database=cgps-typing-databases
 
-cgmlst:
+deploy some cgmlst schemes:
   stage: deploy
   image: docker:latest
   only:
