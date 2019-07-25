@@ -266,7 +266,7 @@ async function readScheme(taxid, indexDir=DEFAULT_INDEX_DIR) {
 
 function parseAlleleName(allele) {
   try {
-    const matches = /^(.+)_([0-9]+)$/.exec(allele);
+    const matches = /^(.+)_([0-9]+(\.[0-9]+)?)$/.exec(allele);
     const [gene, st] = matches.slice(1);
     return { gene, st: Number(st) };
   } catch (err) {
@@ -315,6 +315,10 @@ async function main() {
   await mkdirp(argv.index)
   if (argv.scheme) {
     schemes = _.filter(schemes, s => argv.scheme.includes(s.shortname))
+    const found = new Set(_.map(schemes, 'shortname'))
+    for (const scheme of argv.scheme) {
+      if (!found.has(scheme)) throw Error(`Could not find ${scheme}`)
+    }
   }
   if (argv.type) {
     schemes = _.filter(schemes, s => s.type === argv.type);

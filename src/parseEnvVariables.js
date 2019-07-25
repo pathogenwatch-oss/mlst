@@ -24,7 +24,7 @@ async function getMetadata(taxidEnvVariables = process.env) {
     PATHOGENWATCH_GENUS_TAXID,
     WGSA_GENUS_TAXID
   } = taxidEnvVariables;
-  
+
   const variablesNames = [
     "TAXID",
     "ORGANISM_TAXID",
@@ -37,7 +37,7 @@ async function getMetadata(taxidEnvVariables = process.env) {
     "PATHOGENWATCH_GENUS_TAXID",
     "WGSA_GENUS_TAXID"
   ]
-  
+
   const variableValues = [
     TAXID,
     ORGANISM_TAXID,
@@ -50,7 +50,7 @@ async function getMetadata(taxidEnvVariables = process.env) {
     PATHOGENWATCH_GENUS_TAXID,
     WGSA_GENUS_TAXID
   ]
-  
+
   for (let i=0; i<variableValues.length; i++) {
     if (variableValues[i] !== undefined) {
       taxid = variableValues[i];
