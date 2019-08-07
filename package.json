@@ -6,7 +6,7 @@
   "scripts": {
     "test": "node --max_old_space_size=4096 ./node_modules/.bin/ava tests/",
     "lint": "eslint **/*.js *.js",
-    "index": "node --max_old_space_size=4096 ./src/mlst-database.js index"
+    "index": "node --max_old_space_size=6144 ./src/mlst-database.js index"
   },
   "author": "",
   "license": "MIT",
