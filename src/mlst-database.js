@@ -50,8 +50,8 @@ class Scheme {
     const allelesPath = path.join(this.dataDir, `${gene}.fa`);
     const rawSeqs = await this._readFasta(allelesPath);
     return _.map(rawSeqs, s => {
-      const { id: st, seq, length } = s;
-      return { gene, st, length, seq };
+      const { id, seq, length } = s;
+      return { gene, st: Number(id), length, seq };
     });
   }
 
@@ -364,7 +364,8 @@ async function main() {
 
 module.exports = {
   readScheme,
-  parseAlleleName
+  parseAlleleName,
+  Scheme
 }
 
 if (require.main === module) {

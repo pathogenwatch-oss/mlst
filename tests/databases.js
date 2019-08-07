@@ -15,7 +15,7 @@ async function readJson(p) {
 }
 
 test("Check genes are ordered", async t => {
-  const metadataFiles = await globAsync("/opt/mlst/databases/**/metadata.json");
+  const metadataFiles = await globAsync("index_dir/*/*/metadata.json");
   await Promise.map(
     metadataFiles,
     async f => {
@@ -36,7 +36,7 @@ test("MLST have profiles", async t => {
   }
 
   const metadataFiles = await globAsync(
-    "/opt/mlst/databases/mlst_**/metadata.json"
+    "index_dir/mlst_schemes/*/metadata.json"
   );
   t.truthy(metadataFiles.length > 100, "Expected more metadata files");
   await Promise.map(
