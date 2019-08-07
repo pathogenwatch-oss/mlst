@@ -91,26 +91,24 @@ deploy all cgmlst schemes:
       -t "$CI_REGISTRY_IMAGE:cgmlst-$TAG" .
     - docker push "$CI_REGISTRY_IMAGE:cgmlst-$TAG"
 
-index some cgmlst schemes:
+index some schemes:
   stage: index
   image: node:10
   only:
     variables:
-      - $RUN_CORE_GENOME_MLST == "yes"
-      - $SCHEME
+      - $INDEX_PARAMS
   script:
     - git config --global url."https://gitlab-ci-token:${CI_JOB_TOKEN}@gitlab.com/".insteadOf "https://gitlab.com/"
     - ./bin/pull_database.sh cgps-typing-databases
     - yarn install
-    - npm run index -- --type=cgmlst --scheme=$SCHEME --max-seqs 50 --index=index_dir --database=cgps-typing-databases
+    - npm run index -- $INDEX_PARAMS --index=index_dir --database=cgps-typing-databases
 
-deploy some cgmlst schemes:
+deploy some schemes:
   stage: deploy
   image: docker:latest
   only:
     variables:
-      - $RUN_CORE_GENOME_MLST == "yes"
-      - $SCHEME
+      - $SCHEME_NAME
   variables:
     GIT_CLEAN_FLAGS: -ffdx -e index_dir/
   script:
@@ -121,8 +119,8 @@ deploy some cgmlst schemes:
     - docker build
       --build-arg http_proxy=$http_proxy
       --build-arg https_proxy=$https_proxy
-      --build-arg RUN_CORE_GENOME_MLST=yes
+      $BUILD_PARAMS
       --label "git-ref=${CI_COMMIT_REF_NAME},git-commit=${CI_COMMIT_SHA},gitlab-job-id=${CI_JOB_ID},database-updated=${DATABASE_UPDATED}"
-      -t "$CI_REGISTRY_IMAGE:cgmlst-$SCHEME-$TAG" .
+      -t "$CI_REGISTRY_IMAGE:${SCHEME_NAME}-$TAG" .
       --target prod_build
-    - docker push "$CI_REGISTRY_IMAGE:cgmlst-$SCHEME-$TAG"
+    - docker push "$CI_REGISTRY_IMAGE:${SCHEME_NAME}-$TAG"
