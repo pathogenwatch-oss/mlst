@@ -36,7 +36,9 @@ async function readJsonAsync(outputPath) {
 
 async function readGenes(genesFile) {
   const contents = await readFileAsync(genesFile, { encoding: 'utf8' });
-  return _.filter(contents.split('\n'), line => line);
+  const genes = _.filter(contents.split('\n'), line => line);
+  genes.sort();
+  return genes;
 }
 
 class Scheme {
@@ -354,7 +356,8 @@ async function main() {
         schemeName,
         url,
         type,
-        shortname
+        shortname,
+        maxSeqs
       }
     }
     await updateMetadata(argv.index, update)
