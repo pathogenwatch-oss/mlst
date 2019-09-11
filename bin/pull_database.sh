@@ -8,5 +8,5 @@ if [[ -d $DB_DIR ]]; then
   echo "Pulling database"
   cd $DB_DIR && git pull;
 else
-  git clone https://gitlab.com/cgps/cgps-typing-databases.git $DB_DIR
+  git clone --depth 1 https://gitlab.com/cgps/cgps-typing-databases.git $DB_DIR
 fi
