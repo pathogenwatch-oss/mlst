@@ -19,7 +19,7 @@ cat tests/testdata/saureus_duplicate.fasta | docker run -i -e WGSA_ORGANISM_TAXI
 You can get information for debugging by passing in the `DEBUG` environment variable:
 
 ```
-cat tests/testdata/saureus_duplicate.fasta | docker run -i -e WGSA_ORGANISM_TAXID=1280 -e DEBUG='*,-trace*' --rm registry.gitlab.com/cgps/cgps-mlst:mlst-v1.5.58
+cat tests/testdata/saureus_duplicate.fasta | docker run -i -e TAXID=1280 -e DEBUG='cgps:*,-cgps:trace*' --rm registry.gitlab.com/cgps/cgps-mlst:mlst-v1.5.58
 ```
 
 The output data also includes more details if you set the `DEBUG` environment variable.  This includes 
@@ -29,7 +29,7 @@ by setting `DEBUG='.'`.
 You can run Core Genome MLST by running the `cgmlst` container instead of the `mlst` container.
 
 ```
-cat tests/testdata/saureus_duplicate.fasta | docker run -i -e WGSA_ORGANISM_TAXID=1280 -e DEBUG='*' --rm registry.gitlab.com/cgps/cgps-mlst:cgmlst-v1.5.58
+cat tests/testdata/saureus_duplicate.fasta | docker run -i -e TAXID=1280 -e DEBUG='cgps:*' --rm registry.gitlab.com/cgps/cgps-mlst:cgmlst-v1.5.58
 ```
 
 ## Making a release
