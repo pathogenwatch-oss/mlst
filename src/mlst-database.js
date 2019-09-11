@@ -7,6 +7,7 @@ const mkdirp = require("mkdirp-promise");
 const path = require("path");
 const readline = require("readline");
 const { promisify } = require("util");
+const zlib = require("zlib");
 
 const {
   reverseCompliment,
@@ -17,6 +18,7 @@ const {
 const readFileAsync = promisify(fs.readFile);
 const writeFileAsync = promisify(fs.writeFile);
 const existsAsync = promisify(fs.exists);
+const gzipAsync = promisify(zlib.gzip);
 
 const DEFAULT_INDEX_DIR = 'index_dir'
 
@@ -47,7 +49,7 @@ class Scheme {
   }
 
   async alleles(gene) {
-    const allelesPath = path.join(this.dataDir, `${gene}.fa`);
+    const allelesPath = path.join(this.dataDir, `${gene}.fa.gz`);
     const rawSeqs = await this._readFasta(allelesPath);
     return _.map(rawSeqs, s => {
       const { id, seq, length } = s;
@@ -216,11 +218,12 @@ class Scheme {
   }
 
   async write(schemeDir, gene, alleles) {
-    const outpath = path.join(schemeDir, `${gene}.fa`);
+    const outpath = path.join(schemeDir, `${gene}.fa.gz`);
     const contents = _(alleles)
       .map(allele => `>${allele.gene}_${allele.st}\n${allele.seq}\n`)
       .join("");
-    await writeFileAsync(outpath, contents);
+    const zippedContent = await gzipAsync(contents)
+    await writeFileAsync(outpath, zippedContent);
     logger("cgps:trace:index")(
       `Wrote ${alleles.length} alleles for ${gene} to ${outpath}`
     );
@@ -228,7 +231,7 @@ class Scheme {
   }
 
   async _readFasta(fastaPath) {
-    const stream = fs.createReadStream(fastaPath);
+    const stream = fs.createReadStream(fastaPath).pipe(zlib.createGunzip());
     const rawSeqs = await loadSequencesFromStream(stream);
     return _.map(rawSeqs, (seq, id) => ({
       id,

@@ -3,6 +3,7 @@ const fasta = require("bionode-fasta");
 const fs = require("fs");
 const { Transform } = require("stream");
 const through = require("through");
+const zlib = require("zlib");
 
 const _ = require("lodash");
 
@@ -48,7 +49,7 @@ class DeferredPromise {
 
 function fastaSlice(path, start, end = 0) {
   let count = -1;
-  const inputStream = fs.createReadStream(path);
+  const inputStream = fs.createReadStream(path).pipe(zlib.createGunzip());
   const outputStream = through(function write(data) {
     count += 1;
     if (end !== 0 && count >= end) this.queue(null);
