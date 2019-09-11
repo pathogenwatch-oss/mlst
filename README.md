@@ -72,7 +72,7 @@ docker run -it --rm \
     -v $(cd data && pwd):/opt/mlst \
     -v $(pwd):/src:ro \
     -w /src \
-    -e DEBUG='*' \
+    -e DEBUG='cgps:*' \
     node:8 \
         npm run download
 ```
@@ -86,7 +86,7 @@ docker run -it --rm \
     -w /src \
     -e ENTEROBASE_API_KEY="your enterobase api key" \
     -e RUN_CORE_GENOME_MLST='yes' \
-    -e DEBUG='*' \
+    -e DEBUG='cgps:*' \
     node:8 \
         npm run download
 ```
