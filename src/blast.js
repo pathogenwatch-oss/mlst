@@ -47,24 +47,24 @@ async function makeBlastDb(inputFileStream) {
 
   const databasePath = path.join(blastDir, "blast.db");
   const command = `makeblastdb -title mlst -in - -dbtype nucl -out ${databasePath}`;
-  logger("debug:blast:makeBlastDb")(
+  logger("cgps:debug:blast:makeBlastDb")(
     `Creating Blast database '${databasePath}'`
   );
-  logger("trace:blast:makeBlastDb")(`Running '${command}'`);
+  logger("cgps:trace:blast:makeBlastDb")(`Running '${command}'`);
   const shell = spawn(command, { shell: true });
 
   shell.stdin.on("error", err => {
-    logger("error:blast:makeBlastDb")(err);
+    logger("cgps:error:blast:makeBlastDb")(err);
     output.reject(err);
   });
 
   shell.on("error", err => {
-    logger("error:blast:makeBlastDb")(err);
+    logger("cgps:error:blast:makeBlastDb")(err);
     output.reject(err);
   });
   shell.on("exit", async (code, signal) => {
     if (code === 0) {
-      logger("debug:blast:makeBlastDb")(
+      logger("cgps:debug:blast:makeBlastDb")(
         `Created Blast database '${databasePath}'`
       );
       const renamedSequences = await whenRenamedSequences;
@@ -94,7 +94,7 @@ function createBlastProcess(db, wordSize = 11, percIdentity = 0) {
     'qstart qend sstart send evalue bitscore nident" ' +
     `-word_size ${wordSize} ` +
     `-perc_identity ${percIdentity}`;
-  logger("debug:blast:run")(`Running '${command}'`);
+  logger("cgps:debug:blast:run")(`Running '${command}'`);
   const blastShell = spawn(command, { shell: true });
   blastShell.stdin.on("error", err => blastExit.reject(err));
   blastShell.on("error", err => blastExit.reject(err));

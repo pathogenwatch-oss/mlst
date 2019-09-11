@@ -142,16 +142,16 @@ class HitsStore {
   async addFromBlast(options) {
     const { stream, blastDb, wordSize, pIdent } = options;
     const [blast, blastExit] = createBlastProcess(blastDb, wordSize, pIdent);
-    logger("debug:startBlast")(`About to blast genes against ${blastDb}`);
+    logger("cgps:debug:startBlast")(`About to blast genes against ${blastDb}`);
 
     const blastResultsStream = blast.stdout.pipe(es.split());
     blastResultsStream.on("data", line => {
       if (line === "") return;
       const hit = parseBlastLine(line);
       if (this.add(hit)) {
-        logger("trace:mlst:addedHit")(line);
+        logger("cgps:trace:mlst:addedHit")(line);
       } else {
-        logger("trace:mlst:skippedHit")(line);
+        logger("cgps:trace:mlst:skippedHit")(line);
       }
     });
 

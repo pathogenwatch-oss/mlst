@@ -19,7 +19,7 @@ test("Check genes are ordered", async t => {
   await Promise.map(
     metadataFiles,
     async f => {
-      logger("test")(`Checking gene order for ${f}`);
+      logger("cgps:test")(`Checking gene order for ${f}`);
       const { genes } = await readJson(f);
       const unsorted = [...genes];
       genes.sort();
@@ -42,7 +42,7 @@ test("MLST have profiles", async t => {
   await Promise.map(
     metadataFiles,
     async f => {
-      logger("test")(`Checking profiles for ${f}`);
+      logger("cgps:test")(`Checking profiles for ${f}`);
       const { profiles } = await readJson(f);
       const nProfiles = _.keys(profiles).length;
       t.truthy(nProfiles > 1, `Expected more than one profile for ${f}`);

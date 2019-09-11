@@ -7,7 +7,7 @@ const through = require("through");
 const _ = require("lodash");
 
 function warn(title) {
-  return logger(`warning:${title}`);
+  return logger(`cgps:warning:${title}`);
 }
 
 function fail(title) {

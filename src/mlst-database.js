@@ -23,7 +23,7 @@ const DEFAULT_INDEX_DIR = 'index_dir'
 async function writeJsonAsync(outputPath, data, options) {
   const jsonData = JSON.stringify(data);
   await promisify(fs.writeFile)(outputPath, jsonData, options);
-  logger("debug:writeJson")(`Wrote data to ${outputPath}`);
+  logger("cgps:debug:writeJson")(`Wrote data to ${outputPath}`);
   return outputPath;
 }
 
@@ -94,7 +94,7 @@ class Scheme {
       })
       .on("close", () => {
         const nProfiles = _.keys(profiles).length;
-        logger("trace:index")(`Found ${nProfiles} in ${profilesPath}`);
+        logger("cgps:trace:index")(`Found ${nProfiles} in ${profilesPath}`);
         output.resolve(profiles);
       })
       .on("error", err => {
@@ -151,7 +151,7 @@ class Scheme {
           });
           lengths[gene][allele.st] = allele.length;
         });
-        logger("trace:index")(`Hashed ${alleles.length} alleles of ${gene}`);
+        logger("cgps:trace:index")(`Hashed ${alleles.length} alleles of ${gene}`);
         return;
       },
       { concurrency: 3 }
@@ -174,7 +174,7 @@ class Scheme {
     };
     const metadataPath = path.join(schemeDir, "metadata.json");
     await writeJsonAsync(metadataPath, metadata);
-    logger("info")(
+    logger("cgps:info")(
       `Indexed ${totalAlleles} alleles from ${
         genes.length
       } genes into ${metadataPath}`
@@ -221,7 +221,7 @@ class Scheme {
       .map(allele => `>${allele.gene}_${allele.st}\n${allele.seq}\n`)
       .join("");
     await writeFileAsync(outpath, contents);
-    logger("trace:index")(
+    logger("cgps:trace:index")(
       `Wrote ${alleles.length} alleles for ${gene} to ${outpath}`
     );
     return outpath;
@@ -270,7 +270,7 @@ function parseAlleleName(allele) {
     const [gene, st] = matches.slice(1);
     return { gene, st: Number(st) };
   } catch (err) {
-    logger("error")(`Couldn't parse gene and st from ${allele}`);
+    logger("cgps:error")(`Couldn't parse gene and st from ${allele}`);
     throw err;
   }
 }
@@ -331,7 +331,7 @@ async function main() {
   if (argv.type) {
     schemes = _.filter(schemes, s => s.type === argv.type);
   }
-  logger('info')(`Found ${schemes.length} schemes`)
+  logger('cgps:info')(`Found ${schemes.length} schemes`)
 
   let latestSchemeUpdate = await readSchemeUpdatedDate(argv.index)
 
@@ -376,6 +376,6 @@ if (require.main === module) {
   );
 
   main()
-    .then(() => logger('info')('Indexing complete'))
+    .then(() => logger('cgps:info')('Indexing complete'))
     .catch(err => fail("error")(err))
 }

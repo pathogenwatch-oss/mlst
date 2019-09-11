@@ -56,10 +56,10 @@ async function getMetadata(taxidEnvVariables = process.env) {
       taxid = variableValues[i];
       schemeMetadata = await readScheme(taxid)
       if (schemeMetadata !== undefined) {
-        logger("params")({ [variablesNames[i]]: taxid });
+        logger("cgps:params")({ [variablesNames[i]]: taxid, shouldRunCgMlst: shouldRunCgMlst() });
         return schemeMetadata
       } else {
-        logger("debug")(`No scheme for ${taxid}`)
+        logger("cgps:debug")(`No scheme for ${taxid}`)
       }
     }
   }

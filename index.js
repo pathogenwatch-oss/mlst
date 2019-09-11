@@ -27,11 +27,11 @@ async function runMlst(inStream, taxidEnvVariables) {
     alleleLookupPrefixLength,
     genes,
     allelePaths,
-    name: schemeName
+    name: schemeName,
+    maxSeqs = 0
   } = alleleMetadata;
-  const maxSeqs = alleleMetadata.maxSeqs || 0;
 
-  logger("debug")(`Scheme '${schemeName}' has ${genes.length} genes`);
+  logger("cgps:debug")(`Scheme '${schemeName}' has ${genes.length} genes`);
 
   const streamBuilder = streamFactory(allelePaths);
   const { contigNameMap, blastDb, renamedSequences } = await makeBlastDb(
@@ -46,7 +46,7 @@ async function runMlst(inStream, taxidEnvVariables) {
   );
   _.forEach(exactHits, hit => hitsStore.add(hit));
   const matchedGenes = _.uniq(_.map(exactHits, ({ gene }) => gene));
-  logger("debug:exactHits")(
+  logger("cgps:debug:exactHits")(
     `Added exact matches for ${matchedGenes.length} out of ${
       genes.length
     } genes`
@@ -60,11 +60,11 @@ async function runMlst(inStream, taxidEnvVariables) {
   }
   /* eslint-enable max-params */
 
-  logger("debug:blast")("Running first round of blast");
+  logger("cgps:debug:blast")("Running first round of blast");
   let bestHits = await runRound(30, 80, genes, 0, ALLELES_IN_FIRST_RUN);
   const inexactGenes = findGenesWithInexactResults(bestHits);
   if (inexactGenes.length > 0) {
-    logger("debug:blast")("Running second round of blast");
+    logger("cgps:debug:blast")("Running second round of blast");
     if (shouldRunCgMlst(taxidEnvVariables)) {
       bestHits = await runRound(
         20,
@@ -96,6 +96,6 @@ module.exports = { runMlst };
 if (require.main === module) {
   runMlst(process.stdin, process.env)
     .then(output => console.log(JSON.stringify(output)))
-    .then(() => logger("info")("Done"))
+    .then(() => logger("cgps:info")("Done"))
     .catch(fail("RunAllBlast"));
 }

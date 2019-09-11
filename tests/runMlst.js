@@ -204,7 +204,7 @@ test("Run specific MLST cases", async t => {
   await Promise.map(
     testCases,
     async ({ name, env }) => {
-      logger("test")(`Running MLST for ${name}`);
+      logger("cgps:test")(`Running MLST for ${name}`);
 
       const expectedResults = await readJson(
         path.join(TESTDATA_DIR, `${name}.json`)
