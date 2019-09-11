@@ -85,8 +85,10 @@ async function runMlst(inStream, taxidEnvVariables) {
   }
 
   const output = formatOutput({ alleleMetadata, renamedSequences, bestHits });
-  if (taxidEnvVariables.DEBUG) {
-    output.bins = hitsStore._bins;
+  if (!taxidEnvVariables.DEBUG) {
+    output.alleles = _.mapValues(output.alleles, hits =>
+      _.map(hits, ({ id, contig, start, end }) => ({ id, contig, start, end }))
+    )
   }
   return output;
 }

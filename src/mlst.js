@@ -67,9 +67,6 @@ function formatOutput({ alleleMetadata, renamedSequences, bestHits }) {
     })
     .groupBy("gene")
     .mapValues(hits =>
-      _.map(hits, ({ id, contig, start, end }) => ({ id, contig, start, end }))
-    )
-    .mapValues(hits =>
       _.sortBy(hits, [({ id }) => String(id), "contig", "start"])
     )
     .value();
