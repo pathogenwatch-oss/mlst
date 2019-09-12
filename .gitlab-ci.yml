@@ -35,8 +35,8 @@ test all mlst schemes:
       --target test_build
       -t "$CI_REGISTRY_IMAGE:mlst-test" .
     - docker run -i --rm
-      -v $(pwd):/usr/local/mlst
       -v /usr/local/mlst/node_modules
+      -v $(pwd):/usr/local/mlst
       -w /usr/local/mlst
       -e CI=true
       -e DEBUG='cgps:*,-cgps:trace*'
@@ -96,8 +96,8 @@ test all cgmlst schemes:
       --target test_build
       -t "$CI_REGISTRY_IMAGE:mlst-test" .
     - docker run -i --rm
-      -v $(pwd):/usr/local/mlst
       -v /usr/local/mlst/node_modules
+      -v $(pwd):/usr/local/mlst
       -w /usr/local/mlst
       -e CI=true
       -e DEBUG='cgps:*,-cgps:trace*'

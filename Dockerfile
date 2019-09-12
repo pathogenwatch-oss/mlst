@@ -36,5 +36,4 @@ CMD 	  /usr/local/bin/node /usr/local/mlst/index.js
 
 FROM    base_build as test_build
 
-VOLUME  [ "/usr/local/mlst/node_modules" ]
 RUN     yarn install
