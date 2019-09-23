@@ -35,7 +35,13 @@ test all mlst schemes:
       --target test_build
       -t "$CI_REGISTRY_IMAGE:mlst-test" .
     - pwd
-    - find . -type f
+    - ls -a
+    - docker run -i --rm
+      -v /usr/local/mlst/node_modules
+      -v $(pwd):/usr/local/mlst
+      -w /usr/local/mlst
+      $CI_REGISTRY_IMAGE:mlst-test
+        bash -c "pwd && ls -a"
     - docker run -i --rm
       -v /usr/local/mlst/node_modules
       -v $(pwd):/usr/local/mlst
