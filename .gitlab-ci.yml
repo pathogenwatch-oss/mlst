@@ -34,6 +34,8 @@ test all mlst schemes:
       --build-arg https_proxy=$https_proxy
       --target test_build
       -t "$CI_REGISTRY_IMAGE:mlst-test" .
+    - pwd
+    - find . -type f
     - docker run -i --rm
       -v /usr/local/mlst/node_modules
       -v $(pwd):/usr/local/mlst
