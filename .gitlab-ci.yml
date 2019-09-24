@@ -36,6 +36,7 @@ test all mlst schemes:
       -t "$CI_REGISTRY_IMAGE:mlst-test" .
     - pwd
     - ls -a
+    - docker inspect $(hostname)
     - docker run -i --rm
       -v /usr/local/mlst/node_modules
       -v $(pwd):/usr/local/mlst
