@@ -95,7 +95,7 @@ test all cgmlst schemes:
       --build-arg https_proxy=$https_proxy
       --target test_build
       -t "$CI_REGISTRY_IMAGE:mlst-test" .
-    - docker run -i --rm
+    - tar c . | docker run -i --rm
       -v /usr/local/mlst/node_modules
       -v $(pwd):/usr/local/mlst
       -w /usr/local/mlst
@@ -103,7 +103,7 @@ test all cgmlst schemes:
       -e DEBUG='cgps:*,-cgps:trace*'
       -e RUN_CORE_GENOME_MLST=yes
       $CI_REGISTRY_IMAGE:mlst-test
-        npm run test
+        bash -c "tar x && npm run test"
 
 deploy all cgmlst schemes:
   stage: deploy
