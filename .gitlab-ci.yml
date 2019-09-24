@@ -34,24 +34,14 @@ test all mlst schemes:
       --build-arg https_proxy=$https_proxy
       --target test_build
       -t "$CI_REGISTRY_IMAGE:mlst-test" .
-    - pwd
-    - ls -a
-    - docker ps
-    - docker ps | awk 'NR > 1 { print $1 }' | xargs -n 1 docker inspect
-    - docker run -i --rm
-      -v /usr/local/mlst/node_modules
-      -v $(pwd):/usr/local/mlst
-      -w /usr/local/mlst
-      $CI_REGISTRY_IMAGE:mlst-test
-        bash -c "pwd && ls -a"
-    - docker run -i --rm
+    - tar c . | docker run -i --rm
       -v /usr/local/mlst/node_modules
       -v $(pwd):/usr/local/mlst
       -w /usr/local/mlst
       -e CI=true
       -e DEBUG='cgps:*,-cgps:trace*'
       $CI_REGISTRY_IMAGE:mlst-test
-        npm run test
+        bash -c "tar x && npm run test"
 
 deploy all mlst schemes:
   stage: deploy
