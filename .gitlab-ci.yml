@@ -103,7 +103,7 @@ test all cgmlst schemes:
       -e DEBUG='cgps:*,-cgps:trace*'
       -e RUN_CORE_GENOME_MLST=yes
       $CI_REGISTRY_IMAGE:mlst-test
-        bash -c "tar x && npm run test"
+        bash -c "tar x && cat index_dir/metadata.json && npm run test"
 
 deploy all cgmlst schemes:
   stage: deploy
