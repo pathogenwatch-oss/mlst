@@ -107,6 +107,31 @@ test all cgmlst schemes:
       $CI_REGISTRY_IMAGE:mlst-test
         bash -c "tar x && npm run test"
 
+quick test of staph cgmlst:
+  stage: test
+  image: docker:latest
+  only:
+    variables:
+      - $RUN_CORE_GENOME_MLST == "yes"
+  except:
+    variables:
+      - $SCHEME
+  script:
+    - docker build
+      --build-arg http_proxy=$http_proxy
+      --build-arg https_proxy=$https_proxy
+      --target test_build
+      -t "$CI_REGISTRY_IMAGE:mlst-test" .
+    - tar c . | docker run -i --rm
+      -v /usr/local/mlst/node_modules
+      -v $(pwd):/usr/local/mlst
+      -w /usr/local/mlst
+      -e CI=true
+      -e DEBUG='cgps:*,-cgps:trace*'
+      -e RUN_CORE_GENOME_MLST=yes
+      $CI_REGISTRY_IMAGE:mlst-test
+        bash -c "tar x && node --max_old_space_size=4096 ./node_modules/.bin/ava --serial tests/quickCgMlst.js"
+
 deploy all cgmlst schemes:
   stage: deploy
   image: docker:latest
