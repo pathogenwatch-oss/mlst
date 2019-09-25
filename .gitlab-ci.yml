@@ -49,8 +49,7 @@ index all schemes:
   image: node:10
   only:
     variables:
-      - $RUN_CORE_GENOME_MLST == yes
-      - $RUN_CORE_GENOME_MLST == no
+      - $RUN_CORE_GENOME_MLST == yes || $RUN_CORE_GENOME_MLST == no
   except:
     variables:
       - $SCHEME
@@ -70,8 +69,7 @@ test schemes:
   image: docker:latest
   only:
     variables:
-      - $RUN_CORE_GENOME_MLST == yes
-      - $RUN_CORE_GENOME_MLST == no
+      - $RUN_CORE_GENOME_MLST == yes || $RUN_CORE_GENOME_MLST == no
   except:
     variables:
       - $SCHEME
@@ -96,8 +94,7 @@ deploy schemes:
   image: docker:latest
   only:
     variables:
-      - $RUN_CORE_GENOME_MLST == yes
-      - $RUN_CORE_GENOME_MLST == no
+      - $RUN_CORE_GENOME_MLST == yes || $RUN_CORE_GENOME_MLST == no
   except:
     variables:
       - $SCHEME
