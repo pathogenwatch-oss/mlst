@@ -43,7 +43,7 @@ test all mlst schemes:
       -v $(pwd):/usr/local/mlst
       -w /usr/local/mlst
       -e CI=true
-      -e DEBUG='cgps:*,-cgps:trace*'
+      -e DEBUG='cgps:params,cgps:debug,cgps:test'
       $CI_REGISTRY_IMAGE:mlst-test
         bash -c "tar x && npm run test"
 
@@ -104,7 +104,7 @@ quick test of staph cgmlst:
       -v $(pwd):/usr/local/mlst
       -w /usr/local/mlst
       -e CI=true
-      -e DEBUG='cgps:*,-cgps:trace*'
+      -e DEBUG='cgps:params,cgps:debug,cgps:test'
       -e RUN_CORE_GENOME_MLST=yes
       $CI_REGISTRY_IMAGE:mlst-test
         bash -c "tar x && node --max_old_space_size=4096 ./node_modules/.bin/ava --serial tests/quickCgMlst.js"
@@ -148,7 +148,7 @@ test all cgmlst schemes:
       -v $(pwd):/usr/local/mlst
       -w /usr/local/mlst
       -e CI=true
-      -e DEBUG='cgps:*,-cgps:trace*'
+      -e DEBUG='cgps:params,cgps:debug,cgps:test'
       -e RUN_CORE_GENOME_MLST=yes
       $CI_REGISTRY_IMAGE:mlst-test
         bash -c "tar x && npm run test"
