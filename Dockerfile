@@ -21,10 +21,10 @@ RUN     yarn install --production
 FROM    node:10-slim as prod_build
 
 WORKDIR /usr/local/mlst
-COPY    --from=base_build /usr/local/mlst/node_modules /usr/local/mlst
-COPY    *.js *.json ./
-COPY    src src/
-COPY    index_dir index_dir/
+COPY    --from=base_build /usr/local/mlst/node_modules /usr/local/mlst/node_modules
+COPY    *.js *.json /usr/local/mlst/
+COPY    src /usr/local/mlst/src/
+COPY    index_dir /usr/local/mlst/index_dir/
 SHELL   ["/bin/sh", "-c"]
 
 ARG     RUN_CORE_GENOME_MLST
