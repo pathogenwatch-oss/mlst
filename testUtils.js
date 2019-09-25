@@ -8,7 +8,7 @@ async function readJson(p) {
   return JSON.parse(contents);
 }
 
-const TESTDATA_DIR = path.join(__dirname, "testdata");
+const TESTDATA_DIR = path.join(__dirname, "tests", "testdata");
 
 function diff(as, bs) {
   const extra = [];
