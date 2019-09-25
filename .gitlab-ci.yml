@@ -13,6 +13,8 @@ stages:
 quick index:
   stage: quick-index
   image: node:10
+  except:
+    - web
   artifacts:
     paths:
     - index_dir/
@@ -27,6 +29,8 @@ quick index:
 quick test:
   stage: quick-test
   image: docker:latest
+  except:
+    - web
   script:
     - docker build
       --build-arg http_proxy=$http_proxy
