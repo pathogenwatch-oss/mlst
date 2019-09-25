@@ -76,7 +76,7 @@ quick index of staph cgmlst:
       - $SCHEME
   artifacts:
     paths:
-    - staph_index_dir/
+    - index_dir/
     expire_in: 2 days
   script:
     - git config --global url."https://gitlab-ci-token:${CI_JOB_TOKEN}@gitlab.com/".insteadOf "https://gitlab.com/"
