@@ -359,6 +359,7 @@ async function main() {
         shortname,
         maxSeqs
       }
+      logger('cgps:info')(`Added scheme for ${taxid}`);
     }
     await updateMetadata(argv.index, update)
     const schemeUpdated = await readSchemeUpdatedDate(dataDir);

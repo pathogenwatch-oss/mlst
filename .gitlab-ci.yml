@@ -21,7 +21,8 @@ quick index:
     - git config --global url."https://gitlab-ci-token:${CI_JOB_TOKEN}@gitlab.com/".insteadOf "https://gitlab.com/"
     - ./bin/pull_database.sh cgps-typing-databases
     - yarn install
-    - npm run index -- --scheme=saureus_1 --scheme=neisseria --max-sequences 50 --index=index_dir --database=cgps-typing-databases
+    - DEBUG='cgps:info' npm run index -- --scheme=saureus_1 --max-sequences 50 --index=index_dir --database=cgps-typing-databases
+    - DEBUG='cgps:info' npm run index -- --scheme=neisseria --index=index_dir --database=cgps-typing-databases
 
 quick test:
   stage: quick-test
@@ -58,6 +59,7 @@ index all schemes:
     - index_dir/
     expire_in: 2 days
   script:
+    - rm -r index_dir || true
     - if [ "$RUN_CORE_GENOME_MLST" = "yes" ]; then INDEX_PARAMS="--type=cgmlst --max-sequences 50"; else INDEX_PARAMS="--type=mlst"; fi
     - git config --global url."https://gitlab-ci-token:${CI_JOB_TOKEN}@gitlab.com/".insteadOf "https://gitlab.com/"
     - ./bin/pull_database.sh cgps-typing-databases
