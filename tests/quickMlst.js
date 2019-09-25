@@ -9,34 +9,40 @@ const { shouldRunCgMlst } = require("../src/parseEnvVariables");
 
 const { readJson, TESTDATA_DIR, compareAlleles } = require("../testUtils")
 
-test("Run a handfull of CgMLST cases", async t => {
-  if (!shouldRunCgMlst()) {
-    t.pass("Skipped");
-    return;
-  }
-
-  const cases = [
+const staphDir = path.join(TESTDATA_DIR, "saureus_data");
+const cgMlstCases = _.map(
+  [
     "024_05",
     "Dog_150_N_G",
     "P1_1A",
-  ]
-  
-  const staphDir = path.join(TESTDATA_DIR, "saureus_data");
-  
-  const testCases = _.map(cases, name => {
+  ], 
+  name => {
     const seqPath = path.join(staphDir, `${name}.fasta`);
     const resultsPath = path.join(staphDir, `${name}.fasta.cgMlst.json`);
-    return { name, seqPath, resultsPath };
-  })
+    return { name, seqPath, resultsPath, taxid: "1280" };
+  }
+)
 
+const mlstCases = [
+  { 
+    name: "gono",
+    seqPath: path.join(TESTDATA_DIR, "gono.fasta"),
+    resultsPath: path.join(TESTDATA_DIR, "gono.json"),
+    taxid: "485"
+  }
+]
+
+test("Run a handfull of cases", async t => {
+  const testCases = shouldRunCgMlst() ? cgMlstCases : mlstCases;
+  const RUN_CORE_GENOME_MLST = shouldRunCgMlst() ? "yes" : "no"
   await Promise.map(
     testCases,
-    async ({ name, seqPath, resultsPath }) => {
+    async ({ name, seqPath, resultsPath, taxid }) => {
       const expectedResults = await readJson(resultsPath);
       const inputStream = fs.createReadStream(seqPath);
       const results = await runMlst(inputStream, {
-        WGSA_SPECIES_TAXID: "1280",
-        RUN_CORE_GENOME_MLST: "yes"
+        WGSA_SPECIES_TAXID: taxid,
+        RUN_CORE_GENOME_MLST
       });
       t.deepEqual(
         compareAlleles(results, expectedResults),

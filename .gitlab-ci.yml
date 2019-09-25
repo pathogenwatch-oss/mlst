@@ -10,70 +10,9 @@ stages:
   - test
   - deploy
 
-index all mlst schemes:
-  stage: index
-  image: node:10
-  only:
-    variables:
-      - $RUN_CORE_GENOME_MLST == "no"
-  artifacts:
-    paths:
-    - index_dir/
-    expire_in: 2 days
-  script:
-    - git config --global url."https://gitlab-ci-token:${CI_JOB_TOKEN}@gitlab.com/".insteadOf "https://gitlab.com/"
-    - ./bin/pull_database.sh cgps-typing-databases
-    - yarn install
-    - npm run index -- --type=mlst --index=index_dir --database=cgps-typing-databases
-
-test all mlst schemes:
-  stage: test
-  image: docker:latest
-  only:
-    variables:
-      - $RUN_CORE_GENOME_MLST == "no"
-  script:
-    - docker build
-      --build-arg http_proxy=$http_proxy
-      --build-arg https_proxy=$https_proxy
-      --target test_build
-      -t "$CI_REGISTRY_IMAGE:mlst-test" .
-    - tar c *.json *.js src tests index_dir | docker run -i --rm
-      -v /usr/local/mlst/node_modules
-      -v $(pwd):/usr/local/mlst
-      -w /usr/local/mlst
-      -e CI=true
-      -e DEBUG='cgps:params,cgps:debug,cgps:test'
-      $CI_REGISTRY_IMAGE:mlst-test
-        bash -c "tar x && npm run test"
-
-deploy all mlst schemes:
-  stage: deploy
-  image: docker:latest
-  only:
-    variables:
-      - $RUN_CORE_GENOME_MLST == "no"
-  script:
-    - docker login -u "$CI_REGISTRY_USER" -p "$CI_REGISTRY_PASSWORD" $CI_REGISTRY
-    - DATABASE_UPDATED=$(cat index_dir/updated.txt)
-    - if [[ -z "${CI_COMMIT_TAG:-}" ]]; then TAG="${DATABASE_UPDATED}-${CI_COMMIT_SHA::8}"; else TAG="${DATABASE_UPDATED}-${CI_COMMIT_TAG}"; fi
-    - docker build
-      --build-arg http_proxy=$http_proxy
-      --build-arg https_proxy=$https_proxy
-      --label "git-ref=${CI_COMMIT_REF_NAME},git-commit=${CI_COMMIT_SHA},gitlab-job-id=${CI_JOB_ID},database-updated=${DATABASE_UPDATED}"
-      --target prod_build
-      -t "$CI_REGISTRY_IMAGE:mlst-$TAG" .
-    - docker push "$CI_REGISTRY_IMAGE:mlst-$TAG"
-
-quick index of staph cgmlst:
+quick index:
   stage: quick-index
   image: node:10
-  only:
-    variables:
-      - $RUN_CORE_GENOME_MLST == "yes"
-  except:
-    variables:
-      - $SCHEME
   artifacts:
     paths:
     - index_dir/
@@ -82,17 +21,11 @@ quick index of staph cgmlst:
     - git config --global url."https://gitlab-ci-token:${CI_JOB_TOKEN}@gitlab.com/".insteadOf "https://gitlab.com/"
     - ./bin/pull_database.sh cgps-typing-databases
     - yarn install
-    - npm run index -- --scheme=saureus_1 --max-sequences 50 --index=index_dir --database=cgps-typing-databases
+    - npm run index -- --scheme=saureus_1 --scheme=neisseria --max-sequences 50 --index=index_dir --database=cgps-typing-databases
 
-quick test of staph cgmlst:
+quick test:
   stage: quick-test
   image: docker:latest
-  only:
-    variables:
-      - $RUN_CORE_GENOME_MLST == "yes"
-  except:
-    variables:
-      - $SCHEME
   script:
     - docker build
       --build-arg http_proxy=$http_proxy
@@ -105,16 +38,19 @@ quick test of staph cgmlst:
       -w /usr/local/mlst
       -e CI=true
       -e DEBUG='cgps:params,cgps:debug,cgps:test'
-      -e RUN_CORE_GENOME_MLST=yes
+      -e RUN_CORE_GENOME_MLST
       $CI_REGISTRY_IMAGE:mlst-test
-        bash -c "tar x && node --max_old_space_size=4096 ./node_modules/.bin/ava --serial tests/quickCgMlst.js"
+        bash -c "tar x &&
+          RUN_CORE_GENOME_MLST=no node --max_old_space_size=4096 ./node_modules/.bin/ava --serial tests/quickMlst.js &&
+          RUN_CORE_GENOME_MLST=yes node --max_old_space_size=4096 ./node_modules/.bin/ava --serial tests/quickMlst.js"
 
-index all cgmlst schemes:
+index all schemes:
   stage: index
   image: node:10
   only:
     variables:
-      - $RUN_CORE_GENOME_MLST == "yes"
+      - $RUN_CORE_GENOME_MLST == yes
+      - $RUN_CORE_GENOME_MLST == no
   except:
     variables:
       - $SCHEME
@@ -123,17 +59,19 @@ index all cgmlst schemes:
     - index_dir/
     expire_in: 2 days
   script:
+    - if [ "$RUN_CORE_GENOME_MLST" = "yes" ]; then INDEX_PARAMS="--type=cgmlst --max-sequences 50"; else INDEX_PARAMS="--type=mlst"; fi
     - git config --global url."https://gitlab-ci-token:${CI_JOB_TOKEN}@gitlab.com/".insteadOf "https://gitlab.com/"
     - ./bin/pull_database.sh cgps-typing-databases
     - yarn install
-    - npm run index -- --type=cgmlst --max-sequences 50 --index=index_dir --database=cgps-typing-databases
+    - npm run index -- $INDEX_PARAMS --index=index_dir --database=cgps-typing-databases
 
-test all cgmlst schemes:
+test schemes:
   stage: test
   image: docker:latest
   only:
     variables:
-      - $RUN_CORE_GENOME_MLST == "yes"
+      - $RUN_CORE_GENOME_MLST == yes
+      - $RUN_CORE_GENOME_MLST == no
   except:
     variables:
       - $SCHEME
@@ -149,16 +87,17 @@ test all cgmlst schemes:
       -w /usr/local/mlst
       -e CI=true
       -e DEBUG='cgps:params,cgps:debug,cgps:test'
-      -e RUN_CORE_GENOME_MLST=yes
+      -e RUN_CORE_GENOME_MLST
       $CI_REGISTRY_IMAGE:mlst-test
         bash -c "tar x && npm run test"
 
-deploy all cgmlst schemes:
+deploy schemes:
   stage: deploy
   image: docker:latest
   only:
     variables:
-      - $RUN_CORE_GENOME_MLST == "yes"
+      - $RUN_CORE_GENOME_MLST == yes
+      - $RUN_CORE_GENOME_MLST == no
   except:
     variables:
       - $SCHEME
@@ -166,14 +105,15 @@ deploy all cgmlst schemes:
     - docker login -u "$CI_REGISTRY_USER" -p "$CI_REGISTRY_PASSWORD" $CI_REGISTRY
     - DATABASE_UPDATED=$(cat index_dir/updated.txt)
     - if [[ -z "${CI_COMMIT_TAG:-}" ]]; then TAG="${DATABASE_UPDATED}-${CI_COMMIT_SHA::8}"; else TAG="${DATABASE_UPDATED}-${CI_COMMIT_TAG}"; fi
+    - if [ "$RUN_CORE_GENOME_MLST" = "yes" ]; then IMAGE="$CI_REGISTRY_IMAGE:cgmlst-$TAG"; else IMAGE="$CI_REGISTRY_IMAGE:mlst-$TAG"; fi
     - docker build
       --build-arg http_proxy=$http_proxy
       --build-arg https_proxy=$https_proxy
-      --build-arg RUN_CORE_GENOME_MLST=yes
+      --build-arg RUN_CORE_GENOME_MLST
       --label "git-ref=${CI_COMMIT_REF_NAME},git-commit=${CI_COMMIT_SHA},gitlab-job-id=${CI_JOB_ID},database-updated=${DATABASE_UPDATED}"
       --target prod_build
-      -t "$CI_REGISTRY_IMAGE:cgmlst-$TAG" .
-    - docker push "$CI_REGISTRY_IMAGE:cgmlst-$TAG"
+      -t "$IMAGE" .
+    - docker push "$IMAGE"
 
 index some schemes:
   stage: index
