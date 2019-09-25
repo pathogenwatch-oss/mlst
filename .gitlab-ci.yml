@@ -14,6 +14,10 @@ index all mlst schemes:
   only:
     variables:
       - $RUN_CORE_GENOME_MLST == "no"
+  artifacts:
+    paths:
+    - index_dir/
+    expire_in: 2 days
   script:
     - git config --global url."https://gitlab-ci-token:${CI_JOB_TOKEN}@gitlab.com/".insteadOf "https://gitlab.com/"
     - ./bin/pull_database.sh cgps-typing-databases
@@ -26,8 +30,6 @@ test all mlst schemes:
   only:
     variables:
       - $RUN_CORE_GENOME_MLST == "no"
-  variables:
-    GIT_CLEAN_FLAGS: -ffdx -e index_dir/
   script:
     - docker build
       --build-arg http_proxy=$http_proxy
@@ -49,8 +51,6 @@ deploy all mlst schemes:
   only:
     variables:
       - $RUN_CORE_GENOME_MLST == "no"
-  variables:
-    GIT_CLEAN_FLAGS: -ffdx -e index_dir/
   script:
     - docker login -u "$CI_REGISTRY_USER" -p "$CI_REGISTRY_PASSWORD" $CI_REGISTRY
     - DATABASE_UPDATED=$(cat index_dir/updated.txt)
@@ -72,6 +72,10 @@ index all cgmlst schemes:
   except:
     variables:
       - $SCHEME
+  artifacts:
+    paths:
+    - index_dir/
+    expire_in: 2 days
   script:
     - git config --global url."https://gitlab-ci-token:${CI_JOB_TOKEN}@gitlab.com/".insteadOf "https://gitlab.com/"
     - ./bin/pull_database.sh cgps-typing-databases
@@ -87,8 +91,6 @@ test all cgmlst schemes:
   except:
     variables:
       - $SCHEME
-  variables:
-    GIT_CLEAN_FLAGS: -ffdx -e index_dir/
   script:
     - docker build
       --build-arg http_proxy=$http_proxy
@@ -114,8 +116,6 @@ deploy all cgmlst schemes:
   except:
     variables:
       - $SCHEME
-  variables:
-    GIT_CLEAN_FLAGS: -ffdx -e index_dir/
   script:
     - docker login -u "$CI_REGISTRY_USER" -p "$CI_REGISTRY_PASSWORD" $CI_REGISTRY
     - DATABASE_UPDATED=$(cat index_dir/updated.txt)
@@ -135,6 +135,10 @@ index some schemes:
   only:
     variables:
       - $INDEX_PARAMS
+  artifacts:
+    paths:
+    - index_dir/
+    expire_in: 2 days
   script:
     - git config --global url."https://gitlab-ci-token:${CI_JOB_TOKEN}@gitlab.com/".insteadOf "https://gitlab.com/"
     - ./bin/pull_database.sh cgps-typing-databases
@@ -147,8 +151,6 @@ deploy some schemes:
   only:
     variables:
       - $SCHEME_NAME
-  variables:
-    GIT_CLEAN_FLAGS: -ffdx -e index_dir/
   script:
     - docker login -u "$CI_REGISTRY_USER" -p "$CI_REGISTRY_PASSWORD" $CI_REGISTRY
     - DATABASE_UPDATED=$(cat index_dir/updated.txt)
