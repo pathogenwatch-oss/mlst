@@ -28,7 +28,7 @@ const mlstCases = [
     name: "gono",
     seqPath: path.join(TESTDATA_DIR, "gono.fasta"),
     resultsPath: path.join(TESTDATA_DIR, "gono.json"),
-    taxid: "485"
+    taxid: "482"
   }
 ]
 
@@ -41,7 +41,7 @@ test("Run a handfull of cases", async t => {
       const expectedResults = await readJson(resultsPath);
       const inputStream = fs.createReadStream(seqPath);
       const results = await runMlst(inputStream, {
-        WGSA_SPECIES_TAXID: taxid,
+        TAXID: taxid,
         RUN_CORE_GENOME_MLST
       });
       t.deepEqual(
