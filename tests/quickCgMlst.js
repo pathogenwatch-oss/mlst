@@ -7,7 +7,7 @@ const fs = require("fs");
 const { runMlst } = require("..");
 const { shouldRunCgMlst } = require("../src/parseEnvVariables");
 
-const { readJson, TESTDATA_DIR, compareAlleles } = require("./utils")
+const { readJson, TESTDATA_DIR, compareAlleles } = require("../testUtils")
 
 test("Run a handfull of CgMLST cases", async t => {
   if (!shouldRunCgMlst()) {

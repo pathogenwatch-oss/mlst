@@ -8,7 +8,7 @@ const logger = require("debug");
 
 const { runMlst } = require("..");
 const { shouldRunCgMlst } = require("../src/parseEnvVariables");
-const { readJson, TESTDATA_DIR, compareAlleles } = require("./utils")
+const { readJson, TESTDATA_DIR, compareAlleles } = require("../testUtils")
 
 test("compare alleles", t => {
   const testCases = [

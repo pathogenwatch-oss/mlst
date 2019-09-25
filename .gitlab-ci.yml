@@ -4,6 +4,8 @@ cache:
     - node_modules/
 
 stages:
+  - quick-index
+  - quick-test
   - index
   - test
   - deploy
@@ -36,7 +38,7 @@ test all mlst schemes:
       --build-arg https_proxy=$https_proxy
       --target test_build
       -t "$CI_REGISTRY_IMAGE:mlst-test" .
-    - tar c . | docker run -i --rm
+    - tar c *.json *.js src tests index_dir | docker run -i --rm
       -v /usr/local/mlst/node_modules
       -v $(pwd):/usr/local/mlst
       -w /usr/local/mlst
@@ -62,6 +64,50 @@ deploy all mlst schemes:
       --target prod_build
       -t "$CI_REGISTRY_IMAGE:mlst-$TAG" .
     - docker push "$CI_REGISTRY_IMAGE:mlst-$TAG"
+
+quick index of staph cgmlst:
+  stage: quick-index
+  image: node:10
+  only:
+    variables:
+      - $RUN_CORE_GENOME_MLST == "yes"
+  except:
+    variables:
+      - $SCHEME
+  artifacts:
+    paths:
+    - staph_index_dir/
+    expire_in: 2 days
+  script:
+    - git config --global url."https://gitlab-ci-token:${CI_JOB_TOKEN}@gitlab.com/".insteadOf "https://gitlab.com/"
+    - ./bin/pull_database.sh cgps-typing-databases
+    - yarn install
+    - npm run index -- --scheme=saureus_1 --max-sequences 50 --index=index_dir --database=cgps-typing-databases
+
+quick test of staph cgmlst:
+  stage: quick-test
+  image: docker:latest
+  only:
+    variables:
+      - $RUN_CORE_GENOME_MLST == "yes"
+  except:
+    variables:
+      - $SCHEME
+  script:
+    - docker build
+      --build-arg http_proxy=$http_proxy
+      --build-arg https_proxy=$https_proxy
+      --target test_build
+      -t "$CI_REGISTRY_IMAGE:mlst-test" .
+    - tar c *.json *.js src tests index_dir | docker run -i --rm
+      -v /usr/local/mlst/node_modules
+      -v $(pwd):/usr/local/mlst
+      -w /usr/local/mlst
+      -e CI=true
+      -e DEBUG='cgps:*,-cgps:trace*'
+      -e RUN_CORE_GENOME_MLST=yes
+      $CI_REGISTRY_IMAGE:mlst-test
+        bash -c "tar x && node --max_old_space_size=4096 ./node_modules/.bin/ava --serial tests/quickCgMlst.js"
 
 index all cgmlst schemes:
   stage: index
@@ -97,7 +143,7 @@ test all cgmlst schemes:
       --build-arg https_proxy=$https_proxy
       --target test_build
       -t "$CI_REGISTRY_IMAGE:mlst-test" .
-    - tar c . | docker run -i --rm
+    - tar c *.json *.js src tests index_dir | docker run -i --rm
       -v /usr/local/mlst/node_modules
       -v $(pwd):/usr/local/mlst
       -w /usr/local/mlst
@@ -106,31 +152,6 @@ test all cgmlst schemes:
       -e RUN_CORE_GENOME_MLST=yes
       $CI_REGISTRY_IMAGE:mlst-test
         bash -c "tar x && npm run test"
-
-quick test of staph cgmlst:
-  stage: test
-  image: docker:latest
-  only:
-    variables:
-      - $RUN_CORE_GENOME_MLST == "yes"
-  except:
-    variables:
-      - $SCHEME
-  script:
-    - docker build
-      --build-arg http_proxy=$http_proxy
-      --build-arg https_proxy=$https_proxy
-      --target test_build
-      -t "$CI_REGISTRY_IMAGE:mlst-test" .
-    - tar c . | docker run -i --rm
-      -v /usr/local/mlst/node_modules
-      -v $(pwd):/usr/local/mlst
-      -w /usr/local/mlst
-      -e CI=true
-      -e DEBUG='cgps:*,-cgps:trace*'
-      -e RUN_CORE_GENOME_MLST=yes
-      $CI_REGISTRY_IMAGE:mlst-test
-        bash -c "tar x && node --max_old_space_size=4096 ./node_modules/.bin/ava --serial tests/quickCgMlst.js"
 
 deploy all cgmlst schemes:
   stage: deploy
