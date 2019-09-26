@@ -116,8 +116,8 @@ deploy schemes:
       --target prod_build
       -t "$IMAGE" .
     - docker push "$IMAGE"
-    - ACTUAL_ST=cat tests/testdata/saureus_data/03-00397.fasta | docker run -i --rm -e TAXID=1280 "$IMAGE" | docker run -i --rm python:3 python -c "import sys, json; print(json.load(sys.stdin)['st'])"
-    - EXPECTED_ST=cat tests/testdata/saureus_data/03-00397.fasta.cgMlst.json | docker run -i --rm python:3 python -c "import sys, json; print(json.load(sys.stdin)['st'])"
+    - ACTUAL_ST=$(cat tests/testdata/saureus_data/03-00397.fasta | docker run -i --rm -e TAXID=1280 "$IMAGE" | docker run -i --rm python:3 python -c "import sys, json; print(json.load(sys.stdin)['st'])")
+    - if [ "$RUN_CORE_GENOME_MLST" = "yes" ]; then EXPECTED_ST="1edfd24d70240e560f872745a54267ffbd2ea760"; else EXPECTED_ST="22"; fi
     - echo "Results"; [ "$ACTUAL_ST" = "$EXPECTED_ST" ] && echo "Hacky test passed" || { echo "Hacky test failed"; exit 1; }
 
 index some schemes:
