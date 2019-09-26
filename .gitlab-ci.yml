@@ -116,6 +116,9 @@ deploy schemes:
       --target prod_build
       -t "$IMAGE" .
     - docker push "$IMAGE"
+    - ACTUAL_ST=cat tests/testdata/saureus_data/03-00397.fasta | docker run -i --rm -e TAXID=1280 "$IMAGE" | docker run -i --rm python:3 python -c "import sys, json; print(json.load(sys.stdin)['st'])"
+    - EXPECTED_ST=cat tests/testdata/saureus_data/03-00397.fasta.cgMlst.json | docker run -i --rm python:3 python -c "import sys, json; print(json.load(sys.stdin)['st'])"
+    - echo "Results"; [ "$ACTUAL_ST" = "$EXPECTED_ST" ] && echo "Hacky test passed" || { echo "Hacky test failed"; exit 1; }
 
 index some schemes:
   stage: index
