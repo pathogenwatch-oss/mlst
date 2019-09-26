@@ -44,7 +44,7 @@ quick test:
       -w /usr/local/mlst
       -e CI=true
       -e DEBUG='cgps:params,cgps:debug,cgps:test'
-      -e RUN_CORE_GENOME_MLST
+      -e RUN_CORE_GENOME_MLST=$RUN_CORE_GENOME_MLST
       $CI_REGISTRY_IMAGE:mlst-test
         find index_dir -type d
     - tar c *.json *.js src tests index_dir | docker run -i --rm
@@ -52,7 +52,7 @@ quick test:
       -w /usr/local/mlst
       -e CI=true
       -e DEBUG='cgps:params,cgps:debug,cgps:test'
-      -e RUN_CORE_GENOME_MLST
+      -e RUN_CORE_GENOME_MLST=$RUN_CORE_GENOME_MLST
       $CI_REGISTRY_IMAGE:mlst-test
         bash -c "tar x &&
           RUN_CORE_GENOME_MLST=no node --max_old_space_size=4096 ./node_modules/.bin/ava --serial tests/quickMlst.js &&
@@ -101,7 +101,7 @@ test schemes:
       -w /usr/local/mlst
       -e CI=true
       -e DEBUG='cgps:params,cgps:debug,cgps:test'
-      -e RUN_CORE_GENOME_MLST
+      -e RUN_CORE_GENOME_MLST=$RUN_CORE_GENOME_MLST
       $CI_REGISTRY_IMAGE:mlst-test
         bash -c "tar x && npm run test"
 
