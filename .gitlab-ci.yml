@@ -40,7 +40,6 @@ quick test:
       -t "$CI_REGISTRY_IMAGE:mlst-test" .
     - tar c *.json *.js src tests index_dir | docker run -i --rm
       -v /usr/local/mlst/node_modules
-      -v $(pwd):/usr/local/mlst
       -w /usr/local/mlst
       -e CI=true
       -e DEBUG='cgps:params,cgps:debug,cgps:test'
@@ -90,7 +89,6 @@ test schemes:
       -t "$CI_REGISTRY_IMAGE:mlst-test" .
     - tar c *.json *.js src tests index_dir | docker run -i --rm
       -v /usr/local/mlst/node_modules
-      -v $(pwd):/usr/local/mlst
       -w /usr/local/mlst
       -e CI=true
       -e DEBUG='cgps:params,cgps:debug,cgps:test'
