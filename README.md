@@ -22,8 +22,8 @@ You can get information for debugging by passing in the `DEBUG` environment vari
 cat tests/testdata/saureus_duplicate.fasta | docker run -i -e TAXID=1280 -e DEBUG='cgps:*,-cgps:trace*' --rm registry.gitlab.com/cgps/cgps-mlst:mlst-v1.5.58
 ```
 
-The output data also includes more details if you set the `DEBUG` environment variable.  This includes 
-the position of the best match and any other close matches.  You can see this without much clutter 
+The output data also includes more details if you set the `DEBUG` environment variable.  This includes
+the position of the best match and any other close matches.  You can see this without much clutter
 by setting `DEBUG='.'`.
 
 You can run Core Genome MLST by running the `cgmlst` container instead of the `mlst` container.
@@ -34,102 +34,141 @@ cat tests/testdata/saureus_duplicate.fasta | docker run -i -e TAXID=1280 -e DEBU
 
 ## Making a release
 
+You might want to update the databases in [CGPS Typing scripts](https://gitlab.com/cgps/cgps-typing-databases/) before running a release.
+This can take an hour or more for a complete update.
+
 The following script will bump the version, make a git tag, push the code and build it using out CI
-pipeline.  It will also (slowly) run some tests.
+pipeline.  It will trigger some quick tests.
 
 ```
 ./bin/release.sh
 ```
 
-We cache the downloads between builds for speed and to be polite.  If you've made a significant change or
-just need the latest data, trigger the build pipeline manually and it will clear the cache.
+You should then wait and see if the quick-tests pass.  If they do, you can build containers
+using our CI system.
+
+On the [Pipelines page](https://gitlab.com/cgps/cgps-mlst/pipelines), click `New Pipeline`.
+Pick the version of the code you want to build (probably the tag you just committed).
+Give the pipeline the following environment variables:
+
+* cgmlst: `RUN_CORE_GENOME_MLST = yes`
+* mlst: `RUN_CORE_GENOME_MLST = no`
+* alternative mlst schemes: `INDEX_PARAMS = --type alternative_mlst; SCHEME_NAME = alternative_mlst`
+* ngstar: `INDEX_PARAMS = --scheme ngstar; SCHEME_NAME = ngstar`
+
+## How it works
+
+This project loads typing databases which have been collected using the [CGPS Typing scripts](https://gitlab.com/cgps/cgps-typing-databases/).  These
+scripts download data from a variety of sources and reformat them consistently.  You should probably update the databases and push your changes
+before making a release.  This might take an hour or two if you are trying to update all of the databases at once.
+
+This project indexes the typing databases so that typing can be run quickly.  This includes hashing all known alleles of each locus.
+
+Genomes are typed by searching for exact matches and by calling Blast.  Exact matches are found by looking for prefixes and in the assembly and
+then comparing the hash of a sequence with a list of known hashes.
+
+Blast is used to identify novel alleles (i.e. ones which are not included in the database).  This is done in a couple of rounds.  The first round Blasts
+a small number of alleles against the genome to identify areas which might contain alleles.  The results of this intial round are compared with the
+results of the exact matching to identify which (if any) loci might have novel hits.
+
+A second round of Blast uses a larger number of alleles for each locus, but only for the loci which the previous step showed might have a novel allele.
+Currently this includes all known alleles for MLST and a selection of 50 alleles for cgMLST.
+
+Each locus can have more than one hit for a given genome (which may an artifact of the specimine, an assembly error, contamination, etc.).  It is important
+to identify cases where hits from Blast or exact matching overlap for a given locus; some databases include alleles which are truncations of one another and
+we want to return the "best" result.
+
+Broadly speaking the algorithm could be considered as follows:
+* For each locus, create bins containing exact and inexact hits which overlap by more than 80% on a given contig of the assembly
+* Assess which the best hit is for each locus in each bin
+* Report those hits (i.e. normally one per locus, but sometimes multiple)
+
+Best is defined as follows for a given bin of hits for a given locus in the database:
+* If there are any exact hits, return the longest, if not
+* Discard hits which cover less than 80% of the length of the specified allele
+* Find the hit with the greatest percentage identity
+* Discard any hits which are 2% worse than the best percentage identity
+* Return the hit with the most matching bases
+* To break ties, return the but with the greatest percentage identity
 
 ## Building the containers locally
 
-7 gene MLST and Core Genome MLST use the same code but different databases 
-which you build into two separate containers.  This means that you can 
+7 gene MLST and Core Genome MLST use the same code but different databases
+which you build into two separate containers.  This means that you can
 update the databases independently.
 
-There are two stages to building the containers:
+There are three stages to building the containers:
 
-* Download the data from public sources
+* Clone the databases
 * Index the data
+* Build the container
 
 ### Download the data
 
-Some of the sources we use for schemes have issues which means that the 
-download can be interupted.  The script is designed so that you can identify 
-downloads which have failed and resume the download.
-
-We mount the code into a container and mount another directory to cache 
-the results of the download.
-
-You will need an API key from Enterobase so that we can download their 
-schemes.
-
-```
-docker run -it --rm \
-    -v $(cd data && pwd):/opt/mlst \
-    -v $(pwd):/src:ro \
-    -w /src \
-    -e DEBUG='cgps:*' \
-    node:8 \
-        npm run download
-```
-
-or for cgmlst:
-
-```
-docker run -it --rm \
-    -v $(cd data && pwd):/opt/mlst \
-    -v $(pwd):/src:ro \
-    -w /src \
-    -e ENTEROBASE_API_KEY="your enterobase api key" \
-    -e RUN_CORE_GENOME_MLST='yes' \
-    -e DEBUG='cgps:*' \
-    node:8 \
-        npm run download
-```
-
-Downloaded files are stored in `data/cache` in a hierarcy similar to 
-their URL.
-
-You can also update just a section of the data by deleting the relevant 
-files from the cache and rerunning this command.
+Clone the [CGPS Typing scripts](https://gitlab.com/cgps/cgps-typing-databases/) repo.  You might want to update the databases and push your changes.
 
 ### Index the data
 
-The previous step downloaded data, this needs to be indexed before we can 
-use it to call STs.  This formats the data into a consistent format and 
+The previous step downloaded data, this needs to be indexed before we can
+use it to call STs.  This formats the data into a consistent format and
 calculates things like hashes of alleles to enable quick exact matches.
 
-We build separate containers for 7 gene and core genome MLST as follows.
+For MLST:
 
 ```
-docker build -t mlst .
-docker build -t cgmlst --build-arg RUN_CORE_GENOME_MLST=yes .
+DEBUG='cgps:info' npm run index -- --type=mlst --index=index_dir --database=cgps-typing-databases
 ```
 
-## Running the tests
-
-Building the databases takes quite a long time so, if you don't need to test 
-the database building code, it's better to pull a container with a database 
-and test the code there.
-
-To test 7 gene MLST:
+For cgMLST:
 
 ```
-docker run --rm -it \
-    -v $(pwd):/usr/local/mlst \
-    -w /usr/local/mlst/tests \
-    <EXISTING_DOCKER_CONTAINER> \
-        npm test
+DEBUG='cgps:info' npm run index -- --type=cgmlst --max-sequences 50 --index=index_dir --database=cgps-typing-databases
 ```
 
-You can use the same command with a Core Genome MLST container.  The tests 
-should also be run automatically when you build a new container.
+NB These commands overwrite the results of one another, you might want to `mv index_dir{,.bak}` between commands
 
-## TODO
+### Building the containers
 
-* Add more quick tests which don't need a database or blast to tell if something
-  has been broken.
+For MLST:
+
+```
+docker build --build-arg RUN_CORE_GENOME_MLST='no' --target prod_build -t mlst:latest
+```
+
+For cgMLST:
+
+```
+docker build --build-arg RUN_CORE_GENOME_MLST='yes' --target prod_build -t cgmlst:latest
+```
+
+### Running the tests
+
+Download and index the databases you want to test with.  Then build a container
+for testing:
+
+```
+docker build --target test_build -t mlst-test .
+```
+
+This container only includes the dependencies (e.g. Blast) which you need for testing.  You need to mount the code, tests, and index when you run the tests:
+
+```
+docker run -i --rm \
+      -v /usr/local/mlst/node_modules \
+      -w /usr/local/mlst \
+      -e DEBUG='cgps:*,-cgps:trace*' \
+      -e RUN_CORE_GENOME_MLST=no \
+      mlst-test \
+        npm run test
+```
+
+To run the cgmlst tests, you need to update the index and then run:
+```
+docker run -i --rm \
+      -v /usr/local/mlst/node_modules \
+      -w /usr/local/mlst \
+      -e DEBUG='cgps:*,-cgps:trace*' \
+      -e RUN_CORE_GENOME_MLST=yes \
+      mlst-test \
+        npm run test
+```
