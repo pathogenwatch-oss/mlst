@@ -2,30 +2,32 @@
   "alleles": {
     "gyrA": [
       {
-        "allele": "gyrA_1.0",
+        "allele": "gyrA_1",
         "contigId": "contig_0",
         "gene": "gyrA",
-        "st": "1.0",
+        "st": 1,
         "alleleLength": 264,
         "pident": 100,
         "contigStart": 127005,
         "contigEnd": 127268,
+        "alleleStart": 1,
+        "alleleEnd": 264,
+        "reverse": false,
         "contigLength": 264,
         "matchingBases": 264,
-        "reverse": false,
         "exact": true,
         "contig": "ERR1549755.17328_4_44.1 Top Hit:WHO_G Neisseria gonorrhoeae WHO G",
-        "id": "1.0",
+        "id": 1,
         "start": 127005,
         "end": 127268
       }
     ],
     "23S": [
       {
-        "allele": "23S_100.0",
+        "allele": "23S_100",
         "contigId": "contig_0",
         "gene": "23S",
-        "st": "100.0",
+        "st": 100,
         "alleleLength": 567,
         "pident": 100,
         "contigStart": 262659,
@@ -35,17 +37,17 @@
         "reverse": false,
         "exact": true,
         "contig": "ERR1549755.17328_4_44.1 Top Hit:WHO_G Neisseria gonorrhoeae WHO G",
-        "id": "100.0",
+        "id": 100,
         "start": 262659,
         "end": 263225
       }
     ],
     "porB": [
       {
-        "allele": "porB_10.0",
+        "allele": "porB_10",
         "contigId": "contig_2",
         "gene": "porB",
-        "st": "10.0",
+        "st": 10,
         "alleleLength": 30,
         "pident": 100,
         "contigStart": 81597,
@@ -55,27 +57,29 @@
         "reverse": true,
         "exact": true,
         "contig": "ERR1549755.17328_4_44.2 Top Hit:NC_002946.2 Neisseria gonorrhoeae FA 1090 chromosome, complete genome",
-        "id": "10.0",
+        "id": 10,
         "start": 81626,
         "end": 81597
       }
     ],
     "ponA": [
       {
-        "allele": "ponA_1.0",
+        "allele": "ponA_1",
         "contigId": "contig_7",
         "gene": "ponA",
-        "st": "1.0",
+        "st": 1,
         "alleleLength": 75,
         "pident": 100,
         "contigStart": 45845,
         "contigEnd": 45919,
+        "alleleStart": 1,
+        "alleleEnd": 75,
+        "reverse": true,
         "contigLength": 75,
         "matchingBases": 75,
-        "reverse": true,
         "exact": true,
         "contig": "ERR1549755.17328_4_44.9 Top Hit:WHO_G Neisseria gonorrhoeae WHO G",
-        "id": "1.0",
+        "id": 1,
         "start": 45919,
         "end": 45845
       }
@@ -85,7 +89,7 @@
         "allele": "penA_44.001",
         "contigId": "contig_21",
         "gene": "penA",
-        "st": "44.001",
+        "st": 44.001,
         "alleleLength": 1749,
         "pident": 100,
         "contigStart": 32645,
@@ -95,17 +99,17 @@
         "reverse": true,
         "exact": true,
         "contig": "ERR1549755.17328_4_44.15 Top Hit:WHO_O Neisseria gonorrhoeae WHO O",
-        "id": "44.001",
+        "id": 44.001,
         "start": 34393,
         "end": 32645
       }
     ],
     "parC": [
       {
-        "allele": "parC_10.0",
+        "allele": "parC_10",
         "contigId": "contig_22",
         "gene": "parC",
-        "st": "10.0",
+        "st": 10,
         "alleleLength": 332,
         "pident": 100,
         "contigStart": 49948,
@@ -115,17 +119,17 @@
         "reverse": false,
         "exact": true,
         "contig": "ERR1549755.17328_4_44.14 Top Hit:WHO_G Neisseria gonorrhoeae WHO G",
-        "id": "10.0",
+        "id": 10,
         "start": 49948,
         "end": 50279
       }
     ],
     "mtrR": [
       {
-        "allele": "mtrR_16.0",
+        "allele": "mtrR_16",
         "contigId": "contig_26",
         "gene": "mtrR",
-        "st": "16.0",
+        "st": 16,
         "alleleLength": 699,
         "pident": 100,
         "contigStart": 29972,
@@ -135,13 +139,13 @@
         "reverse": true,
         "exact": true,
         "contig": "ERR1549755.17328_4_44.10 Top Hit:WHO_M Neisseria gonorrhoeae WHO M",
-        "id": "16.0",
+        "id": 16,
         "start": 30670,
         "end": 29972
       }
     ]
   },
-  "code": "100.0_1.0_16.0_10.0_44.001_1.0_10.0",
+  "code": "100_1_16_10_44.001_1_10",
   "st": "158",
   "url": "https://ngstar.canada.ca",
   "genes": [

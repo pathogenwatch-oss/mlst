@@ -58,7 +58,7 @@ class Scheme {
     const rawSeqs = await this._readFasta(allelesPath);
     return _.map(rawSeqs, s => {
       const { id, seq, length } = s;
-      return { gene, st: id, length, seq };
+      return { gene, st: Number(id), length, seq };
     });
   }
 
@@ -69,7 +69,7 @@ class Scheme {
         .zip(row)
         .fromPairs()
         .value();
-      const alleles = _.map(genes, gene => rowObj[gene]);
+      const alleles = _.map(genes, gene => Number(rowObj[gene]));
       const { ST: st } = rowObj;
       return { st, alleles };
     };
