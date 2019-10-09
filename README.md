@@ -132,13 +132,13 @@ NB These commands overwrite the results of one another, you might want to `mv in
 For MLST:
 
 ```
-docker build --build-arg RUN_CORE_GENOME_MLST='no' --target prod_build -t mlst:latest
+docker build --build-arg RUN_CORE_GENOME_MLST='no' --target prod_build -t mlst:latest .
 ```
 
 For cgMLST:
 
 ```
-docker build --build-arg RUN_CORE_GENOME_MLST='yes' --target prod_build -t cgmlst:latest
+docker build --build-arg RUN_CORE_GENOME_MLST='yes' --target prod_build -t cgmlst:latest .
 ```
 
 ### Running the tests
@@ -154,6 +154,7 @@ This container only includes the dependencies (e.g. Blast) which you need for te
 
 ```
 docker run -i --rm \
+      -v $(pwd):/usr/local/mlst \
       -v /usr/local/mlst/node_modules \
       -w /usr/local/mlst \
       -e DEBUG='cgps:*,-cgps:trace*' \
@@ -165,6 +166,7 @@ docker run -i --rm \
 To run the cgmlst tests, you need to update the index and then run:
 ```
 docker run -i --rm \
+      -v $(pwd):/usr/local/mlst \
       -v /usr/local/mlst/node_modules \
       -w /usr/local/mlst \
       -e DEBUG='cgps:*,-cgps:trace*' \
