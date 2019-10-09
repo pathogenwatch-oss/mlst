@@ -25,10 +25,18 @@ const cgMlstCases = _.map(
 
 const mlstCases = [
   { 
-    name: "gono",
+    name: "gono mlst",
     seqPath: path.join(TESTDATA_DIR, "gono.fasta"),
     resultsPath: path.join(TESTDATA_DIR, "gono.json"),
     taxid: "482"
+  },
+  {
+    // This is not strictly speaking an MLST case but it is
+    // very similar
+    name: "gono ngstar",
+    seqPath: path.join(TESTDATA_DIR, "gono.fasta"),
+    resultsPath: path.join(TESTDATA_DIR, "gono.ngstar.json"),
+    taxid: "485"
   }
 ]
 

@@ -1,0 +1,157 @@
+{
+  "alleles": {
+    "gyrA": [
+      {
+        "allele": "gyrA_1.0",
+        "contigId": "contig_0",
+        "gene": "gyrA",
+        "st": "1.0",
+        "alleleLength": 264,
+        "pident": 100,
+        "contigStart": 127005,
+        "contigEnd": 127268,
+        "contigLength": 264,
+        "matchingBases": 264,
+        "reverse": false,
+        "exact": true,
+        "contig": "ERR1549755.17328_4_44.1 Top Hit:WHO_G Neisseria gonorrhoeae WHO G",
+        "id": "1.0",
+        "start": 127005,
+        "end": 127268
+      }
+    ],
+    "23S": [
+      {
+        "allele": "23S_100.0",
+        "contigId": "contig_0",
+        "gene": "23S",
+        "st": "100.0",
+        "alleleLength": 567,
+        "pident": 100,
+        "contigStart": 262659,
+        "contigEnd": 263225,
+        "contigLength": 567,
+        "matchingBases": 567,
+        "reverse": false,
+        "exact": true,
+        "contig": "ERR1549755.17328_4_44.1 Top Hit:WHO_G Neisseria gonorrhoeae WHO G",
+        "id": "100.0",
+        "start": 262659,
+        "end": 263225
+      }
+    ],
+    "porB": [
+      {
+        "allele": "porB_10.0",
+        "contigId": "contig_2",
+        "gene": "porB",
+        "st": "10.0",
+        "alleleLength": 30,
+        "pident": 100,
+        "contigStart": 81597,
+        "contigEnd": 81626,
+        "contigLength": 30,
+        "matchingBases": 30,
+        "reverse": true,
+        "exact": true,
+        "contig": "ERR1549755.17328_4_44.2 Top Hit:NC_002946.2 Neisseria gonorrhoeae FA 1090 chromosome, complete genome",
+        "id": "10.0",
+        "start": 81626,
+        "end": 81597
+      }
+    ],
+    "ponA": [
+      {
+        "allele": "ponA_1.0",
+        "contigId": "contig_7",
+        "gene": "ponA",
+        "st": "1.0",
+        "alleleLength": 75,
+        "pident": 100,
+        "contigStart": 45845,
+        "contigEnd": 45919,
+        "contigLength": 75,
+        "matchingBases": 75,
+        "reverse": true,
+        "exact": true,
+        "contig": "ERR1549755.17328_4_44.9 Top Hit:WHO_G Neisseria gonorrhoeae WHO G",
+        "id": "1.0",
+        "start": 45919,
+        "end": 45845
+      }
+    ],
+    "penA": [
+      {
+        "allele": "penA_44.001",
+        "contigId": "contig_21",
+        "gene": "penA",
+        "st": "44.001",
+        "alleleLength": 1749,
+        "pident": 100,
+        "contigStart": 32645,
+        "contigEnd": 34393,
+        "contigLength": 1749,
+        "matchingBases": 1749,
+        "reverse": true,
+        "exact": true,
+        "contig": "ERR1549755.17328_4_44.15 Top Hit:WHO_O Neisseria gonorrhoeae WHO O",
+        "id": "44.001",
+        "start": 34393,
+        "end": 32645
+      }
+    ],
+    "parC": [
+      {
+        "allele": "parC_10.0",
+        "contigId": "contig_22",
+        "gene": "parC",
+        "st": "10.0",
+        "alleleLength": 332,
+        "pident": 100,
+        "contigStart": 49948,
+        "contigEnd": 50279,
+        "contigLength": 332,
+        "matchingBases": 332,
+        "reverse": false,
+        "exact": true,
+        "contig": "ERR1549755.17328_4_44.14 Top Hit:WHO_G Neisseria gonorrhoeae WHO G",
+        "id": "10.0",
+        "start": 49948,
+        "end": 50279
+      }
+    ],
+    "mtrR": [
+      {
+        "allele": "mtrR_16.0",
+        "contigId": "contig_26",
+        "gene": "mtrR",
+        "st": "16.0",
+        "alleleLength": 699,
+        "pident": 100,
+        "contigStart": 29972,
+        "contigEnd": 30670,
+        "contigLength": 699,
+        "matchingBases": 699,
+        "reverse": true,
+        "exact": true,
+        "contig": "ERR1549755.17328_4_44.10 Top Hit:WHO_M Neisseria gonorrhoeae WHO M",
+        "id": "16.0",
+        "start": 30670,
+        "end": 29972
+      }
+    ]
+  },
+  "code": "100.0_1.0_16.0_10.0_44.001_1.0_10.0",
+  "st": "158",
+  "url": "https://ngstar.canada.ca",
+  "genes": [
+    "23S",
+    "gyrA",
+    "mtrR",
+    "parC",
+    "penA",
+    "ponA",
+    "porB"
+  ],
+  "schemeSize": 7
+}

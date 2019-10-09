@@ -26,6 +26,7 @@ quick index:
     - yarn install
     - DEBUG='cgps:info' npm run index -- --scheme=saureus_1 --max-sequences 50 --index=index_dir --database=cgps-typing-databases
     - DEBUG='cgps:info' npm run index -- --scheme=neisseria --index=index_dir --database=cgps-typing-databases
+    - DEBUG='cgps:info' npm run index -- --scheme=ngstar --index=index_dir --database=cgps-typing-databases
 
 quick test:
   stage: quick-test
