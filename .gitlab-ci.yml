@@ -38,6 +38,7 @@ quick test:
       --build-arg https_proxy=$https_proxy
       --target test_build
       -t "$CI_REGISTRY_IMAGE:mlst-test" .
+    # We need to run this tar trick to get round docker in docker problems
     - tar c *.json *.js src tests index_dir | docker run -i --rm
       -v /usr/local/mlst/node_modules
       -w /usr/local/mlst
@@ -85,6 +86,7 @@ test schemes:
       --build-arg https_proxy=$https_proxy
       --target test_build
       -t "$CI_REGISTRY_IMAGE:mlst-test" .
+    # We need to run this tar trick to get round docker in docker problems
     - tar c *.json *.js src tests index_dir | docker run -i --rm
       -v /usr/local/mlst/node_modules
       -w /usr/local/mlst

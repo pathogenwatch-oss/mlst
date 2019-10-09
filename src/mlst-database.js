@@ -44,14 +44,17 @@ async function readGenes(genesFile) {
 class Scheme {
   constructor(options) {
     this.dataDir = options.dataDir;
+    this.indexDir = options.indexDir;
+    this.schemePath = options.schemePath;
+    this.schemeDir = path.join(this.indexDir, this.schemePath)
     this.alleleLookupPrefixLength = 20;
     this.metadata = options.metadata;
-    const genesFile = path.join(this.dataDir, '.bin', 'genes.txt');
+    const genesFile = path.join(this.dataDir, this.schemePath, '.bin', 'genes.txt');
     this.genes = readGenes(genesFile);
   }
 
   async alleles(gene) {
-    const allelesPath = path.join(this.dataDir, `${gene}.fa.gz`);
+    const allelesPath = path.join(this.dataDir, this.schemePath, `${gene}.fa.gz`);
     const rawSeqs = await this._readFasta(allelesPath);
     return _.map(rawSeqs, s => {
       const { id, seq, length } = s;
@@ -73,7 +76,7 @@ class Scheme {
   }
 
   async profiles() {
-    const profilesPath = path.join(this.dataDir, 'profiles.tsv');
+    const profilesPath = path.join(this.dataDir, this.schemePath, 'profiles.tsv');
     if (!(await existsAsync(profilesPath))) return undefined;
 
     const genes = await this.genes;
@@ -107,9 +110,9 @@ class Scheme {
     return output.promise;
   }
 
-  async index(schemeDir, maxSeqs = 0) {
+  async index(maxSeqs = 0) {
     // maxSeqs is the maximum number of sequences for each gene
-    await mkdirp(schemeDir, { mode: 0o755 });
+    await mkdirp(this.schemeDir, { mode: 0o755 });
 
     const alleleLookup = {};
     const genes = await this.genes;
@@ -126,12 +129,11 @@ class Scheme {
         let allelePath;
         if (maxSeqs > 0) {
           allelePath = await this.write(
-            schemeDir,
             gene,
             sortedAlleles.slice(0, maxSeqs)
           );
         } else {
-          allelePath = await this.write(schemeDir, gene, sortedAlleles);
+          allelePath = await this.write(gene, sortedAlleles);
         }
         allelePaths[gene] = allelePath;
         _.forEach(alleles, allele => {
@@ -176,14 +178,14 @@ class Scheme {
       alleleLookupPrefixLength: this.alleleLookupPrefixLength,
       profiles: await this.profiles()
     };
-    const metadataPath = path.join(schemeDir, "metadata.json");
+    const metadataPath = path.join(this.schemeDir, "metadata.json");
     await writeJsonAsync(metadataPath, metadata);
     logger("cgps:info")(
       `Indexed ${totalAlleles} alleles from ${
         genes.length
       } genes into ${metadataPath}`
     );
-    return metadataPath;
+    return path.join(this.schemePath, "metadata.json");
   }
 
   sort(alleles) {
@@ -219,8 +221,8 @@ class Scheme {
     ];
   }
 
-  async write(schemeDir, gene, alleles) {
-    const outpath = path.join(schemeDir, `${gene}.fa.gz`);
+  async write(gene, alleles) {
+    const outpath = path.join(this.schemeDir, `${gene}.fa.gz`);
     const contents = _(alleles)
       .map(allele => `>${allele.gene}_${allele.st}\n${allele.seq}\n`)
       .join("");
@@ -229,7 +231,7 @@ class Scheme {
     logger("cgps:trace:index")(
       `Wrote ${alleles.length} alleles for ${gene} to ${outpath}`
     );
-    return outpath;
+    return path.join(this.schemePath, `${gene}.fa.gz`);
   }
 
   async _readFasta(fastaPath) {
@@ -263,7 +265,12 @@ async function readScheme(taxid, indexDir=DEFAULT_INDEX_DIR) {
   if (schemeMetadataPath === undefined) return undefined;
 
   try {
-    return await readJsonAsync(path.join(indexDir, schemeMetadataPath));
+    // Links in the schemeMetadata are relative to the indexDir
+    const schemeDetails = await readJsonAsync(path.join(indexDir, schemeMetadataPath));
+    for (const allele of Object.keys(schemeDetails.allelePaths)) {
+      schemeDetails.allelePaths[allele] = path.join(indexDir, schemeDetails.allelePaths[allele]);
+    }
+    return schemeDetails
   } catch (err) {
     return undefined;
   }
@@ -280,9 +287,9 @@ function parseAlleleName(allele) {
   }
 }
 
-async function readSchemeUpdatedDate(schemeDir) {
+async function readSchemeUpdatedDate(dir) {
   try {
-    return await readFileAsync(path.join(schemeDir, 'updated.txt'));
+    return await readFileAsync(path.join(dir, 'updated.txt'));
   } catch (err) {
     return "0"
   }
@@ -341,17 +348,20 @@ async function main() {
   let latestSchemeUpdate = await readSchemeUpdatedDate(argv.index)
 
   for (const schemeData of schemes) {
-    const { path: path_, targets, ...metadata } = schemeData;
+    const { path: schemePath, targets, ...metadata } = schemeData;
     const { name: schemeName, url, shortname, type } = metadata;
-    const dataDir = path.join(argv.database, path_)
-    const schemeDir = path.join(argv.index, path_)
-    const scheme = new Scheme({ dataDir, metadata })
+    const scheme = new Scheme({
+      dataDir: argv.database,
+      indexDir: argv.index,
+      schemePath,
+      metadata
+    })
     const maxSeqs = argv.n
-    const schemeIndexPath = await scheme.index(schemeDir, maxSeqs)
+    const schemeIndexPath = await scheme.index(maxSeqs)
     const update = {}
     for (const { name: species, taxid } of targets) {
       update[taxid] = {
-        path: path.relative(argv.index, schemeIndexPath),
+        path: schemeIndexPath,
         species,
         schemeName,
         url,
@@ -362,7 +372,7 @@ async function main() {
       logger('cgps:info')(`Added scheme for ${taxid}`);
     }
     await updateMetadata(argv.index, update)
-    const schemeUpdated = await readSchemeUpdatedDate(dataDir);
+    const schemeUpdated = await readSchemeUpdatedDate(scheme.schemeDir);
     latestSchemeUpdate = schemeUpdated > latestSchemeUpdate ? schemeUpdated : latestSchemeUpdate;
   }
 
