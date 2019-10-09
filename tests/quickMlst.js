@@ -41,6 +41,7 @@ const mlstCases = [
 ]
 
 test("Run a handfull of cases", async t => {
+  if (process.env.QUICK !== "true") t.pass("Skipped");
   const testCases = shouldRunCgMlst() ? cgMlstCases : mlstCases;
   const RUN_CORE_GENOME_MLST = shouldRunCgMlst() ? "yes" : "no"
   await Promise.map(
