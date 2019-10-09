@@ -1,4 +1,4 @@
 node_modules/*
-scratch.js
-index_dir
+scratch.*
+*index_dir
 .DS_Store
