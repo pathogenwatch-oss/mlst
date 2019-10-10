@@ -55,7 +55,11 @@ test("Sort seq objects", t => {
       ]
     }
   };
-  const scheme = new Scheme({ dataDir: "tests/testdata/fakeDatabase" });
+  const scheme = new Scheme({
+    dataDir: "tests/testdata",
+    indexDir: "tests/testdata/fakeIndex",
+    schemePath: "fakeDatabase"
+  });
   _.forEach(testCases, ({ seqs, expected }, name) => {
     const actual = scheme.sort(seqs);
     t.deepEqual(actual, expected, name);
