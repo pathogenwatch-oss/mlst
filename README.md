@@ -53,7 +53,7 @@ Give the pipeline the following environment variables:
 
 * cgmlst: `RUN_CORE_GENOME_MLST = yes`
 * mlst: `RUN_CORE_GENOME_MLST = no`
-* alternative mlst schemes: `INDEX_PARAMS = --type alternative_mlst; SCHEME_NAME = alternative_mlst`
+* alternative mlst schemes: `INDEX_PARAMS = --type alternative_mlst; SCHEME_NAME = alternative-mlst`
 * ngstar: `INDEX_PARAMS = --scheme ngstar; SCHEME_NAME = ngstar`
 
 ## How it works
