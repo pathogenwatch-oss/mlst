@@ -77,6 +77,7 @@ function formatOutput({ alleleMetadata, renamedSequences, bestHits }) {
   // For each gene we make a comma delimited list of allele ids
   // and join them with underscores
   const code = _(genes)
+    .sort()
     .map(gene => alleles[gene] || [])
     .map(hits => _.map(hits, "id").join(","))
     .value()
