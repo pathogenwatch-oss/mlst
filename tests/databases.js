@@ -14,21 +14,6 @@ async function readJson(p) {
   return JSON.parse(contents);
 }
 
-test("Check genes are ordered", async t => {
-  const metadataFiles = await globAsync("index_dir/*/*/metadata.json");
-  await Promise.map(
-    metadataFiles,
-    async f => {
-      logger("cgps:test")(`Checking gene order for ${f}`);
-      const { genes } = await readJson(f);
-      const unsorted = [...genes];
-      genes.sort();
-      t.deepEqual(unsorted, genes, `Expected genes for ${f} to be sorted`);
-    },
-    { concurrency: 1 }
-  );
-});
-
 test("MLST have profiles", async t => {
   if (shouldRunCgMlst()) {
     t.pass("Skipping for cgmlst");
