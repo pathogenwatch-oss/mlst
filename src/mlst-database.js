@@ -78,7 +78,7 @@ class Scheme {
     const profilesPath = path.join(this.dataDir, this.schemePath, 'profiles.tsv');
     if (!(await existsAsync(profilesPath))) return undefined;
 
-    const genes = _.sortBy(await this.genes);
+    const genes = await this.genes;
     let rowParser = null;
     const output = new DeferredPromise();
     const profiles = {};
