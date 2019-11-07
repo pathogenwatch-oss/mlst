@@ -248,15 +248,15 @@
       ]
     }
   ],
-  "code": "4_2_5_1_1_1_1",
+  "code": "1_5_1_1_2_1_4",
   "genes": [
-    "Ribose_ABC",
-    "SH1431",
-    "SH_1200",
     "arcC",
-    "cfxE",
+    "SH_1200",
     "hemH",
-    "leuB"
+    "leuB",
+    "SH1431",
+    "cfxE",
+    "Ribose_ABC"
   ],
   "raw": {
     "Ribose_ABC": [
