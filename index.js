@@ -2,6 +2,9 @@
 
 const _ = require("lodash");
 const logger = require("debug");
+const argv =  require("yargs")
+  .boolean('cgmlst')
+  .argv
 
 const { makeBlastDb } = require("./src/blast");
 const {
@@ -96,7 +99,17 @@ async function runMlst(inStream, taxidEnvVariables) {
 module.exports = { runMlst };
 
 if (require.main === module) {
-  runMlst(process.stdin, process.env)
+  const taxidEnvVariables = {
+    ...process.env,
+    TAXID: argv.taxid || process.env.TAXID,
+    ORGANISM_TAXID: argv.organism || process.env.ORGANISM_TAXID,
+    SPECIES_TAXID: argv.species || process.env.SPECIES_TAXID,
+    GENUS_TAXID: argv.genus || process.env.GENUS_TAXID,
+  }
+  if (argv.cgmlst) {
+    taxidEnvVariables.RUN_CORE_GENOME_MLST = "yes"
+  }
+  runMlst(process.stdin, taxidEnvVariables)
     .then(output => console.log(JSON.stringify(output)))
     .then(() => logger("cgps:info")("Done"))
     .catch(fail("RunAllBlast"));

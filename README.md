@@ -5,15 +5,15 @@
 You can manually run seven gene as follows:
 
 ```
-cat FILE_TO_BE_TYPED.fasta | docker run -i -e WGSA_ORGANISM_TAXID=ORGANISM_TAXID --rm registry.gitlab.com/cgps/cgps-mlst:mlst-v1.5.58
+cat FILE_TO_BE_TYPED.fasta | docker run -i --rm registry.gitlab.com/cgps/cgps-mlst:latest --taxid=1280
 # or
-cat FILE_TO_BE_TYPED.fasta | docker run -i -e WGSA_ORGANISM_TAXID=ORGANISM_TAXID --rm registry.gitlab.com/cgps/cgps-mlst:mlst-v1.5.58
+cat FILE_TO_BE_TYPED.fasta | docker run -i -e TAXID=ORGANISM_TAXID --rm registry.gitlab.com/cgps/cgps-mlst:mlst-v1.5.58
 ```
 
 For example:
 
 ```
-cat tests/testdata/saureus_duplicate.fasta | docker run -i -e WGSA_ORGANISM_TAXID=1280 --rm registry.gitlab.com/cgps/cgps-mlst:mlst-v1.5.58
+cat tests/testdata/saureus_duplicate.fasta | docker run -i -e TAXID=1280 --rm registry.gitlab.com/cgps/cgps-mlst:mlst-v1.5.58
 ```
 
 You can get information for debugging by passing in the `DEBUG` environment variable:

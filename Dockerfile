@@ -37,4 +37,4 @@ SHELL   ["/bin/sh", "-c"]
 ARG     RUN_CORE_GENOME_MLST
 ENV     RUN_CORE_GENOME_MLST=$RUN_CORE_GENOME_MLST
 
-CMD 	  /usr/local/bin/node /usr/local/mlst/index.js
+ENTRYPOINT [ "/usr/local/bin/node", "/usr/local/mlst/index.js" ]
