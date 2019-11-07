@@ -145,17 +145,17 @@
       }
     ]
   },
-  "code": "100_1_16_10_44.001_1_10",
+  "code": "44.001_16_10_1_1_10_100",
   "st": "158",
   "url": "https://ngstar.canada.ca",
   "genes": [
-    "23S",
-    "gyrA",
-    "mtrR",
-    "parC",
     "penA",
+    "mtrR",
+    "porB",
     "ponA",
-    "porB"
+    "gyrA",
+    "parC",
+    "23S"
   ],
   "schemeSize": 7
 }

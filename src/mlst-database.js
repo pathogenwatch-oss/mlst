@@ -37,7 +37,6 @@ async function readJsonAsync(outputPath) {
 async function readGenes(genesFile) {
   const contents = await readFileAsync(genesFile, { encoding: 'utf8' });
   const genes = _.filter(contents.split('\n'), line => line);
-  genes.sort();
   return genes;
 }
 

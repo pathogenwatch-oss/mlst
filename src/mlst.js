@@ -83,10 +83,18 @@ function formatOutput({ alleleMetadata, renamedSequences, bestHits }) {
     .join("_")
     .toLowerCase();
 
+  const sortedCode = _(genes)
+    .sortBy()
+    .map(gene => alleles[gene] || [])
+    .map(hits => _.map(hits, "id").join(","))
+    .value()
+    .join("_")
+    .toLowerCase();
+
   const { profiles = {} } = alleleMetadata;
   const st = profiles[code]
     ? profiles[code]
-    : hasha(code.toLowerCase(), { algorithm: "sha1" });
+    : hasha(sortedCode, { algorithm: "sha1" });
 
   const { schemeName: scheme, schemeSize, url } = alleleMetadata;
   return {
