@@ -89,83 +89,83 @@ test("Run specific MLST cases", async t => {
   const testCases = [
     {
       name: "saureus_synthetic_ones",
-      env: { WGSA_SPECIES_TAXID: "1280" }
+      env: { SPECIES_TAXID: "1280" }
     },
     {
       name: "saureus_synthetic_ones_duplicate",
-      env: { WGSA_SPECIES_TAXID: "1280" }
+      env: { SPECIES_TAXID: "1280" }
     },
     {
       name: "saureus_synthetic_ones_duplicate_different_novel",
-      env: { WGSA_SPECIES_TAXID: "1280" }
+      env: { SPECIES_TAXID: "1280" }
     },
     {
       name: "saureus_synthetic_ones_duplicate_identical_novel",
-      env: { WGSA_SPECIES_TAXID: "1280" }
+      env: { SPECIES_TAXID: "1280" }
     },
     {
       name: "saureus_synthetic_ones_duplicate_one_novel",
-      env: { WGSA_SPECIES_TAXID: "1280" }
+      env: { SPECIES_TAXID: "1280" }
     },
     {
       name: "saureus_synthetic_last",
-      env: { WGSA_SPECIES_TAXID: "1280" }
+      env: { SPECIES_TAXID: "1280" }
     },
     {
       name: "saureus_synthetic_last_duplicate",
-      env: { WGSA_SPECIES_TAXID: "1280" }
+      env: { SPECIES_TAXID: "1280" }
     },
     {
       name: "saureus_synthetic_last_duplicate_different_novel",
-      env: { WGSA_SPECIES_TAXID: "1280" }
+      env: { SPECIES_TAXID: "1280" }
     },
     {
       name: "saureus_synthetic_last_duplicate_identical_novel",
-      env: { WGSA_SPECIES_TAXID: "1280" }
+      env: { SPECIES_TAXID: "1280" }
     },
     {
       name: "saureus_synthetic_last_duplicate_one_novel",
-      env: { WGSA_SPECIES_TAXID: "1280" }
+      env: { SPECIES_TAXID: "1280" }
     },
     {
       name: "saureus_synthetic_novel_reversed_duplicates",
-      env: { WGSA_SPECIES_TAXID: "1280" }
+      env: { SPECIES_TAXID: "1280" }
     },
     {
       name: "saureus_synthetic_ones_reversed",
-      env: { WGSA_SPECIES_TAXID: "1280" }
+      env: { SPECIES_TAXID: "1280" }
     },
     {
       name: "saureus_duplicate",
-      env: { WGSA_SPECIES_TAXID: "1280" }
+      env: { SPECIES_TAXID: "1280" }
     },
     {
       name: "saureus_missing",
-      env: { WGSA_SPECIES_TAXID: "1280" }
+      env: { SPECIES_TAXID: "1280" }
     },
     {
       name: "saureus_novel",
-      env: { WGSA_SPECIES_TAXID: "1280" }
+      env: { SPECIES_TAXID: "1280" }
     },
     {
       name: "saureus_bad_names",
-      env: { WGSA_SPECIES_TAXID: "1280" }
+      env: { SPECIES_TAXID: "1280" }
     },
     {
       name: "gono",
-      env: { WGSA_GENUS_TAXID: "482" }
+      env: { GENUS_TAXID: "482" }
     },
     {
       name: "shaemolyticus",
-      env: { WGSA_SPECIES_TAXID: "1283" }
+      env: { SPECIES_TAXID: "1283" }
     },
     {
       name: "typhi",
-      env: { WGSA_SPECIES_TAXID: "28901" }
+      env: { SPECIES_TAXID: "28901" }
     },
     {
       name: "typhi2",
-      env: { WGSA_SPECIES_TAXID: "28901" }
+      env: { SPECIES_TAXID: "28901" }
     }
   ];
   await Promise.map(
@@ -221,7 +221,7 @@ test("Run more staph MLST cases", async t => {
       const expectedResults = await readJson(resultsPath);
       const inputStream = fs.createReadStream(seqPath);
       const results = await runMlst(inputStream, {
-        WGSA_SPECIES_TAXID: "1280"
+        SPECIES_TAXID: "1280"
       });
       t.deepEqual(
         compareAlleles(results, expectedResults),
@@ -252,7 +252,7 @@ test("Run synthetic CgMLST", async t => {
   );
 
   const results = await runMlst(inputStream, {
-    WGSA_SPECIES_TAXID: "1280",
+    SPECIES_TAXID: "1280",
     RUN_CORE_GENOME_MLST: "yes"
   });
   t.deepEqual(compareAlleles(results, expectedResults), {}, `${name}: alleles`);
@@ -288,7 +288,7 @@ test("Run more staph CgMLST cases", async t => {
       const expectedResults = await readJson(resultsPath);
       const inputStream = fs.createReadStream(seqPath);
       const results = await runMlst(inputStream, {
-        WGSA_SPECIES_TAXID: "1280",
+        SPECIES_TAXID: "1280",
         RUN_CORE_GENOME_MLST: "yes"
       });
       t.deepEqual(
