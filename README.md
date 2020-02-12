@@ -119,6 +119,12 @@ For MLST:
 DEBUG='cgps:info' npm run index -- --type=mlst --index=index_dir --database=cgps-typing-databases
 ```
 
+For ngstar:
+
+```
+DEBUG='cgps:info' npm run index -- --type=ngstar --index=index_dir --database=cgps-typing-databases
+```
+
 For cgMLST:
 
 ```
@@ -173,4 +179,16 @@ docker run -i --rm \
       -e RUN_CORE_GENOME_MLST=yes \
       mlst-test \
         npm run test
+```
+
+You can also run the "quick-test" which only run a subset of tests.  To run these, index the MLST schemes and then the ngstar schemes as show above.  Then run:
+```
+docker run -i --rm \
+      -v $(pwd):/usr/local/mlst \
+      -v /usr/local/mlst/node_modules \
+      -w /usr/local/mlst \
+      -e DEBUG='cgps:*,-cgps:trace*' \
+      -e RUN_CORE_GENOME_MLST=no \
+      mlst-test \
+        npm run quick-test
 ```

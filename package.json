@@ -4,6 +4,7 @@
   "description": "Use PubMLST to type samples",
   "main": "index.js",
   "scripts": {
+    "quick-test": "QUICK=true node --max_old_space_size=4096 ./node_modules/.bin/ava --serial tests/quickMlst.js",
     "test": "node --max_old_space_size=4096 ./node_modules/.bin/ava --serial tests/",
     "lint": "eslint **/*.js *.js",
     "index": "node --max_old_space_size=6144 ./src/mlst-database.js index"

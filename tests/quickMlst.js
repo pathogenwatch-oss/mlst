@@ -65,3 +65,20 @@ test("Run a handfull of cases", async t => {
     { concurrency: 1 }
   );
 });
+
+test("Check multiple copies of same allele", async t => {
+  if (process.env.QUICK !== "true") return t.pass("Skipped");
+  const seqPath = path.join(TESTDATA_DIR, "gono_fake.fasta");
+  const inputStream = fs.createReadStream(seqPath);
+  const results = await runMlst(inputStream, {
+    TAXID: "482",
+    RUN_CORE_GENOME_MLST: "no"
+  });
+  const expected = {
+    code: "1_3_1_1_1_1_3,3,3",
+    st: "1"
+  }
+  t.is(results.code, expected.code, `code: ${results.code} !== ${expected.code}`)
+  t.is(results.st, expected.st, `st: ${results.st} !== ${expected.st}`)      
+})
+
