@@ -83,6 +83,24 @@ function formatOutput({ alleleMetadata, renamedSequences, bestHits }) {
     .join("_")
     .toLowerCase();
 
+  // Some species are expected to have multiple copies of
+  // a locus (e.g. gono has 4 copies of 23s). With long read
+  // data this shows up in `code` but the profiles only
+  // report one copy.  The lookup should therefore needs
+  // to deduplicate alleles but we'll keep it in the
+  // output so that you can see all X were found
+  const profileLookup = _(genes)
+    .map(gene => alleles[gene] || [])
+    .map(hits => _.map(hits, "id"))
+    .map(hits => [...new Set(hits)].sort())
+    .map(hits => hits.join(","))
+    .value()
+    .join("_")
+    .toLowerCase();
+
+  // This is like code but sorts the genes for
+  // consistent hashing.  This is important so
+  // that novel STs remain consistent.
   const sortedCode = _(genes)
     .sortBy()
     .map(gene => alleles[gene] || [])
@@ -92,8 +110,8 @@ function formatOutput({ alleleMetadata, renamedSequences, bestHits }) {
     .toLowerCase();
 
   const { profiles = {} } = alleleMetadata;
-  const st = profiles[code]
-    ? profiles[code]
+  const st = profiles[profileLookup]
+    ? profiles[profileLookup]
     : hasha(sortedCode, { algorithm: "sha1" });
 
   const { schemeName: scheme, schemeSize, url } = alleleMetadata;
