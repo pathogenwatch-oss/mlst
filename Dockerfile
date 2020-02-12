@@ -1,9 +1,9 @@
 FROM    ubuntu:latest as blast_build
 
 RUN     apt-get update && apt-get install -y wget tar
-RUN     wget ftp://ftp.ncbi.nlm.nih.gov/blast/executables/LATEST/ncbi-blast-2.9.0+-x64-linux.tar.gz
-RUN     tar xzvf ncbi-blast-2.9.0+-x64-linux.tar.gz
-RUN     mv ncbi-blast-2.9.0+/bin /blast
+RUN     wget ftp://ftp.ncbi.nlm.nih.gov/blast/executables/blast+/2.10.0/ncbi-blast-2.10.0+-x64-linux.tar.gz
+RUN     tar xzvf ncbi-blast-*-x64-linux.tar.gz
+RUN     mv ncbi-blast-*/bin /blast
 
 
 
