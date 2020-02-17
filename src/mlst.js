@@ -100,11 +100,15 @@ function formatOutput({ alleleMetadata, renamedSequences, bestHits }) {
 
   // This is like code but sorts the genes for
   // consistent hashing.  This is important so
-  // that novel STs remain consistent.
+  // that novel STs remain consistent. I've deduplicated
+  // identical copies so that long and short read data
+  // are more likely to get the same unique hash
   const sortedCode = _(genes)
     .sortBy()
     .map(gene => alleles[gene] || [])
-    .map(hits => _.map(hits, "id").join(","))
+    .map(hits => _.map(hits, "id"))
+    .map(hits => [...new Set(hits)].sort())
+    .map(hits => hits.join(","))
     .value()
     .join("_")
     .toLowerCase();
@@ -114,7 +118,7 @@ function formatOutput({ alleleMetadata, renamedSequences, bestHits }) {
     ? profiles[profileLookup]
     : hasha(sortedCode, { algorithm: "sha1" });
 
-  const { schemeName: scheme, schemeSize, url } = alleleMetadata;
+  const { shortname: scheme, schemeSize, url } = alleleMetadata;
   return {
     alleles,
     code,
