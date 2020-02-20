@@ -47,7 +47,11 @@ pipeline.  It will trigger some quick tests.
 You should then wait and see if the quick-tests pass.  If they do, you can build containers
 using our CI system.
 
-On the [Pipelines page](https://gitlab.com/cgps/cgps-mlst/pipelines), click `New Pipeline`.
+You need to get a CI token from the [CI/CD Settings page](https://gitlab.com/cgps/cgps-mlst/-/settings/ci_cd). 
+Then run `TOKEN=abc_your_token_123 ./bin/build.sh`.
+
+You can build individual pipelines manually from the [Pipelines page](https://gitlab.com/cgps/cgps-mlst/pipelines).
+Click `New Pipeline`.
 Pick the version of the code you want to build (probably the tag you just committed).
 Give the pipeline the following environment variables:
 
