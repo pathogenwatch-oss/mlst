@@ -27,6 +27,7 @@ quick index:
     - DEBUG='cgps:info' npm run index -- --scheme=saureus_1 --max-sequences 50 --index=index_dir --database=cgps-typing-databases
     - DEBUG='cgps:info' npm run index -- --scheme=neisseria --index=index_dir --database=cgps-typing-databases
     - DEBUG='cgps:info' npm run index -- --scheme=ngstar --index=index_dir --database=cgps-typing-databases
+    - cat index_dir/updated.txt
 
 quick test:
   stage: quick-test
@@ -49,6 +50,7 @@ quick test:
       -e QUICK=true
       $CI_REGISTRY_IMAGE:mlst-test
         bash -c "tar x &&
+          cat index_dir/updated.txt &&
           RUN_CORE_GENOME_MLST=no node --max_old_space_size=4096 ./node_modules/.bin/ava --serial tests/quickMlst.js &&
           RUN_CORE_GENOME_MLST=yes node --max_old_space_size=4096 ./node_modules/.bin/ava --serial tests/quickMlst.js"
 
