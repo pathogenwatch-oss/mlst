@@ -2,3 +2,4 @@ node_modules/*
 scratch.*
 *index_dir
 .DS_Store
+*.fixed.json
