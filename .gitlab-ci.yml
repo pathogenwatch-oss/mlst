@@ -50,7 +50,6 @@ quick test:
       $CI_REGISTRY_IMAGE:mlst-test
         bash -c "tar x &&
           cat index_dir/updated.txt &&
-          find src/ -name '*.js' -exec md5sum {} \; &&
           RUN_CORE_GENOME_MLST=no node --max_old_space_size=4096 ./node_modules/.bin/ava --serial tests/quickMlst.js &&
           RUN_CORE_GENOME_MLST=yes node --max_old_space_size=4096 ./node_modules/.bin/ava --serial tests/quickMlst.js"
 
