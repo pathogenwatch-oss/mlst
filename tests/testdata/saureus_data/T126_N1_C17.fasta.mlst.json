@@ -2,75 +2,6 @@
   "alleles": {
     "arcC": [
       {
-        "contig": "ERS023859.5985_3_3.1",
-        "end": 299833,
-        "id": "6b12306343ec248c1ba2d5d0f5fb7fb85233b5d0",
-        "start": 299378
-      }
-    ],
-    "aroE": [
-      {
-        "contig": "ERS023859.5985_3_3.7",
-        "end": 55241,
-        "id": 3,
-        "start": 54786
-      }
-    ],
-    "glpF": [
-      {
-        "contig": "ERS023859.5985_3_3.1",
-        "end": 108449,
-        "id": "5d7e8663474a7c8c9d4054acc7335fe48d346902",
-        "start": 107985
-      }
-    ],
-    "gmk": [
-      {
-        "contig": "ERS023859.5985_3_3.1",
-        "end": 2905,
-        "id": 1,
-        "start": 2489
-      }
-    ],
-    "pta": [
-      {
-        "contig": "ERS023859.5985_3_3.15",
-        "end": 29501,
-        "id": 4,
-        "start": 29974
-      }
-    ],
-    "tpi": [
-      {
-        "contig": "ERS023859.5985_3_3.5",
-        "end": 188740,
-        "id": 4,
-        "start": 188339
-      }
-    ],
-    "yqiL": [
-      {
-        "contig": "ERS023859.5985_3_3.2",
-        "end": 93932,
-        "id": 3,
-        "start": 94447
-      }
-    ]
-  },
-  "bins": [],
-  "code": "6b12306343ec248c1ba2d5d0f5fb7fb85233b5d0_3_5d7e8663474a7c8c9d4054acc7335fe48d346902_1_4_4_3",
-  "genes": [
-    "arcC",
-    "aroE",
-    "glpF",
-    "gmk",
-    "pta",
-    "tpi",
-    "yqiL"
-  ],
-  "raw": {
-    "arcC": [
-      {
         "allele": "arcC_355",
         "alleleEnd": 456,
         "alleleLength": 456,
@@ -80,13 +11,15 @@
         "contigId": "contig_0",
         "contigLength": 456,
         "contigStart": 299378,
+        "end": 299833,
         "exact": false,
         "gene": "arcC",
-        "hash": "6b12306343ec248c1ba2d5d0f5fb7fb85233b5d0",
+        "id": "6b12306343ec248c1ba2d5d0f5fb7fb85233b5d0",
         "matchingBases": 455,
-        "pident": 99.78,
+        "pident": 99.781,
         "reverse": false,
-        "st": 355
+        "st": 355,
+        "start": 299378
       }
     ],
     "aroE": [
@@ -100,17 +33,20 @@
         "contigId": "contig_6",
         "contigLength": 456,
         "contigStart": 54786,
+        "end": 55241,
         "exact": true,
         "gene": "aroE",
+        "id": 3,
         "matchingBases": 456,
         "pident": 100,
         "reverse": false,
-        "st": 3
+        "st": 3,
+        "start": 54786
       }
     ],
     "glpF": [
       {
-        "allele": "glpF_522",
+        "allele": "glpF_773",
         "alleleEnd": 465,
         "alleleLength": 465,
         "alleleStart": 1,
@@ -119,13 +55,15 @@
         "contigId": "contig_0",
         "contigLength": 465,
         "contigStart": 107985,
+        "end": 108449,
         "exact": false,
         "gene": "glpF",
-        "hash": "5d7e8663474a7c8c9d4054acc7335fe48d346902",
+        "id": "5d7e8663474a7c8c9d4054acc7335fe48d346902",
         "matchingBases": 463,
         "pident": 99.57,
         "reverse": false,
-        "st": 522
+        "st": 773,
+        "start": 107985
       }
     ],
     "gmk": [
@@ -139,31 +77,35 @@
         "contigId": "contig_0",
         "contigLength": 417,
         "contigStart": 2489,
+        "end": 2905,
         "exact": true,
         "gene": "gmk",
+        "id": 1,
         "matchingBases": 417,
         "pident": 100,
         "reverse": false,
-        "st": 1
+        "st": 1,
+        "start": 2489
       }
     ],
     "pta": [
       {
         "allele": "pta_4",
-        "alleleEnd": 474,
         "alleleLength": 474,
-        "alleleStart": 1,
         "contig": "ERS023859.5985_3_3.15",
         "contigEnd": 29974,
         "contigId": "contig_14",
         "contigLength": 474,
         "contigStart": 29501,
+        "end": 29501,
         "exact": true,
         "gene": "pta",
+        "id": 4,
         "matchingBases": 474,
         "pident": 100,
         "reverse": true,
-        "st": 4
+        "st": 4,
+        "start": 29974
       }
     ],
     "tpi": [
@@ -177,12 +119,15 @@
         "contigId": "contig_4",
         "contigLength": 402,
         "contigStart": 188339,
+        "end": 188740,
         "exact": true,
         "gene": "tpi",
+        "id": 4,
         "matchingBases": 402,
         "pident": 100,
         "reverse": false,
-        "st": 4
+        "st": 4,
+        "start": 188339
       }
     ],
     "yqiL": [
@@ -196,16 +141,30 @@
         "contigId": "contig_1",
         "contigLength": 516,
         "contigStart": 93932,
+        "end": 93932,
         "exact": true,
         "gene": "yqiL",
+        "id": 3,
         "matchingBases": 516,
         "pident": 100,
         "reverse": true,
-        "st": 3
+        "st": 3,
+        "start": 94447
       }
     ]
   },
+  "code": "6b12306343ec248c1ba2d5d0f5fb7fb85233b5d0_3_5d7e8663474a7c8c9d4054acc7335fe48d346902_1_4_4_3",
+  "genes": [
+    "arcC",
+    "aroE",
+    "glpF",
+    "gmk",
+    "pta",
+    "tpi",
+    "yqiL"
+  ],
   "scheme": "saureus",
+  "schemeSize": 7,
   "st": "d30bb46c4e9931c2aca9bb8f71768b4dba7ccaec",
   "url": "https://pubmlst.org/saureus"
 }
