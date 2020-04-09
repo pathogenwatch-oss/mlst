@@ -24,7 +24,7 @@
     "ftp": "^0.3.10",
     "hasha": "^3.0.0",
     "lodash": "^4.17.4",
-    "mkdirp-promise": "^5.0.1",
+    "mkdirp": "^1.0.4",
     "slugify": "^1.2.3",
     "tar": "^3.1.9",
     "through": "^2.3.8",
