@@ -1,0 +1,163 @@
+{
+  "alleles": {
+    "gapA": [
+      {
+        "allele": "gapA_4",
+        "alleleLength": 450,
+        "contig": "NODE_26_length_75397_cov_30.292544",
+        "contigEnd": 8332,
+        "contigId": "contig_25",
+        "contigLength": 450,
+        "contigStart": 7883,
+        "end": 8332,
+        "exact": true,
+        "gene": "gapA",
+        "id": 4,
+        "matchingBases": 450,
+        "pident": 100,
+        "reverse": false,
+        "st": 4,
+        "start": 7883
+      }
+    ],
+    "infB": [
+      {
+        "allele": "infB_1",
+        "alleleEnd": 318,
+        "alleleLength": 318,
+        "alleleStart": 1,
+        "contig": "NODE_4_length_327917_cov_38.161990",
+        "contigEnd": 235874,
+        "contigId": "contig_3",
+        "contigLength": 318,
+        "contigStart": 235557,
+        "end": 235557,
+        "exact": true,
+        "gene": "infB",
+        "id": 1,
+        "matchingBases": 318,
+        "pident": 100,
+        "reverse": true,
+        "st": 1,
+        "start": 235874
+      }
+    ],
+    "mdh": [
+      {
+        "allele": "mdh_2",
+        "alleleLength": 477,
+        "contig": "NODE_4_length_327917_cov_38.161990",
+        "contigEnd": 293439,
+        "contigId": "contig_3",
+        "contigLength": 477,
+        "contigStart": 292963,
+        "end": 292963,
+        "exact": true,
+        "gene": "mdh",
+        "id": 2,
+        "matchingBases": 477,
+        "pident": 100,
+        "reverse": true,
+        "st": 2,
+        "start": 293439
+      }
+    ],
+    "pgi": [
+      {
+        "allele": "pgi_52",
+        "alleleLength": 432,
+        "contig": "NODE_16_length_141453_cov_39.166957",
+        "contigEnd": 26277,
+        "contigId": "contig_15",
+        "contigLength": 432,
+        "contigStart": 25846,
+        "end": 26277,
+        "exact": true,
+        "gene": "pgi",
+        "id": 52,
+        "matchingBases": 432,
+        "pident": 100,
+        "reverse": false,
+        "st": 52,
+        "start": 25846
+      }
+    ],
+    "phoE": [
+      {
+        "allele": "phoE_1",
+        "alleleEnd": 420,
+        "alleleLength": 420,
+        "alleleStart": 1,
+        "contig": "NODE_2_length_470656_cov_34.112472",
+        "contigEnd": 383000,
+        "contigId": "contig_1",
+        "contigLength": 420,
+        "contigStart": 382581,
+        "end": 382581,
+        "exact": true,
+        "gene": "phoE",
+        "id": 1,
+        "matchingBases": 420,
+        "pident": 100,
+        "reverse": true,
+        "st": 1,
+        "start": 383000
+      }
+    ],
+    "rpoB": [
+      {
+        "allele": "rpoB_1",
+        "alleleEnd": 501,
+        "alleleLength": 501,
+        "alleleStart": 1,
+        "contig": "NODE_31_length_34389_cov_40.424083",
+        "contigEnd": 28388,
+        "contigId": "contig_30",
+        "contigLength": 501,
+        "contigStart": 27888,
+        "end": 27888,
+        "exact": true,
+        "gene": "rpoB",
+        "id": 1,
+        "matchingBases": 501,
+        "pident": 100,
+        "reverse": true,
+        "st": 1,
+        "start": 28388
+      }
+    ],
+    "tonB": [
+      {
+        "allele": "tonB_7",
+        "alleleLength": 414,
+        "contig": "NODE_1_length_519214_cov_28.165085",
+        "contigEnd": 496876,
+        "contigId": "contig_0",
+        "contigLength": 414,
+        "contigStart": 496463,
+        "end": 496463,
+        "exact": true,
+        "gene": "tonB",
+        "id": 7,
+        "matchingBases": 414,
+        "pident": 100,
+        "reverse": true,
+        "st": 7,
+        "start": 496876
+      }
+    ]
+  },
+  "code": "4_1_2_52_1_1_7",
+  "genes": [
+    "gapA",
+    "infB",
+    "mdh",
+    "pgi",
+    "phoE",
+    "rpoB",
+    "tonB"
+  ],
+  "schemeSize": 7,
+  "st": "307",
+  "url": "http://bigsdb.web.pasteur.fr/klebsiella/"
+}
