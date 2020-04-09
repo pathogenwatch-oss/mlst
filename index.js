@@ -79,7 +79,7 @@ async function runMlst(inStream, taxidEnvVariables) {
     } else {
       bestHits = await runRound(
         11,
-        0,
+        80,
         inexactGenes,
         ALLELES_IN_FIRST_RUN,
         maxSeqs
