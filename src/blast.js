@@ -83,7 +83,8 @@ async function makeBlastDb(inputFileStream) {
   return output.promise;
 }
 
-function createBlastProcess(db, wordSize = 11, percIdentity = 0) {
+function createBlastProcess(db, wordSize, percIdentity) {
+  if ([db, wordSize, percIdentity].indexOf(undefined) > -1) throw Error("db, wordSize, percIdentity must all be defined")
   const blastExit = new DeferredPromise();
   const command =
     "blastn -task blastn " +

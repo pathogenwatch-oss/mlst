@@ -56,15 +56,8 @@ function formatOutput({ alleleMetadata, renamedSequences, bestHits }) {
   });
   /* eslint-enable no-param-reassign */
 
-  const { genes, lengths: alleleLengths } = alleleMetadata;
+  const { genes } = alleleMetadata;
   const alleles = _(bestHits)
-    .filter(({ gene, st, exact, contigLength }) => {
-      if (exact) return true;
-      const normalLength = alleleLengths[gene][st];
-      if (contigLength < 0.8 * normalLength) return false;
-      if (contigLength > 1.1 * normalLength) return false;
-      return true;
-    })
     .groupBy("gene")
     .mapValues(hits =>
       _.sortBy(hits, [({ id }) => String(id), "contig", "start"])
@@ -203,7 +196,10 @@ class HitsStore {
   }
 
   longEnough(gene, st, contigLength) {
-    return contigLength >= this.alleleLengths[gene][st] * 0.8;
+    const normalLength = this.alleleLengths[gene][st];
+    if (contigLength < 0.8 * normalLength) return false;
+    if (contigLength > 1.1 * normalLength) return false;
+    return true
   }
 
   // eslint-disable-next-line max-params

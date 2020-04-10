@@ -37,6 +37,12 @@ const mlstCases = [
     seqPath: path.join(TESTDATA_DIR, "gono.fasta"),
     resultsPath: path.join(TESTDATA_DIR, "gono.ngstar.json"),
     taxid: "485"
+  },
+  {
+    name: "kpneumo",
+    seqPath: path.join(TESTDATA_DIR, "kpneumo.fasta"),
+    resultsPath: path.join(TESTDATA_DIR, "kpneumo.json"),
+    taxid: "573"
   }
 ]
 
