@@ -21,7 +21,7 @@ test("MLST have profiles", async t => {
   }
 
   const metadataFiles = await globAsync(
-    "index_dir/mlst_schemes/*/metadata.json"
+    "index_dir/mlst_schemes/*/metadata.json.gz"
   );
   t.truthy(metadataFiles.length > 100, "Expected more metadata files");
   await Promise.map(
