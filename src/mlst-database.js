@@ -19,6 +19,7 @@ const readFileAsync = promisify(fs.readFile);
 const writeFileAsync = promisify(fs.writeFile);
 const existsAsync = promisify(fs.exists);
 const gzipAsync = promisify(zlib.gzip);
+const gunzipAsync = promisify(zlib.gunzip);
 
 const DEFAULT_INDEX_DIR = 'index_dir'
 
@@ -177,14 +178,15 @@ class Scheme {
       alleleLookupPrefixLength: this.alleleLookupPrefixLength,
       profiles: await this.profiles()
     };
-    const metadataPath = path.join(this.schemeDir, "metadata.json");
-    await writeJsonAsync(metadataPath, metadata);
+    const metadataPath = path.join(this.schemeDir, "metadata.json.gz");
+    const zippedContent = await gzipAsync(JSON.stringify(metadata))
+    await writeFileAsync(metadataPath, zippedContent);
     logger("cgps:info")(
       `Indexed ${totalAlleles} alleles from ${
         genes.length
       } genes into ${metadataPath}`
     );
-    return path.join(this.schemePath, "metadata.json");
+    return path.join(this.schemePath, "metadata.json.gz");
   }
 
   sort(alleles) {
@@ -265,7 +267,8 @@ async function readScheme(taxid, indexDir=DEFAULT_INDEX_DIR) {
 
   try {
     // Links in the schemeMetadata are relative to the indexDir
-    const schemeDetails = await readJsonAsync(path.join(indexDir, schemeMetadataPath));
+    const zippedSchemeDetails = await readFileAsync(path.join(indexDir, schemeMetadataPath));
+    schemeDetails = JSON.parse(await gunzipAsync(zippedSchemeDetails))
     for (const allele of Object.keys(schemeDetails.allelePaths)) {
       schemeDetails.allelePaths[allele] = path.join(indexDir, schemeDetails.allelePaths[allele]);
     }
