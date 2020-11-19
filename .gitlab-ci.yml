@@ -20,6 +20,9 @@ quick index:
     - index_dir/
     expire_in: 2 days
   script:
+    - echo CI_PIPELINE_ID=$CI_PIPELINE_ID
+    - echo CI_PIPELINE_IID=$CI_PIPELINE_IID
+    - ls /cache
     - rm -r index_dir && echo "Delete old index" || echo "No old index"
     - git config --global url."https://gitlab-ci-token:${CI_JOB_TOKEN}@gitlab.com/".insteadOf "https://gitlab.com/"
     - ./bin/pull_database.sh cgps-typing-databases
@@ -35,6 +38,9 @@ quick test:
   except:
     - web
   script:
+    - echo CI_PIPELINE_ID=$CI_PIPELINE_ID
+    - echo CI_PIPELINE_IID=$CI_PIPELINE_IID
+    - ls /cache
     - docker build
       --build-arg http_proxy=$http_proxy
       --build-arg https_proxy=$https_proxy
