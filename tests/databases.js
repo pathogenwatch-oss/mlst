@@ -9,8 +9,11 @@ const { promisify } = require("util");
 const { shouldRunCgMlst } = require("../src/parseEnvVariables");
 
 const globAsync = promisify(glob);
+const gunzipAsync = promisify(zlib.gunzip);
+
 async function readJson(p) {
-  const contents = await promisify(fs.readFile)(p);
+  const zippedContents = await promisify(fs.readFile)(p);
+  const contents = await gunzipAsync(zippedContents);
   return JSON.parse(contents);
 }
 
