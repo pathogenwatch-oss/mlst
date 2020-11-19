@@ -4,6 +4,7 @@ const logger = require("debug");
 const fs = require("fs");
 const glob = require("glob");
 const _ = require("lodash");
+const zlib = require("zlib");
 const { promisify } = require("util");
 
 const { shouldRunCgMlst } = require("../src/parseEnvVariables");
