@@ -15,10 +15,6 @@ quick index:
   image: node:10
   except:
     - web
-  artifacts:
-    paths:
-    - index_dir/
-    expire_in: 2 days
   script:
     - echo CI_PIPELINE_ID=$CI_PIPELINE_ID
     - echo CI_PIPELINE_IID=$CI_PIPELINE_IID
@@ -31,6 +27,7 @@ quick index:
     - DEBUG='cgps:info' npm run index -- --scheme=kpneumoniae --scheme=neisseria --index=index_dir --database=cgps-typing-databases
     - DEBUG='cgps:info' npm run index -- --scheme=ngstar --index=index_dir --database=cgps-typing-databases
     - cat index_dir/updated.txt
+    - tar -czf /cache/index_dir_$CI_PIPELINE_ID.tgz index_dir
 
 quick test:
   stage: quick-test
@@ -38,9 +35,8 @@ quick test:
   except:
     - web
   script:
-    - echo CI_PIPELINE_ID=$CI_PIPELINE_ID
-    - echo CI_PIPELINE_IID=$CI_PIPELINE_IID
-    - ls /cache
+    - tar -xzf /cache/index_dir_$CI_PIPELINE_ID.tgz
+    - rm /cache/index_dir_$CI_PIPELINE_ID.tgz
     - docker build
       --build-arg http_proxy=$http_proxy
       --build-arg https_proxy=$https_proxy
