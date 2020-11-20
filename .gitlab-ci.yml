@@ -24,7 +24,7 @@ quick index:
     - DEBUG='cgps:info' npm run index -- --scheme=kpneumoniae --scheme=neisseria --index=index_dir --database=cgps-typing-databases
     - DEBUG='cgps:info' npm run index -- --scheme=ngstar --index=index_dir --database=cgps-typing-databases
     - cat index_dir/updated.txt
-    - tar -czf /cache/index_dir_$CI_PIPELINE_ID.tgz index_dir
+    - tar -czf /hacky-cache/index_dir_$CI_PIPELINE_ID.tgz index_dir
 
 quick test:
   stage: quick-test
@@ -32,8 +32,8 @@ quick test:
   except:
     - web
   script:
-    - tar -xzf /cache/index_dir_$CI_PIPELINE_ID.tgz
-    - rm /cache/index_dir_$CI_PIPELINE_ID.tgz
+    - tar -xzf /hacky-cache/index_dir_$CI_PIPELINE_ID.tgz
+    - rm /hacky-cache/index_dir_$CI_PIPELINE_ID.tgz
     - docker build
       --build-arg http_proxy=$http_proxy
       --build-arg https_proxy=$https_proxy
@@ -68,7 +68,7 @@ index all schemes:
     - ./bin/pull_database.sh cgps-typing-databases
     - yarn install
     - DEBUG='cgps:info' npm run index -- $INDEX_PARAMS --index=index_dir --database=cgps-typing-databases
-    - tar -czf /cache/index_dir_$CI_PIPELINE_ID.tgz index_dir
+    - tar -czf /hacky-cache/index_dir_$CI_PIPELINE_ID.tgz index_dir
 
 test schemes:
   stage: test
@@ -80,8 +80,8 @@ test schemes:
     variables:
       - $SCHEME
   script:
-    - tar -xzf /cache/index_dir_$CI_PIPELINE_ID.tgz
-    - rm /cache/index_dir_$CI_PIPELINE_ID.tgz
+    - tar -xzf /hacky-cache/index_dir_$CI_PIPELINE_ID.tgz
+    - rm /hacky-cache/index_dir_$CI_PIPELINE_ID.tgz
     - docker build
       --build-arg http_proxy=$http_proxy
       --build-arg https_proxy=$https_proxy
@@ -107,8 +107,8 @@ deploy schemes:
     variables:
       - $SCHEME
   script:
-    - tar -xzf /cache/index_dir_$CI_PIPELINE_ID.tgz
-    - rm /cache/index_dir_$CI_PIPELINE_ID.tgz
+    - tar -xzf /hacky-cache/index_dir_$CI_PIPELINE_ID.tgz
+    - rm /hacky-cache/index_dir_$CI_PIPELINE_ID.tgz
     - docker login -u "$CI_REGISTRY_USER" -p "$CI_REGISTRY_PASSWORD" $CI_REGISTRY
     - DATABASE_UPDATED=$(cat index_dir/updated.txt)
     - if [[ -z "${CI_COMMIT_TAG:-}" ]]; then TAG="${DATABASE_UPDATED}-${CI_COMMIT_SHA::8}"; else TAG="${DATABASE_UPDATED}-${CI_COMMIT_TAG}"; fi
@@ -137,7 +137,7 @@ index some schemes:
     - ./bin/pull_database.sh cgps-typing-databases
     - yarn install
     - DEBUG='cgps:info' npm run index -- $INDEX_PARAMS --index=index_dir --database=cgps-typing-databases
-    - tar -czf /cache/index_dir_$CI_PIPELINE_ID.tgz index_dir
+    - tar -czf /hacky-cache/index_dir_$CI_PIPELINE_ID.tgz index_dir
 
 deploy some schemes:
   stage: deploy
@@ -146,8 +146,8 @@ deploy some schemes:
     variables:
       - $SCHEME_NAME
   script:
-    - tar -xzf /cache/index_dir_$CI_PIPELINE_ID.tgz
-    - rm /cache/index_dir_$CI_PIPELINE_ID.tgz
+    - tar -xzf /hacky-cache/index_dir_$CI_PIPELINE_ID.tgz
+    - rm /hacky-cache/index_dir_$CI_PIPELINE_ID.tgz
     - docker login -u "$CI_REGISTRY_USER" -p "$CI_REGISTRY_PASSWORD" $CI_REGISTRY
     - DATABASE_UPDATED=$(cat index_dir/updated.txt)
     - if [[ -z "${CI_COMMIT_TAG:-}" ]]; then TAG="${DATABASE_UPDATED}-${CI_COMMIT_SHA::8}"; else TAG="${DATABASE_UPDATED}-${CI_COMMIT_TAG}"; fi
