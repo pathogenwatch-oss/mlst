@@ -16,9 +16,6 @@ quick index:
   except:
     - web
   script:
-    - echo CI_PIPELINE_ID=$CI_PIPELINE_ID
-    - echo CI_PIPELINE_IID=$CI_PIPELINE_IID
-    - ls /cache
     - rm -r index_dir && echo "Delete old index" || echo "No old index"
     - git config --global url."https://gitlab-ci-token:${CI_JOB_TOKEN}@gitlab.com/".insteadOf "https://gitlab.com/"
     - ./bin/pull_database.sh cgps-typing-databases
@@ -64,10 +61,6 @@ index all schemes:
   except:
     variables:
       - $SCHEME
-  artifacts:
-    paths:
-    - index_dir/
-    expire_in: 2 days
   script:
     - rm -r index_dir && echo "Delete old index" || echo "No old index"
     - if [ "$RUN_CORE_GENOME_MLST" = "yes" ]; then INDEX_PARAMS="--type=cgmlst --max-sequences 50"; else INDEX_PARAMS="--type=mlst"; fi
@@ -75,6 +68,7 @@ index all schemes:
     - ./bin/pull_database.sh cgps-typing-databases
     - yarn install
     - DEBUG='cgps:info' npm run index -- $INDEX_PARAMS --index=index_dir --database=cgps-typing-databases
+    - tar -czf /cache/index_dir_$CI_PIPELINE_ID.tgz index_dir
 
 test schemes:
   stage: test
@@ -86,6 +80,8 @@ test schemes:
     variables:
       - $SCHEME
   script:
+    - tar -xzf /cache/index_dir_$CI_PIPELINE_ID.tgz
+    - rm /cache/index_dir_$CI_PIPELINE_ID.tgz
     - docker build
       --build-arg http_proxy=$http_proxy
       --build-arg https_proxy=$https_proxy
@@ -111,6 +107,8 @@ deploy schemes:
     variables:
       - $SCHEME
   script:
+    - tar -xzf /cache/index_dir_$CI_PIPELINE_ID.tgz
+    - rm /cache/index_dir_$CI_PIPELINE_ID.tgz
     - docker login -u "$CI_REGISTRY_USER" -p "$CI_REGISTRY_PASSWORD" $CI_REGISTRY
     - DATABASE_UPDATED=$(cat index_dir/updated.txt)
     - if [[ -z "${CI_COMMIT_TAG:-}" ]]; then TAG="${DATABASE_UPDATED}-${CI_COMMIT_SHA::8}"; else TAG="${DATABASE_UPDATED}-${CI_COMMIT_TAG}"; fi
@@ -134,15 +132,12 @@ index some schemes:
   only:
     variables:
       - $INDEX_PARAMS
-  artifacts:
-    paths:
-    - index_dir/
-    expire_in: 2 days
   script:
     - git config --global url."https://gitlab-ci-token:${CI_JOB_TOKEN}@gitlab.com/".insteadOf "https://gitlab.com/"
     - ./bin/pull_database.sh cgps-typing-databases
     - yarn install
     - DEBUG='cgps:info' npm run index -- $INDEX_PARAMS --index=index_dir --database=cgps-typing-databases
+    - tar -czf /cache/index_dir_$CI_PIPELINE_ID.tgz index_dir
 
 deploy some schemes:
   stage: deploy
@@ -151,6 +146,8 @@ deploy some schemes:
     variables:
       - $SCHEME_NAME
   script:
+    - tar -xzf /cache/index_dir_$CI_PIPELINE_ID.tgz
+    - rm /cache/index_dir_$CI_PIPELINE_ID.tgz
     - docker login -u "$CI_REGISTRY_USER" -p "$CI_REGISTRY_PASSWORD" $CI_REGISTRY
     - DATABASE_UPDATED=$(cat index_dir/updated.txt)
     - if [[ -z "${CI_COMMIT_TAG:-}" ]]; then TAG="${DATABASE_UPDATED}-${CI_COMMIT_SHA::8}"; else TAG="${DATABASE_UPDATED}-${CI_COMMIT_TAG}"; fi
