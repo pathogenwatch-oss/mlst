@@ -5626,7 +5626,7 @@
     ],
     "SAUR0440": [
       {
-        "allele": "SAUR0440_29",
+        "allele": "SAUR0440_32",
         "alleleEnd": 785,
         "alleleLength": 795,
         "alleleStart": 91,
@@ -5639,10 +5639,10 @@
         "exact": false,
         "gene": "SAUR0440",
         "id": "5a5af710aec2c13d11721935c435aec7792b0f14",
-        "matchingBases": 608,
-        "pident": 87.231,
+        "matchingBases": 610,
+        "pident": 87.393,
         "reverse": true,
-        "st": 29,
+        "st": 32,
         "start": 43312
       }
     ],
@@ -25234,9 +25234,7 @@
     "SAUR1659": [
       {
         "allele": "SAUR1659_5",
-        "alleleEnd": 312,
         "alleleLength": 312,
-        "alleleStart": 1,
         "contig": "ERS198353.9058_1_63.10",
         "contigEnd": 54338,
         "contigId": "contig_9",
@@ -28095,7 +28093,7 @@
     ],
     "SAUR1813": [
       {
-        "allele": "SAUR1813_2",
+        "allele": "SAUR1813_33",
         "alleleEnd": 702,
         "alleleLength": 702,
         "alleleStart": 1,
@@ -28108,10 +28106,10 @@
         "exact": false,
         "gene": "SAUR1813",
         "id": "ecf45ca683a9b6461bb92e0015483496ed630f60",
-        "matchingBases": 694,
-        "pident": 98.86,
+        "matchingBases": 695,
+        "pident": 99.003,
         "reverse": false,
-        "st": 2,
+        "st": 33,
         "start": 57452
       }
     ],

@@ -3820,7 +3820,7 @@
     ],
     "SAUR0297": [
       {
-        "allele": "SAUR0297_14",
+        "allele": "SAUR0297_19",
         "alleleEnd": 356,
         "alleleLength": 357,
         "alleleStart": 1,
@@ -3836,7 +3836,7 @@
         "matchingBases": 304,
         "pident": 84.916,
         "reverse": true,
-        "st": 14,
+        "st": 19,
         "start": 230577
       },
       {
@@ -25625,9 +25625,7 @@
     "SAUR1659": [
       {
         "allele": "SAUR1659_5",
-        "alleleEnd": 312,
         "alleleLength": 312,
-        "alleleStart": 1,
         "contig": "ERS023914.5985_8_3.7",
         "contigEnd": 105013,
         "contigId": "contig_6",
@@ -28467,7 +28465,7 @@
     ],
     "SAUR1813": [
       {
-        "allele": "SAUR1813_2",
+        "allele": "SAUR1813_33",
         "alleleEnd": 702,
         "alleleLength": 702,
         "alleleStart": 1,
@@ -28480,10 +28478,10 @@
         "exact": false,
         "gene": "SAUR1813",
         "id": "f0f06c46a7db3330a04469d606d46cefa91f5e95",
-        "matchingBases": 698,
-        "pident": 99.43,
+        "matchingBases": 699,
+        "pident": 99.573,
         "reverse": false,
-        "st": 2,
+        "st": 33,
         "start": 4622
       }
     ],
@@ -29779,7 +29777,7 @@
     ],
     "SAUR1889": [
       {
-        "allele": "SAUR1889_1114",
+        "allele": "SAUR1889_1439",
         "alleleEnd": 6573,
         "alleleLength": 6573,
         "alleleStart": 1,
@@ -29795,7 +29793,7 @@
         "matchingBases": 6557,
         "pident": 99.741,
         "reverse": false,
-        "st": 1114,
+        "st": 1439,
         "start": 25359
       }
     ],
@@ -41473,9 +41471,9 @@
     ],
     "SAUR2671": [
       {
-        "allele": "SAUR2671_30",
-        "alleleEnd": 1077,
-        "alleleLength": 1077,
+        "allele": "SAUR2671_86",
+        "alleleEnd": 1068,
+        "alleleLength": 1068,
         "alleleStart": 1,
         "contig": "ERS023914.5985_8_3.12",
         "contigEnd": 44301,
@@ -41486,10 +41484,10 @@
         "exact": false,
         "gene": "SAUR2671",
         "id": "5ab13d25256534e0ffbf82732f667d05dba300cb",
-        "matchingBases": 1072,
-        "pident": 99.536,
+        "matchingBases": 1067,
+        "pident": 99.071,
         "reverse": false,
-        "st": 30,
+        "st": 86,
         "start": 43225
       }
     ],

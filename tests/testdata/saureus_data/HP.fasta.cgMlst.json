@@ -22430,7 +22430,7 @@
     ],
     "SAUR1436": [
       {
-        "allele": "SAUR1436_37",
+        "allele": "SAUR1436_31",
         "alleleEnd": 888,
         "alleleLength": 888,
         "alleleStart": 1,
@@ -22446,7 +22446,7 @@
         "matchingBases": 860,
         "pident": 96.847,
         "reverse": false,
-        "st": 37,
+        "st": 31,
         "start": 139912
       }
     ],
@@ -25277,9 +25277,7 @@
     "SAUR1659": [
       {
         "allele": "SAUR1659_5",
-        "alleleEnd": 312,
         "alleleLength": 312,
-        "alleleStart": 1,
         "contig": "ERS104714.7831_1_52.12",
         "contigEnd": 46807,
         "contigId": "contig_11",
