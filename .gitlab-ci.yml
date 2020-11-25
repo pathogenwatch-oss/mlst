@@ -81,7 +81,6 @@ test schemes:
       - $SCHEME
   script:
     - tar -xzf /hacky-cache/index_dir_$CI_PIPELINE_ID.tgz
-    - rm /hacky-cache/index_dir_$CI_PIPELINE_ID.tgz
     - docker build
       --build-arg http_proxy=$http_proxy
       --build-arg https_proxy=$https_proxy
