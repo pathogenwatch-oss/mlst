@@ -2,6 +2,7 @@
 
 const _ = require("lodash");
 const logger = require("debug");
+const path = require("path");
 const argv =  require("yargs")
   .boolean('cgmlst')
   .argv
@@ -15,19 +16,36 @@ const {
 } = require("./src/mlst");
 const { findExactHits } = require("./src/exactHits");
 const { fail } = require("./src/utils");
-const { getMetadata, shouldRunCgMlst } = require("./src/parseEnvVariables");
+const { getMetadataPath, shouldRunCgMlst } = require("./src/parseEnvVariables");
+const { readSchemePrefixes, readSchemeDetails } = require("./src/mlst-database");
 
 process.on("unhandledRejection", reason => fail("unhandledRejection")(reason));
 
 const ALLELES_IN_FIRST_RUN = 5;
 
 async function runMlst(inStream, taxidEnvVariables) {
-  const alleleMetadata = await getMetadata(taxidEnvVariables);
+  const metadataPath = await getMetadataPath(taxidEnvVariables);
 
   const {
-    lengths: alleleLengths,
     alleleLookup,
     alleleLookupPrefixLength,
+  } = await readSchemePrefixes(path.dirname(metadataPath))
+
+  const { contigNameMap, blastDb, renamedSequences } = await makeBlastDb(
+    inStream
+  );
+
+  const exactHits = findExactHits(
+    renamedSequences,
+    alleleLookup,
+    alleleLookupPrefixLength
+  );
+
+  delete(alleleLookup)
+
+  const alleleMetadata = await readSchemeDetails(metadataPath);
+  const {
+    lengths: alleleLengths,
     genes,
     allelePaths,
     name: schemeName,
@@ -37,16 +55,9 @@ async function runMlst(inStream, taxidEnvVariables) {
   logger("cgps:debug")(`Scheme '${schemeName}' has ${genes.length} genes`);
 
   const streamBuilder = streamFactory(allelePaths);
-  const { contigNameMap, blastDb, renamedSequences } = await makeBlastDb(
-    inStream
-  );
+
   const hitsStore = new HitsStore(alleleLengths, contigNameMap);
 
-  const exactHits = findExactHits(
-    renamedSequences,
-    alleleLookup,
-    alleleLookupPrefixLength
-  );
   _.forEach(exactHits, hit => hitsStore.add(hit));
   const matchedGenes = _.uniq(_.map(exactHits, ({ gene }) => gene));
   logger("cgps:debug:exactHits")(

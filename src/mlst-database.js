@@ -20,6 +20,7 @@ const writeFileAsync = promisify(fs.writeFile);
 const existsAsync = promisify(fs.exists);
 const gzipAsync = promisify(zlib.gzip);
 const gunzipAsync = promisify(zlib.gunzip);
+const readdirAsync = promisify(fs.readdir);
 
 const DEFAULT_INDEX_DIR = 'index_dir'
 
@@ -174,13 +175,29 @@ class Scheme {
       alleleCounts,
       lengths,
       schemeSize: (await this.genes).length,
-      alleleLookup,
-      alleleLookupPrefixLength: this.alleleLookupPrefixLength,
+      // alleleLookup,
+      // alleleLookupPrefixLength: this.alleleLookupPrefixLength,
       profiles: await this.profiles()
     };
+
     const metadataPath = path.join(this.schemeDir, "metadata.json.gz");
-    const zippedContent = await gzipAsync(JSON.stringify(metadata))
+    let zippedContent = await gzipAsync(JSON.stringify(metadata))
     await writeFileAsync(metadataPath, zippedContent);
+
+    const SLICE_LENGTH = 10000;
+    const prefixes = Object.keys(alleleLookup);
+    for (let i=0; i<Math.ceil(prefixes.length / SLICE_LENGTH); i++) {
+      const payload = { alleleLookup: {} };
+      if (i === 0) payload.alleleLookupPrefixLength = this.alleleLookupPrefixLength;
+      const slicePath = path.join(this.schemeDir, `metadata-prefix-${i}.json.gz`);
+      for (const prefix of prefixes.slice(i*SLICE_LENGTH, (i+1)*SLICE_LENGTH)) {
+        payload.alleleLookup[prefix] = alleleLookup[prefix]
+      }
+      zippedContent = await gzipAsync(JSON.stringify(payload))
+      await writeFileAsync(slicePath, zippedContent);
+      logger("cgps:info")(`Added ${Object.keys(payload.alleleLookup).length} prefixes to ${slicePath}`);
+    }
+
     logger("cgps:info")(
       `Indexed ${totalAlleles} alleles from ${
         genes.length
@@ -259,12 +276,31 @@ async function updateMetadata(dataDir, update) {
   return updatedMetadata
 }
 
-async function readScheme(taxid, indexDir=DEFAULT_INDEX_DIR) {
+async function lookupSchemeMetadataPath(taxid, indexDir=DEFAULT_INDEX_DIR) {
   const metadata = await readJsonAsync(path.join(indexDir, 'metadata.json'));
   const schemeMetadata = metadata[taxid] || {};
-  const schemeMetadataPath = schemeMetadata.path;
-  if (schemeMetadataPath === undefined) return undefined;
+  return schemeMetadata.path;
+}
 
+async function readSchemePrefixes(schemeDir, indexDir=DEFAULT_INDEX_DIR) {
+  const files = await readdirAsync(path.join(indexDir, schemeDir));
+
+  let alleleLookup = {};
+  let alleleLookupPrefixLength;
+
+  for (const file of files) {
+    if (/^metadata-prefix-\d+.json.gz$/.test(file)) {
+      const zippedData = await readFileAsync(path.join(indexDir, schemeDir, file));
+      const data = JSON.parse(await gunzipAsync(zippedData))
+      alleleLookup = { ...alleleLookup, ...data.alleleLookup }
+      if (data.alleleLookupPrefixLength) alleleLookupPrefixLength = data.alleleLookupPrefixLength;
+    }
+  }
+
+  return { alleleLookup, alleleLookupPrefixLength };
+}
+
+async function readSchemeDetails(schemeMetadataPath, indexDir=DEFAULT_INDEX_DIR) {
   try {
     // Links in the schemeMetadata are relative to the indexDir
     const zippedSchemeDetails = await readFileAsync(path.join(indexDir, schemeMetadataPath));
@@ -382,7 +418,9 @@ async function main() {
 }
 
 module.exports = {
-  readScheme,
+  lookupSchemeMetadataPath,
+  readSchemeDetails,
+  readSchemePrefixes,
   parseAlleleName,
   Scheme
 }
