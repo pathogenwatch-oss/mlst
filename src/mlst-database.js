@@ -289,7 +289,7 @@ async function readSchemePrefixes(schemeDir, indexDir=DEFAULT_INDEX_DIR) {
 
   for (const file of files) {
     if (/^metadata-prefix-\d+.json.gz$/.test(file)) {
-      const zippedData = await readFileAsync(path.join(schemeDir, file));
+      const zippedData = await readFileAsync(path.join(indexDir, schemeDir, file));
       const data = JSON.parse(await gunzipAsync(zippedData))
       alleleLookup = { ...alleleLookup, ...data.alleleLookup }
       alleleLookupPrefixLength = data.alleleLookupPrefixLength
