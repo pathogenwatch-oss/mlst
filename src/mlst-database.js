@@ -187,12 +187,13 @@ class Scheme {
     const SLICE_LENGTH = 10000;
     const prefixes = Object.keys(alleleLookup);
     for (let i=0; i<Math.ceil(prefixes.length / SLICE_LENGTH); i++) {
-      const slice = {};
+      const payload = { alleleLookup: {} };
+      if (i === 0) payload.alleleLookupPrefixLength = this.alleleLookupPrefixLength;
       const slicePath = path.join(this.schemeDir, `metadata-prefix-${i}.json.gz`);
       for (const prefix of prefixes.slice(i*SLICE_LENGTH, (i+1)*SLICE_LENGTH)) {
-        slice[prefix] = alleleLookup[prefix]
+        payload.alleleLookup[prefix] = alleleLookup[prefix]
       }
-      zippedContent = await gzipAsync(JSON.stringify({ alleleLookup, alleleLookupPrefixLength: this.alleleLookupPrefixLength }))
+      zippedContent = await gzipAsync(JSON.stringify(payload))
       await writeFileAsync(slicePath, zippedContent);
       logger("cgps:info")(`Added ${Object.keys(slice).length} prefixes to ${slicePath}`);
     }
@@ -292,7 +293,7 @@ async function readSchemePrefixes(schemeDir, indexDir=DEFAULT_INDEX_DIR) {
       const zippedData = await readFileAsync(path.join(indexDir, schemeDir, file));
       const data = JSON.parse(await gunzipAsync(zippedData))
       alleleLookup = { ...alleleLookup, ...data.alleleLookup }
-      alleleLookupPrefixLength = data.alleleLookupPrefixLength
+      if (data.alleleLookupPrefixLength) alleleLookupPrefixLength = data.alleleLookupPrefixLength;
     }
   }
 

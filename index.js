@@ -31,6 +31,10 @@ async function runMlst(inStream, taxidEnvVariables) {
     alleleLookupPrefixLength,
   } = await readSchemePrefixes(path.dirname(metadataPath))
 
+  const { contigNameMap, blastDb, renamedSequences } = await makeBlastDb(
+    inStream
+  );
+
   const exactHits = findExactHits(
     renamedSequences,
     alleleLookup,
@@ -50,9 +54,7 @@ async function runMlst(inStream, taxidEnvVariables) {
   logger("cgps:debug")(`Scheme '${schemeName}' has ${genes.length} genes`);
 
   const streamBuilder = streamFactory(allelePaths);
-  const { contigNameMap, blastDb, renamedSequences } = await makeBlastDb(
-    inStream
-  );
+
   const hitsStore = new HitsStore(alleleLengths, contigNameMap);
 
   _.forEach(exactHits, hit => hitsStore.add(hit));
