@@ -1,16 +1,16 @@
 const logger = require("debug");
 
 const { fail } = require("./utils");
-const { readScheme } = require("./mlst-database");
+const { lookupSchemeMetadataPath, readSchemeDetails, readSchemePrefixes } = require("./mlst-database");
 
 function shouldRunCgMlst(taxidEnvVariables = process.env) {
   const cgMlstFlag = taxidEnvVariables.RUN_CORE_GENOME_MLST || "";
   return ["y", "yes", "true", "1"].indexOf(cgMlstFlag.toLowerCase()) > -1;
 }
 
-async function getMetadata(taxidEnvVariables = process.env) {
+async function getMetadataPath(taxidEnvVariables = process.env) {
   let taxid;
-  let schemeMetadata;
+  let schemeMetadataPath;
 
   const {
     TAXID,
@@ -36,10 +36,10 @@ async function getMetadata(taxidEnvVariables = process.env) {
   for (let i=0; i<variableValues.length; i++) {
     if (variableValues[i] !== undefined) {
       taxid = variableValues[i];
-      schemeMetadata = await readScheme(taxid)
-      if (schemeMetadata !== undefined) {
+      schemeMetadataPath = await lookupSchemeMetadataPath(taxid)
+      if (schemeMetadataPath !== undefined) {
         logger("cgps:params")({ [variablesNames[i]]: taxid, shouldRunCgMlst: shouldRunCgMlst(taxidEnvVariables) });
-        return schemeMetadata
+        return schemeMetadataPath
       } else {
         logger("cgps:debug")(`No scheme for ${taxid}`)
       }
@@ -51,4 +51,4 @@ async function getMetadata(taxidEnvVariables = process.env) {
   );
 }
 
-module.exports = { getMetadata, shouldRunCgMlst };
+module.exports = { getMetadataPath, shouldRunCgMlst };
