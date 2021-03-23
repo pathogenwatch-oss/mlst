@@ -20,6 +20,7 @@ const writeFileAsync = promisify(fs.writeFile);
 const existsAsync = promisify(fs.exists);
 const gzipAsync = promisify(zlib.gzip);
 const gunzipAsync = promisify(zlib.gunzip);
+const readdirAsync = promisify(fs.readdir);
 
 const DEFAULT_INDEX_DIR = 'index_dir'
 
@@ -280,7 +281,7 @@ async function lookupSchemeMetadataPath(taxid, indexDir=DEFAULT_INDEX_DIR) {
 }
 
 async function readSchemePrefixes(schemeDir, indexDir=DEFAULT_INDEX_DIR) {
-  const files = await fs.promise.readdir(path.join(indexDir, schemeDir));
+  const files = await readdirAsync(path.join(indexDir, schemeDir));
 
   let alleleLookup = {};
   let alleleLookupPrefixLength;
