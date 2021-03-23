@@ -195,7 +195,7 @@ class Scheme {
       }
       zippedContent = await gzipAsync(JSON.stringify(payload))
       await writeFileAsync(slicePath, zippedContent);
-      logger("cgps:info")(`Added ${Object.keys(slice).length} prefixes to ${slicePath}`);
+      logger("cgps:info")(`Added ${Object.keys(payload.alleleLookup).length} prefixes to ${slicePath}`);
     }
 
     logger("cgps:info")(
