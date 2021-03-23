@@ -43,13 +43,14 @@ async function runMlst(inStream, taxidEnvVariables) {
 
   delete(alleleLookup)
 
+  const alleleMetadata = await readSchemeDetails(metadataPath);
   const {
     lengths: alleleLengths,
     genes,
     allelePaths,
     name: schemeName,
     maxSeqs = 0
-  } = await readSchemeDetails(metadataPath);
+  } = alleleMetadata;
 
   logger("cgps:debug")(`Scheme '${schemeName}' has ${genes.length} genes`);
 
