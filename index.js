@@ -2,6 +2,7 @@
 
 const _ = require("lodash");
 const logger = require("debug");
+const path = require("path");
 const argv =  require("yargs")
   .boolean('cgmlst')
   .argv
