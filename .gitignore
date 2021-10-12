@@ -3,3 +3,4 @@ scratch*
 *index_dir
 .DS_Store
 *.fixed.json
+.idea
