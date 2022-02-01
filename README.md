@@ -45,7 +45,12 @@ pipeline.  It will trigger some quick tests.
 ```
 
 You should then wait and see if the quick-tests pass.  If they do, you can build containers
-using our CI system.
+using our CI system. Note that the Gitlab runner must have the "hacky-cache" volume added to its config and the directory created on the host.
+```
+[runners.docker]
+  ...
+  volumes = ["/cache","/root/gitlab-runner/hacky-cache:/hacky-cache:rw"]
+```
 
 You need to get a CI token from the [CI/CD Settings page](https://gitlab.com/cgps/cgps-mlst/-/settings/ci_cd). 
 Then run `TOKEN=abc_your_token_123 ./bin/build.sh`.
