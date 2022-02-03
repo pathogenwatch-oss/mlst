@@ -49,7 +49,7 @@ using our CI system. Note that the Gitlab runner must have the "hacky-cache" vol
 ```
 [runners.docker]
   ...
-  volumes = ["/cache","/root/gitlab-runner/hacky-cache:/hacky-cache:rw"]
+  volumes = ["/cache","/root/gitlab-runner/hacky-cache:/hacky-cache:rw","/var/run/docker.sock:/var/run/docker.sock"]
 ```
 
 You need to get a CI token from the [CI/CD Settings page](https://gitlab.com/cgps/cgps-mlst/-/settings/ci_cd). 
