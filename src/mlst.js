@@ -41,6 +41,63 @@ function hashHit(hit, renamedSequences) {
   return hasha(closestMatchingSequence, { algorithm: "sha1" });
 }
 
+function determineSt(genes, alleles, { profiles = {} }) {
+  // Some species are expected to have multiple copies of
+  // a locus (e.g. gono has 4 copies of 23s). With long read
+  // data this shows up in `code` but the profiles only
+  // report one copy.  The lookup should therefore needs
+  // to deduplicate alleles but we'll keep it in the
+  // output so that you can see all X were found
+  const queryProfile = _(genes)
+    .map(gene => alleles[gene] || [])
+    .map(hits => _.map(hits, "id"))
+    .map(hits => [ ...new Set(hits) ].sort())
+    .map(hits => hits.join(","))
+    .value();
+
+  // First check for exact match
+  const profileLookup = queryProfile
+    .join("_")
+    .toLowerCase();
+
+  if (profileLookup in profiles) {
+    return profiles[profileLookup];
+  }
+
+  // Then iterate for partial matches (as some/most cgMLST profiles include "N" - indexed to Nan - in some positions)
+  for (const [ profileKey, st ] of Object.entries(profiles)) {
+    const referenceProfile = profileKey.split('_');
+    if (referenceProfile.length !== queryProfile.length) continue;
+    let matched = true;
+
+    for (let i = 0; i < referenceProfile.length; i++) {
+      if (queryProfile[i] !== referenceProfile[i] && referenceProfile[i] !== 'NaN') {
+        matched = false;
+        break;
+      }
+    }
+    if (matched) return st;
+  }
+
+  // Generate the hash code as no match.
+  // This is like code but sorts the genes for
+  // consistent hashing.  This is important so
+  // that novel STs remain consistent. I've deduplicated
+  // identical copies so that long and short read data
+  // are more likely to get the same unique hash
+  const sortedCode = _(genes)
+    .sortBy()
+    .map(gene => alleles[gene] || [])
+    .map(hits => _.map(hits, "id"))
+    .map(hits => [ ...new Set(hits) ].sort())
+    .map(hits => hits.join(","))
+    .value()
+    .join("_")
+    .toLowerCase();
+
+  return hasha(sortedCode, { algorithm: "sha1" });
+}
+
 function formatOutput({ alleleMetadata, renamedSequences, bestHits }) {
   /* eslint-disable no-param-reassign */
   _.forEach(bestHits, hit => {
@@ -60,7 +117,7 @@ function formatOutput({ alleleMetadata, renamedSequences, bestHits }) {
   const alleles = _(bestHits)
     .groupBy("gene")
     .mapValues(hits =>
-      _.sortBy(hits, [({ id }) => String(id), "contig", "start"])
+      _.sortBy(hits, [ ({ id }) => String(id), "contig", "start" ])
     )
     .value();
   _.forEach(genes, gene => {
@@ -76,40 +133,7 @@ function formatOutput({ alleleMetadata, renamedSequences, bestHits }) {
     .join("_")
     .toLowerCase();
 
-  // Some species are expected to have multiple copies of
-  // a locus (e.g. gono has 4 copies of 23s). With long read
-  // data this shows up in `code` but the profiles only
-  // report one copy.  The lookup should therefore needs
-  // to deduplicate alleles but we'll keep it in the
-  // output so that you can see all X were found
-  const profileLookup = _(genes)
-    .map(gene => alleles[gene] || [])
-    .map(hits => _.map(hits, "id"))
-    .map(hits => [...new Set(hits)].sort())
-    .map(hits => hits.join(","))
-    .value()
-    .join("_")
-    .toLowerCase();
-
-  // This is like code but sorts the genes for
-  // consistent hashing.  This is important so
-  // that novel STs remain consistent. I've deduplicated
-  // identical copies so that long and short read data
-  // are more likely to get the same unique hash
-  const sortedCode = _(genes)
-    .sortBy()
-    .map(gene => alleles[gene] || [])
-    .map(hits => _.map(hits, "id"))
-    .map(hits => [...new Set(hits)].sort())
-    .map(hits => hits.join(","))
-    .value()
-    .join("_")
-    .toLowerCase();
-
-  const { profiles = {} } = alleleMetadata;
-  const st = profiles[profileLookup]
-    ? profiles[profileLookup]
-    : hasha(sortedCode, { algorithm: "sha1" });
+  const st = determineSt(genes, alleles, alleleMetadata);
 
   const { shortname: scheme, schemeSize, url } = alleleMetadata;
   return {
@@ -161,7 +185,7 @@ class HitsStore {
 
   async addFromBlast(options) {
     const { stream, blastDb, wordSize, pIdent } = options;
-    const [blast, blastExit] = createBlastProcess(blastDb, wordSize, pIdent);
+    const [ blast, blastExit ] = createBlastProcess(blastDb, wordSize, pIdent);
     logger("cgps:debug:startBlast")(`About to blast genes against ${blastDb}`);
 
     const blastResultsStream = blast.stdout.pipe(es.split());

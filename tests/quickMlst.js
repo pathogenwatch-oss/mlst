@@ -15,7 +15,7 @@ const cgMlstCases = _.map(
     "024_05",
     "Dog_150_N_G",
     "P1_1A",
-  ], 
+  ],
   name => {
     const seqPath = path.join(staphDir, `${name}.fasta`);
     const resultsPath = path.join(staphDir, `${name}.fasta.cgMlst.json`);
@@ -24,7 +24,7 @@ const cgMlstCases = _.map(
 )
 
 const mlstCases = [
-  { 
+  {
     name: "gono mlst",
     seqPath: path.join(TESTDATA_DIR, "gono.fasta"),
     resultsPath: path.join(TESTDATA_DIR, "gono.json"),
@@ -53,6 +53,7 @@ test("Run a handfull of cases", async t => {
   await Promise.map(
     testCases,
     async ({ name, seqPath, resultsPath, taxid }) => {
+      console.log(name);
       const expectedResults = await readJson(resultsPath);
       const inputStream = fs.createReadStream(seqPath);
       const results = await runMlst(inputStream, {
@@ -85,6 +86,6 @@ test("Check multiple copies of same allele", async t => {
     st: "1"
   }
   t.is(results.code, expected.code, `code: ${results.code} !== ${expected.code}`)
-  t.is(results.st, expected.st, `st: ${results.st} !== ${expected.st}`)      
+  t.is(results.st, expected.st, `st: ${results.st} !== ${expected.st}`)
 })
 

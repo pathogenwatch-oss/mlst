@@ -18,6 +18,7 @@ const { findExactHits } = require("./src/exactHits");
 const { fail } = require("./src/utils");
 const { getMetadataPath, shouldRunCgMlst } = require("./src/parseEnvVariables");
 const { readSchemePrefixes, readSchemeDetails } = require("./src/mlst-database");
+const { createReadStream } = require('fs');
 
 process.on("unhandledRejection", reason => fail("unhandledRejection")(reason));
 
@@ -120,6 +121,7 @@ if (require.main === module) {
   if (argv.cgmlst) {
     taxidEnvVariables.RUN_CORE_GENOME_MLST = "yes"
   }
+  // runMlst(createReadStream('EuSCAPE_HU042.fasta'), taxidEnvVariables)
   runMlst(process.stdin, taxidEnvVariables)
     .then(output => console.log(JSON.stringify(output)))
     .then(() => logger("cgps:info")("Done"))

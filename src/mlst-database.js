@@ -17,7 +17,6 @@ const {
 
 const readFileAsync = promisify(fs.readFile);
 const writeFileAsync = promisify(fs.writeFile);
-const existsAsync = promisify(fs.exists);
 const gzipAsync = promisify(zlib.gzip);
 const gunzipAsync = promisify(zlib.gunzip);
 const readdirAsync = promisify(fs.readdir);
@@ -78,7 +77,7 @@ class Scheme {
 
   async profiles() {
     const profilesPath = path.join(this.dataDir, this.schemePath, 'profiles.tsv');
-    if (!(await existsAsync(profilesPath))) return undefined;
+    if (!(fs.existsSync(profilesPath))) return undefined;
 
     const genes = await this.genes;
     let rowParser = null;
@@ -93,6 +92,7 @@ class Scheme {
         const row = line.split("\t");
         if (rowParser === null) {
           // This is the header row
+          row[0] = 'ST'; // Deal with "CGST"
           rowParser = this._rowParserFactory(genes, row);
         } else {
           const { st, alleles } = rowParser(row);
@@ -304,7 +304,7 @@ async function readSchemeDetails(schemeMetadataPath, indexDir=DEFAULT_INDEX_DIR)
   try {
     // Links in the schemeMetadata are relative to the indexDir
     const zippedSchemeDetails = await readFileAsync(path.join(indexDir, schemeMetadataPath));
-    schemeDetails = JSON.parse(await gunzipAsync(zippedSchemeDetails))
+    const schemeDetails = JSON.parse(await gunzipAsync(zippedSchemeDetails))
     for (const allele of Object.keys(schemeDetails.allelePaths)) {
       schemeDetails.allelePaths[allele] = path.join(indexDir, schemeDetails.allelePaths[allele]);
     }
