@@ -30,8 +30,8 @@ WORKDIR /usr/local/mlst
 COPY    --from=base_build /usr/local/mlst/node_modules /usr/local/mlst/node_modules
 COPY    --from=blast_build /blast/blastn /blast/makeblastdb /usr/local/bin/
 COPY    *.js *.json /usr/local/mlst/
-COPY    src /usr/local/mlst/src/
 COPY    index_dir /usr/local/mlst/index_dir/
+COPY    src /usr/local/mlst/src/
 SHELL   ["/bin/sh", "-c"]
 
 ARG     RUN_CORE_GENOME_MLST
