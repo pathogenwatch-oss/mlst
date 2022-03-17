@@ -137,7 +137,7 @@ DEBUG='cgps:info' npm run index -- --type=ngstar --index=index_dir --database=cg
 For cgMLST:
 
 ```
-DEBUG='cgps:info' npm run index -- --type=cgmlst --max-sequences 50 --index=index_dir --database=cgps-typing-databases
+DEBUG='cgps:info' npm run index -- --type=cgmlst --max-sequences=50 --index=index_dir --database=cgps-typing-databases
 ```
 
 NB These commands overwrite the results of one another, you might want to `mv index_dir{,.bak}` between commands

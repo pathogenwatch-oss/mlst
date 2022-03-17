@@ -2,7 +2,6 @@
 
 const _ = require("lodash");
 const logger = require("debug");
-const path = require("path");
 const argv =  require("yargs")
   .boolean('cgmlst')
   .argv
@@ -17,7 +16,8 @@ const {
 const { findExactHits } = require("./src/exactHits");
 const { fail } = require("./src/utils");
 const { getMetadataPath, shouldRunCgMlst } = require("./src/parseEnvVariables");
-const { readSchemePrefixes, readSchemeDetails } = require("./src/mlst-database");
+const { readSchemeDetails, getAlleleDbPath } = require("./src/mlst-database");
+const { dirname } = require('path');
 const { createReadStream } = require('fs');
 
 process.on("unhandledRejection", reason => fail("unhandledRejection")(reason));
@@ -26,11 +26,8 @@ const ALLELES_IN_FIRST_RUN = 5;
 
 async function runMlst(inStream, taxidEnvVariables) {
   const metadataPath = await getMetadataPath(taxidEnvVariables);
-
-  const {
-    alleleLookup,
-    alleleLookupPrefixLength,
-  } = await readSchemePrefixes(path.dirname(metadataPath))
+  const alleleMetadata = await readSchemeDetails(metadataPath);
+  const alleleDb = require('better-sqlite3')(getAlleleDbPath(dirname(metadataPath)));
 
   const { contigNameMap, blastDb, renamedSequences } = await makeBlastDb(
     inStream
@@ -38,13 +35,12 @@ async function runMlst(inStream, taxidEnvVariables) {
 
   const exactHits = findExactHits(
     renamedSequences,
-    alleleLookup,
-    alleleLookupPrefixLength
+    alleleMetadata.alleleDictionary,
+    alleleDb
   );
 
-  delete(alleleLookup)
+  alleleDb.close();
 
-  const alleleMetadata = await readSchemeDetails(metadataPath);
   const {
     lengths: alleleLengths,
     genes,
@@ -56,17 +52,14 @@ async function runMlst(inStream, taxidEnvVariables) {
   logger("cgps:debug")(`Scheme '${schemeName}' has ${genes.length} genes`);
 
   const streamBuilder = streamFactory(allelePaths);
-
   const hitsStore = new HitsStore(alleleLengths, contigNameMap);
 
   _.forEach(exactHits, hit => hitsStore.add(hit));
-  const matchedGenes = _.uniq(_.map(exactHits, ({ gene }) => gene));
   logger("cgps:debug:exactHits")(
-    `Added exact matches for ${matchedGenes.length} out of ${
+    `Added exact matches for ${new Set(_.uniq(_.map(exactHits, ({ gene }) => gene))).size} out of ${
       genes.length
     } genes`
   );
-
   /* eslint-disable max-params */
   async function runRound(wordSize, pIdent, genesToImprove, start, end) {
     const stream = streamBuilder(genesToImprove, start, end);
@@ -74,10 +67,11 @@ async function runMlst(inStream, taxidEnvVariables) {
     return hitsStore.best();
   }
   /* eslint-enable max-params */
+  let bestHits = hitsStore.best();
 
   logger("cgps:debug:blast")("Running first round of blast");
-  let bestHits = await runRound(30, 80, genes, 0, ALLELES_IN_FIRST_RUN);
-  const inexactGenes = findGenesWithInexactResults(bestHits);
+  bestHits = await runRound(30, 80, genes, 0, ALLELES_IN_FIRST_RUN);
+  const inexactGenes = findGenesWithInexactResults(bestHits)
   if (inexactGenes.length > 0) {
     logger("cgps:debug:blast")("Running second round of blast");
     if (shouldRunCgMlst(taxidEnvVariables)) {
@@ -85,7 +79,7 @@ async function runMlst(inStream, taxidEnvVariables) {
         20,
         80,
         inexactGenes,
-        ALLELES_IN_FIRST_RUN,
+        0,
         maxSeqs
       );
     } else {
@@ -93,7 +87,7 @@ async function runMlst(inStream, taxidEnvVariables) {
         11,
         80,
         inexactGenes,
-        ALLELES_IN_FIRST_RUN,
+        0,
         maxSeqs
       );
     }
@@ -121,7 +115,7 @@ if (require.main === module) {
   if (argv.cgmlst) {
     taxidEnvVariables.RUN_CORE_GENOME_MLST = "yes"
   }
-  // runMlst(createReadStream('EuSCAPE_HU042.fasta'), taxidEnvVariables)
+  // runMlst(createReadStream('tests/testdata/saureus_data/024_05.fasta'), taxidEnvVariables)
   runMlst(process.stdin, taxidEnvVariables)
     .then(output => console.log(JSON.stringify(output)))
     .then(() => logger("cgps:info")("Done"))

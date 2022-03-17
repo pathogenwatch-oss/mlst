@@ -69,7 +69,7 @@ test("Run a handfull of cases", async t => {
       t.deepEqual(results.genes, expectedResults.genes, `${name}: genes`);
       t.is(results.st, expectedResults.st, `${name}: st`);
     },
-    { concurrency: 1 }
+    { concurrency: 2 }
   );
 });
 

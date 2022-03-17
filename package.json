@@ -1,17 +1,18 @@
 {
   "name": "cgps-mlst",
-  "version": "2.10.3",
+  "version": "2.10.4-3",
   "description": "Use PubMLST to type samples",
   "main": "index.js",
   "scripts": {
-    "quick-test": "QUICK=true node --max_old_space_size=4096 ./node_modules/.bin/ava --serial tests/quickMlst.js",
-    "test": "node --max_old_space_size=4096 ./node_modules/.bin/ava --serial tests/",
+    "quick-test": "QUICK=true node --max_old_space_size=4096 ./node_modules/.bin/ava tests/quickMlst.js",
+    "test": "node --max_old_space_size=4096 ./node_modules/.bin/ava tests/",
     "lint": "eslint **/*.js *.js",
-    "index": "node --max_old_space_size=6144 ./src/mlst-database.js index"
+    "index": "node --max_old_space_size=4096 ./src/mlst-database.js index"
   },
   "author": "",
   "license": "MIT",
   "dependencies": {
+    "better-sqlite3": "^7.5.0",
     "bionode-fasta": "^0.5.6",
     "bluebird": "^3.7.2",
     "child_process": "^1.0.2",
