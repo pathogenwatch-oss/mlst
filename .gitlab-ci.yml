@@ -19,8 +19,8 @@ quick index:
     - rm -r index_dir && echo "Delete old index" || echo "No old index"
     - git config --global url."https://gitlab-ci-token:${CI_JOB_TOKEN}@gitlab.com/".insteadOf "https://gitlab.com/"
     - ./bin/pull_database.sh cgps-typing-databases
-    - yarn install
-    - DEBUG='cgps:info' npm run index -- --scheme=saureus_1 --max-sequences 50 --index=index_dir --database=cgps-typing-databases
+    - npm install
+    - DEBUG='cgps:info' npm run index -- --scheme=saureus_1 --index=index_dir --database=cgps-typing-databases
     - DEBUG='cgps:info' npm run index -- --scheme=kpneumoniae --scheme=neisseria --index=index_dir --database=cgps-typing-databases
     - DEBUG='cgps:info' npm run index -- --scheme=ngstar --index=index_dir --database=cgps-typing-databases
     - cat index_dir/updated.txt
@@ -61,10 +61,10 @@ index all schemes:
       - $SCHEME
   script:
     - rm -r index_dir && echo "Delete old index" || echo "No old index"
-    - if [ "$RUN_CORE_GENOME_MLST" = "yes" ]; then INDEX_PARAMS="--type=cgmlst --max-sequences 50"; else INDEX_PARAMS="--type=mlst"; fi
+    - if [ "$RUN_CORE_GENOME_MLST" = "yes" ]; then INDEX_PARAMS="--type=cgmlst"; else INDEX_PARAMS="--type=mlst"; fi
     - git config --global url."https://gitlab-ci-token:${CI_JOB_TOKEN}@gitlab.com/".insteadOf "https://gitlab.com/"
     - ./bin/pull_database.sh cgps-typing-databases
-    - yarn install
+    - npm install
     - DEBUG='cgps:info' npm run index -- $INDEX_PARAMS --index=index_dir --database=cgps-typing-databases
     - tar -czf /hacky-cache/index_dir_$CI_PIPELINE_ID.tgz index_dir
 
@@ -115,7 +115,7 @@ deploy schemes:
       -t "$IMAGE" .
     - docker push "$IMAGE"
     - ACTUAL_ST=$(cat tests/testdata/saureus_data/03-00397.fasta | docker run -i --rm -e TAXID=1280 "$IMAGE" | docker run -i --rm python:3 python -c "import sys, json; print(json.load(sys.stdin)['st'])")
-    - if [ "$RUN_CORE_GENOME_MLST" = "yes" ]; then EXPECTED_ST="1edfd24d70240e560f872745a54267ffbd2ea760"; else EXPECTED_ST="22"; fi
+    - if [ "$RUN_CORE_GENOME_MLST" = "yes" ]; then EXPECTED_ST="0bd6d0678a9c26c740ca7643184a2b810fb56f0c"; else EXPECTED_ST="22"; fi
     - echo "Results"; [ "$ACTUAL_ST" = "$EXPECTED_ST" ] && echo "Hacky test passed" || { echo "Hacky test failed"; exit 1; }
     - docker rmi "$IMAGE"
 
@@ -128,7 +128,7 @@ index some schemes:
   script:
     - git config --global url."https://gitlab-ci-token:${CI_JOB_TOKEN}@gitlab.com/".insteadOf "https://gitlab.com/"
     - ./bin/pull_database.sh cgps-typing-databases
-    - yarn install
+    - npm install
     - DEBUG='cgps:info' npm run index -- $INDEX_PARAMS --index=index_dir --database=cgps-typing-databases
     - tar -czf /hacky-cache/index_dir_$CI_PIPELINE_ID.tgz index_dir
 

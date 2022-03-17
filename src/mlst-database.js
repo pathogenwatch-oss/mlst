@@ -1,3 +1,4 @@
+/* eslint-disable no-param-reassign */
 const Promise = require("bluebird");
 const logger = require("debug");
 const fs = require("fs");
@@ -8,6 +9,8 @@ const path = require("path");
 const readline = require("readline");
 const { promisify } = require("util");
 const zlib = require("zlib");
+const { exec } = require('child_process');
+const os = require('os');
 
 const {
   reverseCompliment,
@@ -19,9 +22,9 @@ const readFileAsync = promisify(fs.readFile);
 const writeFileAsync = promisify(fs.writeFile);
 const gzipAsync = promisify(zlib.gzip);
 const gunzipAsync = promisify(zlib.gunzip);
-const readdirAsync = promisify(fs.readdir);
+const execAsync = promisify(exec);
 
-const DEFAULT_INDEX_DIR = 'index_dir'
+const DEFAULT_INDEX_DIR = 'index_dir';
 
 async function writeJsonAsync(outputPath, data, options) {
   const jsonData = JSON.stringify(data);
@@ -37,8 +40,7 @@ async function readJsonAsync(outputPath) {
 
 async function readGenes(genesFile) {
   const contents = await readFileAsync(genesFile, { encoding: 'utf8' });
-  const genes = _.filter(contents.split('\n'), line => line);
-  return genes;
+  return _.filter(contents.split('\n'), line => line);
 }
 
 class Scheme {
@@ -114,56 +116,62 @@ class Scheme {
   async index(maxSeqs = 0) {
     // maxSeqs is the maximum number of sequences for each gene
     await mkdirp(this.schemeDir, { mode: 0o755 });
+    const alleleDb = require('better-sqlite3')(`${this.schemeDir}/allele.db`);
 
-    const alleleLookup = {};
+    // eslint-disable-next-line prefer-arrow-callback
+    alleleDb.exec('CREATE TABLE IF NOT EXISTS alleles (hash TEXT NOT NULL, gene TEXT NOT NULL, st INTEGER NOT NULL, reverse INTEGER NOT NULL)');
+    alleleDb.exec('DELETE FROM alleles');
+    alleleDb.exec('DROP INDEX IF EXISTS ix_hash');
+    const insert = alleleDb.prepare('INSERT INTO alleles VALUES(?,?,?,?)');
+    const insertMany = alleleDb.transaction((alleleList) => {
+      logger("cgps:trace")(`Inserting ${alleleList.length} alleles`);
+      for (const allele of alleleList) insert.run(allele);
+    });
+    const SLICE_LENGTH = 200;
+    // let sliceCounter = 0;
     const genes = await this.genes;
     const allelePaths = {};
     const lengths = {};
     const alleleCounts = {};
-    await Promise.map(
-      genes,
-      async gene => {
+    const alleleDictionary = {};
+
+    logger("cgps:info")(`Doing ${genes.length} genes in ${SLICE_LENGTH} gene sized sections`);
+    for (let sliceCounter = 0; sliceCounter * SLICE_LENGTH < genes.length; sliceCounter++) {
+      const alleleInfo = [];
+      const sliceStart = sliceCounter * SLICE_LENGTH;
+      const sliceEnd = Math.min((sliceCounter + 1) * SLICE_LENGTH, genes.length);
+      logger("cgps:info")(`Slice ${sliceCounter}: from ${sliceStart} to ${sliceEnd - 1} out of ${genes.length}`);
+
+      for (const gene of genes.slice(sliceStart, sliceEnd)) {
         lengths[gene] = {};
         const alleles = await this.alleles(gene); // map of allele_id to allele object
-        const sortedAlleles = this.sort(alleles);
-        alleleCounts[gene] = sortedAlleles.length;
-        let allelePath;
-        if (maxSeqs > 0) {
-          allelePath = await this.write(
-            gene,
-            sortedAlleles.slice(0, maxSeqs)
-          );
-        } else {
-          allelePath = await this.write(gene, sortedAlleles);
+        const selectedReps = {};
+        for (const allele of alleles) {
+          for (const [ prefix, st, length, hash, reverse ] of this.hash(allele)) {
+            if (!(prefix in alleleDictionary)) alleleDictionary[prefix] = {};
+            if (!(length in alleleDictionary[prefix])) alleleDictionary[prefix][length] = 1;
+            alleleInfo.push([ hash, gene, st, (reverse ? 1 : 0) ])
+            const alleleCode = allele.seq.slice(0,12) + allele.seq.slice(-12);
+            if (!(length in selectedReps)) selectedReps[length] = {};
+            if (!(alleleCode in selectedReps[length])) selectedReps[length][alleleCode] = allele;
+            lengths[gene][allele.st] = allele.length;
+          }
         }
-        allelePaths[gene] = allelePath;
-        _.forEach(alleles, allele => {
-          _.forEach(this.hash(allele), ([prefix, ...details]) => {
-            // Looks like
-            // {
-            //   <PREFIX>: [
-            //     [ <GENE> <ST> <LENGTH> <SHA1 HASH>  <REVERSE COMPLIMENT> ],
-            //     [ <GENE> <ST> <LENGTH> <SHA1 HASH>  <REVERSE COMPLIMENT> ],
-            //     ... more ...
-            //   ],
-            //   <ANOTHER PREFIX>: [
-            //     ... more ...
-            //   ],
-            //   ... more ...
-            // }
-            (alleleLookup[prefix] = alleleLookup[prefix] || []).push([
-              gene,
-              ...details
-            ]);
-          });
-          lengths[gene][allele.st] = allele.length;
-        });
-        logger("cgps:trace:index")(`Hashed ${alleles.length} alleles of ${gene}`);
-        return;
-      },
-      { concurrency: 3 }
-    );
-
+        alleleCounts[gene] = alleles.length;
+        const reps = Object.keys(selectedReps).reduce((memo, lengthGroup) => {
+          return memo.concat(Object.values(selectedReps[lengthGroup]));
+        }, []);
+        logger("cgps:trace:index")(`${reps.length} selected`);
+        allelePaths[gene] = await this.write(gene, reps);
+      }
+      logger("cgps:info")(`Slice ${sliceCounter}: Inserting ${alleleInfo.length} alleles into DB.`);
+      insertMany(alleleInfo);
+    }
+    logger("cgps:info")(`Creating index`);
+    alleleDb.exec('CREATE INDEX ix_hash ON alleles (hash)');
+    logger("cgps:info")(`Vacuuming`);
+    alleleDb.exec('VACUUM');
+    alleleDb.close();
     const totalAlleles = _(alleleCounts)
       .values()
       .sum();
@@ -174,29 +182,15 @@ class Scheme {
       allelePaths,
       alleleCounts,
       lengths,
+      alleleDictionary,
+      maxSeqs,
       schemeSize: (await this.genes).length,
-      // alleleLookup,
-      // alleleLookupPrefixLength: this.alleleLookupPrefixLength,
       profiles: await this.profiles()
     };
 
     const metadataPath = path.join(this.schemeDir, "metadata.json.gz");
-    let zippedContent = await gzipAsync(JSON.stringify(metadata))
+    const zippedContent = await gzipAsync(JSON.stringify(metadata))
     await writeFileAsync(metadataPath, zippedContent);
-
-    const SLICE_LENGTH = 10000;
-    const prefixes = Object.keys(alleleLookup);
-    for (let i=0; i<Math.ceil(prefixes.length / SLICE_LENGTH); i++) {
-      const payload = { alleleLookup: {} };
-      if (i === 0) payload.alleleLookupPrefixLength = this.alleleLookupPrefixLength;
-      const slicePath = path.join(this.schemeDir, `metadata-prefix-${i}.json.gz`);
-      for (const prefix of prefixes.slice(i*SLICE_LENGTH, (i+1)*SLICE_LENGTH)) {
-        payload.alleleLookup[prefix] = alleleLookup[prefix]
-      }
-      zippedContent = await gzipAsync(JSON.stringify(payload))
-      await writeFileAsync(slicePath, zippedContent);
-      logger("cgps:info")(`Added ${Object.keys(payload.alleleLookup).length} prefixes to ${slicePath}`);
-    }
 
     logger("cgps:info")(
       `Indexed ${totalAlleles} alleles from ${
@@ -213,8 +207,8 @@ class Scheme {
     return _(alleles)
       .groupBy("length") // {455: [seq, ...], 460: [seq, ...], ...}
       .toPairs() // [[455, [seq, ...]], [460, [seq, ...]], ...]
-      .sortBy(([length]) => -length) // [[477, [seq, ...]], [475, [seq, ...]], ...]
-      .map(([, seqs]) => _.sortBy(seqs, "st")) // [[seq1, seq2, ...], [seq11, seq12, ...], ...]
+      .sortBy(([ length ]) => -length) // [[477, [seq, ...]], [475, [seq, ...]], ...]
+      .map(([ , seqs ]) => _.sortBy(seqs, "st")) // [[seq1, seq2, ...], [seq11, seq12, ...], ...]
       .thru(seqs => _.zip(...seqs)) // [[seq1, seq11, ...], [seq2, undefined, ...], ...]
       .flatten() // [seq1, seq11, ..., seq2, undefined, ...]
       .filter(el => typeof el !== "undefined") // [seq1, seq11, ..., seq2, ...]
@@ -234,20 +228,20 @@ class Scheme {
     );
 
     return [
-      [prefix, st, length, hash, false],
-      [rcPrefix, st, length, rcHash, true]
+      [ prefix, st, length, hash, false ],
+      [ rcPrefix, st, length, rcHash, true ]
     ];
   }
 
   async write(gene, alleles) {
-    const outpath = path.join(this.schemeDir, `${gene}.fa.gz`);
+    const outPath = path.join(this.schemeDir, `${gene}.fa.gz`);
     const contents = _(alleles)
       .map(allele => `>${allele.gene}_${allele.st}\n${allele.seq}\n`)
       .join("");
     const zippedContent = await gzipAsync(contents)
-    await writeFileAsync(outpath, zippedContent);
+    await writeFileAsync(outPath, zippedContent);
     logger("cgps:trace:index")(
-      `Wrote ${alleles.length} alleles for ${gene} to ${outpath}`
+      `Wrote ${alleles.length} alleles for ${gene} to ${outPath}`
     );
     return path.join(this.schemePath, `${gene}.fa.gz`);
   }
@@ -276,31 +270,17 @@ async function updateMetadata(dataDir, update) {
   return updatedMetadata
 }
 
-async function lookupSchemeMetadataPath(taxid, indexDir=DEFAULT_INDEX_DIR) {
+async function lookupSchemeMetadataPath(taxid, indexDir = DEFAULT_INDEX_DIR) {
   const metadata = await readJsonAsync(path.join(indexDir, 'metadata.json'));
   const schemeMetadata = metadata[taxid] || {};
   return schemeMetadata.path;
 }
 
-async function readSchemePrefixes(schemeDir, indexDir=DEFAULT_INDEX_DIR) {
-  const files = await readdirAsync(path.join(indexDir, schemeDir));
-
-  let alleleLookup = {};
-  let alleleLookupPrefixLength;
-
-  for (const file of files) {
-    if (/^metadata-prefix-\d+.json.gz$/.test(file)) {
-      const zippedData = await readFileAsync(path.join(indexDir, schemeDir, file));
-      const data = JSON.parse(await gunzipAsync(zippedData))
-      alleleLookup = { ...alleleLookup, ...data.alleleLookup }
-      if (data.alleleLookupPrefixLength) alleleLookupPrefixLength = data.alleleLookupPrefixLength;
-    }
-  }
-
-  return { alleleLookup, alleleLookupPrefixLength };
+function getAlleleDbPath(schemeDir, indexDir = DEFAULT_INDEX_DIR) {
+  return path.join(indexDir, schemeDir, 'allele.db');
 }
 
-async function readSchemeDetails(schemeMetadataPath, indexDir=DEFAULT_INDEX_DIR) {
+async function readSchemeDetails(schemeMetadataPath, indexDir = DEFAULT_INDEX_DIR) {
   try {
     // Links in the schemeMetadata are relative to the indexDir
     const zippedSchemeDetails = await readFileAsync(path.join(indexDir, schemeMetadataPath));
@@ -317,7 +297,7 @@ async function readSchemeDetails(schemeMetadataPath, indexDir=DEFAULT_INDEX_DIR)
 function parseAlleleName(allele) {
   try {
     const matches = /^(.+)_([0-9]+(\.[0-9]+)?)$/.exec(allele);
-    const [gene, st] = matches.slice(1);
+    const [ gene, st ] = matches.slice(1);
     return { gene, st: Number(st) };
   } catch (err) {
     logger("cgps:error")(`Couldn't parse gene and st from ${allele}`);
@@ -385,7 +365,25 @@ async function main() {
 
   let latestSchemeUpdate = await readSchemeUpdatedDate(argv.index)
 
-  for (const schemeData of schemes) {
+  if (schemes.length > 1) {
+    const concurrency = os.cpus().length > 2 ? os.cpus().length - 1 : os.cpus().length;
+    logger('cgps:info')(`Concurrency: ${concurrency}`);
+    await Promise.map(schemes, async schemeData => {
+      const opts = [ `--scheme=${schemeData.shortname}`, `--database=${argv.database}`, `--index=${argv.index}` ];
+      if ('type' in argv) {
+        opts.push(`--type=${argv.type}`);
+      }
+      if ('max-sequences' in argv) {
+        opts.push(`--max-sequences=${argv['max-sequences']}`);
+      }
+      logger('cgps:info')(`Opts: ${JSON.stringify(opts)}`)
+      const { stdout, stderr } = await execAsync(`npm run index -- ${opts.join(' ')}`);
+      console.log('stdout:', stdout);
+      console.log('stderr:', stderr);
+    }, { concurrency });
+  } else {
+    const schemeData = schemes[0];
+    // for (const schemeData of schemes) {
     const { path: schemePath, targets, ...metadata } = schemeData;
     const { name: schemeName, url, shortname, type } = metadata;
     const scheme = new Scheme({
@@ -395,6 +393,7 @@ async function main() {
       metadata
     })
     const maxSeqs = argv.n
+    logger("cgps:info")(`Indexing ${schemeData.shortname}`);
     const schemeIndexPath = await scheme.index(maxSeqs)
     const update = {}
     for (const { name: species, taxid } of targets) {
@@ -409,18 +408,17 @@ async function main() {
       }
       logger('cgps:info')(`Added scheme for ${taxid}`);
     }
-    await updateMetadata(argv.index, update)
+    await updateMetadata(argv.index, update);
     const schemeUpdated = await readSchemeUpdatedDate(path.join(argv.database, schemePath));
     latestSchemeUpdate = schemeUpdated > latestSchemeUpdate ? schemeUpdated : latestSchemeUpdate;
+    await writeFileAsync(path.join(argv.index, 'updated.txt'), latestSchemeUpdate)
   }
-
-  await writeFileAsync(path.join(argv.index, 'updated.txt'), latestSchemeUpdate)
 }
 
 module.exports = {
   lookupSchemeMetadataPath,
   readSchemeDetails,
-  readSchemePrefixes,
+  getAlleleDbPath,
   parseAlleleName,
   Scheme
 }

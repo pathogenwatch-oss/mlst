@@ -7,24 +7,24 @@ RUN     mv ncbi-blast-*/bin /blast
 
 
 
-FROM    node:10-slim as base_build
+FROM    node:16-slim as base_build
 
 WORKDIR /usr/local/mlst
 COPY    --from=blast_build /blast/blastn /blast/makeblastdb /usr/local/bin/
 
 RUN     apt-get update && apt-get install -y git
 COPY    package.json /usr/local/mlst/
-RUN     yarn install --production
+RUN     npm install --production --force
 
 
 
 FROM    base_build as test_build
 
-RUN     yarn install
+RUN     npm install
 
 
 
-FROM    node:10-slim as prod_build
+FROM    node:16-slim as prod_build
 
 WORKDIR /usr/local/mlst
 COPY    --from=base_build /usr/local/mlst/node_modules /usr/local/mlst/node_modules

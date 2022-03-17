@@ -164,6 +164,8 @@ class HitsStore {
 
     const {
       st,
+      alleleStart,
+      alleleEnd,
       contigLength,
       contigStart,
       contigEnd,
@@ -176,6 +178,9 @@ class HitsStore {
       contigLength === this.alleleLengths[gene][st] &&
       contigLength === matchingBases;
     if (!this.longEnough(gene, st, contigLength)) return false;
+    if (alleleStart === 1 && alleleEnd !== this.alleleLengths[gene][st]) {
+      return false;
+    }
     const bin = this.getBin(gene, contigStart, contigEnd, contigId);
     if (!this.closeEnough(pident, bin)) return false;
     if (bin.exact && !hit.exact) return false;

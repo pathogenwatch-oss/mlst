@@ -1,7 +1,7 @@
 const logger = require("debug");
 
 const { fail } = require("./utils");
-const { lookupSchemeMetadataPath, readSchemeDetails, readSchemePrefixes } = require("./mlst-database");
+const { lookupSchemeMetadataPath } = require("./mlst-database");
 
 function shouldRunCgMlst(taxidEnvVariables = process.env) {
   const cgMlstFlag = taxidEnvVariables.RUN_CORE_GENOME_MLST || "";
