@@ -9,67 +9,68 @@ const logger = require("debug");
 const { runMlst } = require("..");
 const { shouldRunCgMlst } = require("../src/parseEnvVariables");
 const { readJson, TESTDATA_DIR, compareAlleles } = require("../testUtils")
+const { cpus } = require('os');
 
 test("compare alleles", t => {
   const testCases = [
     {
-      actualAlleles: { geneA: [{ id: 1 }] },
-      expectedAlleles: { geneA: [{ id: 1 }] },
+      actualAlleles: { geneA: [ { id: 1 } ] },
+      expectedAlleles: { geneA: [ { id: 1 } ] },
       pass: true
     },
     {
-      actualAlleles: { geneA: [{ id: 1 }], geneB: [] },
-      expectedAlleles: { geneA: [{ id: 1 }] },
+      actualAlleles: { geneA: [ { id: 1 } ], geneB: [] },
+      expectedAlleles: { geneA: [ { id: 1 } ] },
       pass: true
     },
     {
-      actualAlleles: { geneA: [{ id: 1 }] },
-      expectedAlleles: { geneA: [{ id: 1 }], geneB: [] },
+      actualAlleles: { geneA: [ { id: 1 } ] },
+      expectedAlleles: { geneA: [ { id: 1 } ], geneB: [] },
       pass: true
     },
     {
-      actualAlleles: { geneA: [{ id: 1 }, { id: 1 }] },
-      expectedAlleles: { geneA: [{ id: 1 }, { id: 1 }] },
+      actualAlleles: { geneA: [ { id: 1 }, { id: 1 } ] },
+      expectedAlleles: { geneA: [ { id: 1 }, { id: 1 } ] },
       pass: true
     },
     {
-      actualAlleles: { geneA: [{ id: 1 }], geneB: [{ id: 1 }] },
-      expectedAlleles: { geneA: [{ id: 1 }], geneB: [{ id: 1 }] },
+      actualAlleles: { geneA: [ { id: 1 } ], geneB: [ { id: 1 } ] },
+      expectedAlleles: { geneA: [ { id: 1 } ], geneB: [ { id: 1 } ] },
       pass: true
     },
     {
-      actualAlleles: { geneA: [{ id: 1 }], geneB: [{ id: 1 }] },
-      expectedAlleles: { geneA: [{ id: 1 }] },
+      actualAlleles: { geneA: [ { id: 1 } ], geneB: [ { id: 1 } ] },
+      expectedAlleles: { geneA: [ { id: 1 } ] },
       pass: false
     },
     {
-      actualAlleles: { geneA: [{ id: 1 }] },
-      expectedAlleles: { geneA: [{ id: 1 }], geneB: [{ id: 1 }] },
+      actualAlleles: { geneA: [ { id: 1 } ] },
+      expectedAlleles: { geneA: [ { id: 1 } ], geneB: [ { id: 1 } ] },
       pass: false
     },
     {
-      actualAlleles: { geneA: [{ id: 1 }] },
-      expectedAlleles: { geneA: [{ id: 1 }, { id: 1 }] },
+      actualAlleles: { geneA: [ { id: 1 } ] },
+      expectedAlleles: { geneA: [ { id: 1 }, { id: 1 } ] },
       pass: false
     },
     {
-      actualAlleles: { geneA: [{ id: 1 }, { id: 1 }] },
-      expectedAlleles: { geneA: [{ id: 1 }] },
+      actualAlleles: { geneA: [ { id: 1 }, { id: 1 } ] },
+      expectedAlleles: { geneA: [ { id: 1 } ] },
       pass: false
     },
     {
-      actualAlleles: { geneA: [{ id: 1 }] },
-      expectedAlleles: { geneA: [{ id: 2 }] },
+      actualAlleles: { geneA: [ { id: 1 } ] },
+      expectedAlleles: { geneA: [ { id: 2 } ] },
       pass: false
     },
     {
-      actualAlleles: { geneA: [{ id: 1 }], geneC: [{ id: 1 }] },
-      expectedAlleles: { geneA: [{ id: 1 }] },
+      actualAlleles: { geneA: [ { id: 1 } ], geneC: [ { id: 1 } ] },
+      expectedAlleles: { geneA: [ { id: 1 } ] },
       pass: true
     }
   ];
   _.forEach(testCases, ({ actualAlleles, expectedAlleles, pass }, i) => {
-    const genes = ["geneA", "geneB"];
+    const genes = [ "geneA", "geneB" ];
     const actual = { alleles: actualAlleles, genes };
     const expected = { alleles: expectedAlleles, genes };
     const badAlleles = compareAlleles(actual, expected);
@@ -190,7 +191,7 @@ test("Run specific MLST cases", async t => {
       t.deepEqual(results.genes, expectedResults.genes, `${name}: genes`);
       t.is(results.st, expectedResults.st, `${name}: st`);
     },
-    { concurrency: 1 }
+    { concurrency: cpus().length > 2 ? cpus().length - 1 : cpus().length }
   );
 });
 
@@ -232,7 +233,7 @@ test("Run more staph MLST cases", async t => {
       t.deepEqual(results.genes, expectedResults.genes, `${name}: genes`);
       t.is(results.st, expectedResults.st, `${name}: st`);
     },
-    { concurrency: 1 }
+    { concurrency: cpus().length > 2 ? cpus().length - 1 : cpus().length }
   );
 });
 
@@ -300,6 +301,6 @@ test("Run more staph CgMLST cases", async t => {
       t.deepEqual(results.genes, expectedResults.genes, `${name}: genes`);
       t.is(results.st, expectedResults.st, `${name}: st`);
     },
-    { concurrency: 1 }
+    { concurrency: cpus().length > 2 ? cpus().length - 1 : cpus().length }
   );
 });
