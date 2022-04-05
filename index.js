@@ -2,7 +2,7 @@
 
 const _ = require("lodash");
 const logger = require("debug");
-const argv =  require("yargs")
+const argv = require("yargs")
   .boolean('cgmlst')
   .argv
 
@@ -27,7 +27,7 @@ const ALLELES_IN_FIRST_RUN = 5;
 async function runMlst(inStream, taxidEnvVariables) {
   const metadataPath = await getMetadataPath(taxidEnvVariables);
   const alleleMetadata = await readSchemeDetails(metadataPath);
-  const alleleDb = require('better-sqlite3')(getAlleleDbPath(dirname(metadataPath)));
+  const alleleDb = require('better-sqlite3')(getAlleleDbPath(dirname(metadataPath)), { readonly: true });
 
   const { contigNameMap, blastDb, renamedSequences } = await makeBlastDb(
     inStream
@@ -60,12 +60,14 @@ async function runMlst(inStream, taxidEnvVariables) {
       genes.length
     } genes`
   );
+
   /* eslint-disable max-params */
   async function runRound(wordSize, pIdent, genesToImprove, start, end) {
     const stream = streamBuilder(genesToImprove, start, end);
     await hitsStore.addFromBlast({ stream, blastDb, wordSize, pIdent });
     return hitsStore.best();
   }
+
   /* eslint-enable max-params */
   let bestHits = hitsStore.best();
 
