@@ -14,7 +14,7 @@ jobs:
       - name: git-sync
         uses: wei/git-sync@v3
         with:
-          source_repo: "https://cgps-admin:${{ secrets.GIT_PUSH_TOKEN }}@github.com/pathogenwatch/xxx.git"
+          source_repo: "https://cgps-admin:${{ secrets.GIT_PUSH_TOKEN }}@github.com/pathogenwatch/mlst.git"
           source_branch: "main"
-          destination_repo: "https://cgps-admin:${{ secrets.GIT_PUSH_TOKEN }}@github.com/pathogenwatch-oss/xxx.git"
+          destination_repo: "https://cgps-admin:${{ secrets.GIT_PUSH_TOKEN }}@github.com/pathogenwatch-oss/mlst.git"
           destination_branch: "main"
