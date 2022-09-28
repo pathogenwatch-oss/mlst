@@ -1,0 +1,30 @@
+FROM    ubuntu:22.04 as blast_build
+
+RUN     apt-get update && apt-get install -y wget tar && \
+        wget ftp://ftp.ncbi.nlm.nih.gov/blast/executables/blast+/2.10.0/ncbi-blast-2.10.0+-x64-linux.tar.gz && \
+        tar xzvf ncbi-blast-*-x64-linux.tar.gz && \
+        mv ncbi-blast-*/bin /blast
+
+FROM    node:16-slim as base_build
+
+WORKDIR /usr/local/mlst
+COPY    --from=blast_build /blast/blastn /blast/makeblastdb /usr/local/bin/
+
+RUN     apt-get update && apt-get install -y git
+COPY    package.json /usr/local/mlst/
+RUN     npm install --production --force
+
+FROM    node:16-slim as prod_build
+
+RUN     apt-get update && apt-get install -y git && rm -rf /var/lib/apt/lists/*
+
+COPY    --from=base_build /usr/local/mlst/node_modules /usr/local/mlst/node_modules
+COPY    --from=blast_build /blast/blastn /blast/makeblastdb /usr/local/bin/
+COPY    *.js *.json /usr/local/mlst/
+COPY    src /usr/local/mlst/src/
+
+WORKDIR /usr/local/mlst
+# ARG     RUN_CORE_GENOME_MLST
+# ENV     RUN_CORE_GENOME_MLST=$RUN_CORE_GENOME_MLST
+
+ENTRYPOINT [ "/usr/local/bin/node", "/usr/local/mlst/index.js" ]

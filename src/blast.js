@@ -14,6 +14,11 @@ const {
   FastaString
 } = require("./utils");
 
+const findBackSlashes = /\\/g;
+const findForwardSlashes = /\//g;
+const findTabs = /\t/g;
+const findQuotes = /"/g;
+
 class RenameContigs extends Transform {
   constructor(options = {}) {
     super(_.assign(options, { objectMode: true }));
@@ -22,15 +27,17 @@ class RenameContigs extends Transform {
   }
 
   _transform(sequence, encoding, callback) {
+    const record = JSON.parse(sequence.toString())
     const newName = `contig_${this.count}`;
-    this.nameMap[newName] = sequence.id;
+    this.nameMap[newName] = record.id;
     this.count++;
-    this.push(_.assign(sequence, { id: newName }));
+    this.push(_.assign(record, { id: newName }));
     callback();
   }
 }
 
 async function makeBlastDb(inputFileStream) {
+
   const output = new DeferredPromise();
   const { path: blastDir } = await tmp.dir({
     mode: "0750",
@@ -38,7 +45,7 @@ async function makeBlastDb(inputFileStream) {
     unsafeCleanup: true
   });
   const contigRenamer = new RenameContigs();
-  const originalFasta = fasta.obj();
+  const originalFasta = fasta();
   const renamedFasta = originalFasta
     .pipe(contigRenamer)
     .pipe(new FastaString());
@@ -79,7 +86,18 @@ async function makeBlastDb(inputFileStream) {
   });
 
   renamedFasta.pipe(shell.stdin);
-  inputFileStream.pipe(originalFasta);
+
+  const cleanFasta = new Transform({
+    transform(chunk, encoding, callback) {
+      callback(null, chunk.toString()
+        .replace(findBackSlashes, '\\')
+        .replace(findForwardSlashes, '\/')
+        .replace(findTabs, '\\t')
+        .replace(findQuotes, '\"'));
+    }
+  })
+
+  inputFileStream.pipe(cleanFasta).pipe(originalFasta);
   return output.promise;
 }
 

@@ -1,38 +1,12 @@
-FROM    ubuntu:latest as blast_build
+ARG     DATA_NAME
+ARG     DATA_VERSION
+ARG     CODE_VERSION
 
-RUN     apt-get update && apt-get install -y wget tar
-RUN     wget ftp://ftp.ncbi.nlm.nih.gov/blast/executables/blast+/2.10.0/ncbi-blast-2.10.0+-x64-linux.tar.gz
-RUN     tar xzvf ncbi-blast-*-x64-linux.tar.gz
-RUN     mv ncbi-blast-*/bin /blast
+FROM    registry.gitlab.com/cgps/cgps-mlst/${DATA_NAME}-data:${DATA_VERSION} as data
 
+FROM    registry.gitlab.com/cgps/cgps-mlst/mlst-code:${CODE_VERSION} as production
 
-
-FROM    node:16-slim as base_build
-
-WORKDIR /usr/local/mlst
-COPY    --from=blast_build /blast/blastn /blast/makeblastdb /usr/local/bin/
-
-RUN     apt-get update && apt-get install -y git
-COPY    package.json /usr/local/mlst/
-RUN     npm install --production --force
-
-
-
-FROM    base_build as test_build
-
-RUN     npm install
-
-
-
-FROM    node:16-slim as prod_build
-
-WORKDIR /usr/local/mlst
-COPY    --from=base_build /usr/local/mlst/node_modules /usr/local/mlst/node_modules
-COPY    --from=blast_build /blast/blastn /blast/makeblastdb /usr/local/bin/
-COPY    *.js *.json /usr/local/mlst/
-COPY    index_dir /usr/local/mlst/index_dir/
-COPY    src /usr/local/mlst/src/
-SHELL   ["/bin/sh", "-c"]
+COPY    --from=data /usr/local/mlst/index_dir /usr/local/mlst/index_dir
 
 ARG     RUN_CORE_GENOME_MLST
 ENV     RUN_CORE_GENOME_MLST=$RUN_CORE_GENOME_MLST

@@ -7,7 +7,7 @@ const _ = require("lodash");
 const logger = require("debug");
 
 const { runMlst } = require("..");
-const { shouldRunCgMlst } = require("../src/parseEnvVariables");
+const { shouldRunCgMlst, getIndexDir } = require("../src/parseEnvVariables");
 const { readJson, TESTDATA_DIR, compareAlleles } = require("../testUtils")
 const { cpus } = require('os');
 
@@ -171,9 +171,9 @@ test("Run specific MLST cases", async t => {
   ];
   await Promise.map(
     testCases,
-    async ({ name, env }) => {
+      async ({ name, env }) => {
       logger("cgps:test")(`Running MLST for ${name}`);
-
+      env = {INDEX_DIR: getIndexDir(), ...env}
       const expectedResults = await readJson(
         path.join(TESTDATA_DIR, `${name}.json`)
       );
@@ -191,7 +191,8 @@ test("Run specific MLST cases", async t => {
       t.deepEqual(results.genes, expectedResults.genes, `${name}: genes`);
       t.is(results.st, expectedResults.st, `${name}: st`);
     },
-    { concurrency: cpus().length > 2 ? cpus().length - 1 : cpus().length }
+    // { concurrency: cpus().length > 2 ? cpus().length - 1 : cpus().length }
+    { concurrency: 1 },
   );
 });
 
@@ -222,7 +223,8 @@ test("Run more staph MLST cases", async t => {
       const expectedResults = await readJson(resultsPath);
       const inputStream = fs.createReadStream(seqPath);
       const results = await runMlst(inputStream, {
-        SPECIES_TAXID: "1280"
+        SPECIES_TAXID: "1280",
+        INDEX_DIR: getIndexDir(),
       });
       t.deepEqual(
         compareAlleles(results, expectedResults),
@@ -233,7 +235,8 @@ test("Run more staph MLST cases", async t => {
       t.deepEqual(results.genes, expectedResults.genes, `${name}: genes`);
       t.is(results.st, expectedResults.st, `${name}: st`);
     },
-    { concurrency: cpus().length > 2 ? cpus().length - 1 : cpus().length }
+    // { concurrency: cpus().length > 2 ? cpus().length - 1 : cpus().length }
+    { concurrency: 1 }
   );
 });
 
@@ -254,7 +257,8 @@ test("Run synthetic CgMLST", async t => {
 
   const results = await runMlst(inputStream, {
     SPECIES_TAXID: "1280",
-    RUN_CORE_GENOME_MLST: "yes"
+    RUN_CORE_GENOME_MLST: "yes",
+    INDEX_DIR: getIndexDir(),
   });
   t.deepEqual(compareAlleles(results, expectedResults), {}, `${name}: alleles`);
   t.is(results.code, expectedResults.code, `${name}: code`);
@@ -290,7 +294,8 @@ test("Run more staph CgMLST cases", async t => {
       const inputStream = fs.createReadStream(seqPath);
       const results = await runMlst(inputStream, {
         SPECIES_TAXID: "1280",
-        RUN_CORE_GENOME_MLST: "yes"
+        RUN_CORE_GENOME_MLST: "yes",
+        INDEX_DIR: getIndexDir(),
       });
       t.deepEqual(
         compareAlleles(results, expectedResults),
@@ -301,6 +306,7 @@ test("Run more staph CgMLST cases", async t => {
       t.deepEqual(results.genes, expectedResults.genes, `${name}: genes`);
       t.is(results.st, expectedResults.st, `${name}: st`);
     },
-    { concurrency: cpus().length > 2 ? cpus().length - 1 : cpus().length }
+    // { concurrency: cpus().length > 2 ? cpus().length - 1 : cpus().length }
+    { concurrency: 1 }
   );
 });

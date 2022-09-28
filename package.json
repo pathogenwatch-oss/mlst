@@ -16,7 +16,7 @@
     "bionode-fasta": "^0.5.6",
     "bluebird": "^3.7.2",
     "child_process": "^1.0.2",
-    "debug": "^4.1.1",
+    "debug": "^4.3.4",
     "event-stream": "^4.0.1",
     "hasha": "^5.2.0",
     "lodash": "^4.17.15",

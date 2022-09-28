@@ -16,7 +16,7 @@ const {
 const { findExactHits } = require("./src/exactHits");
 const { fail } = require("./src/utils");
 const { getMetadataPath, shouldRunCgMlst } = require("./src/parseEnvVariables");
-const { readSchemeDetails, getAlleleDbPath } = require("./src/mlst-database");
+const { readSchemeDetails, getAlleleDbPath, DEFAULT_INDEX_DIR } = require("./src/mlst-database");
 const { dirname } = require('path');
 const { createReadStream } = require('fs');
 
@@ -26,8 +26,10 @@ const ALLELES_IN_FIRST_RUN = 5;
 
 async function runMlst(inStream, taxidEnvVariables) {
   const metadataPath = await getMetadataPath(taxidEnvVariables);
-  const alleleMetadata = await readSchemeDetails(metadataPath);
-  const alleleDb = require('better-sqlite3')(getAlleleDbPath(dirname(metadataPath)), { readonly: true });
+  const indexDir = !!taxidEnvVariables.INDEX_DIR ? taxidEnvVariables.INDEX_DIR : DEFAULT_INDEX_DIR;
+  const alleleMetadata = await readSchemeDetails(metadataPath, indexDir);
+  const alleleDbPath = getAlleleDbPath(dirname(metadataPath), indexDir );
+  const alleleDb = require('better-sqlite3')(alleleDbPath, { readonly: true });
 
   const { contigNameMap, blastDb, renamedSequences } = await makeBlastDb(
     inStream
@@ -113,11 +115,12 @@ if (require.main === module) {
     ORGANISM_TAXID: argv.organism || process.env.ORGANISM_TAXID,
     SPECIES_TAXID: argv.species || process.env.SPECIES_TAXID,
     GENUS_TAXID: argv.genus || process.env.GENUS_TAXID,
+    INDEX_DIR: argv.indexDir || process.env.INDEX_DIR,
   }
   if (argv.cgmlst) {
     taxidEnvVariables.RUN_CORE_GENOME_MLST = "yes"
   }
-  // runMlst(createReadStream('tests/testdata/saureus_data/024_05.fasta'), taxidEnvVariables)
+  // runMlst(createReadStream('tests/testdata/saureus_data/fasta_headers_test.fasta'), taxidEnvVariables)
   runMlst(process.stdin, taxidEnvVariables)
     .then(output => console.log(JSON.stringify(output)))
     .then(() => logger("cgps:info")("Done"))

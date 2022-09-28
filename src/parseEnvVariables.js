@@ -1,11 +1,15 @@
 const logger = require("debug");
 
 const { fail } = require("./utils");
-const { lookupSchemeMetadataPath } = require("./mlst-database");
+const { lookupSchemeMetadataPath, DEFAULT_INDEX_DIR } = require("./mlst-database");
 
 function shouldRunCgMlst(taxidEnvVariables = process.env) {
   const cgMlstFlag = taxidEnvVariables.RUN_CORE_GENOME_MLST || "";
   return ["y", "yes", "true", "1"].indexOf(cgMlstFlag.toLowerCase()) > -1;
+}
+
+function getIndexDir({INDEX_DIR} = process.env) {
+  return  !!INDEX_DIR ? INDEX_DIR : DEFAULT_INDEX_DIR;
 }
 
 async function getMetadataPath(taxidEnvVariables = process.env) {
@@ -17,6 +21,7 @@ async function getMetadataPath(taxidEnvVariables = process.env) {
     ORGANISM_TAXID,
     SPECIES_TAXID,
     GENUS_TAXID,
+    INDEX_DIR,
   } = taxidEnvVariables;
 
   const variablesNames = [
@@ -32,11 +37,11 @@ async function getMetadataPath(taxidEnvVariables = process.env) {
     SPECIES_TAXID,
     GENUS_TAXID,
   ]
-
+  const indexDir = !!INDEX_DIR ? INDEX_DIR : DEFAULT_INDEX_DIR;
   for (let i=0; i<variableValues.length; i++) {
     if (variableValues[i] !== undefined) {
       taxid = variableValues[i];
-      schemeMetadataPath = await lookupSchemeMetadataPath(taxid)
+      schemeMetadataPath = await lookupSchemeMetadataPath(taxid, indexDir)
       if (schemeMetadataPath !== undefined) {
         logger("cgps:params")({ [variablesNames[i]]: taxid, shouldRunCgMlst: shouldRunCgMlst(taxidEnvVariables) });
         return schemeMetadataPath
@@ -51,4 +56,4 @@ async function getMetadataPath(taxidEnvVariables = process.env) {
   );
 }
 
-module.exports = { getMetadataPath, shouldRunCgMlst };
+module.exports = { getMetadataPath, shouldRunCgMlst, getIndexDir };

@@ -6,8 +6,9 @@ const glob = require("glob");
 const _ = require("lodash");
 const zlib = require("zlib");
 const { promisify } = require("util");
+const path = require("path");
 
-const { shouldRunCgMlst } = require("../src/parseEnvVariables");
+const { shouldRunCgMlst, getIndexDir } = require("../src/parseEnvVariables");
 
 const globAsync = promisify(glob);
 const gunzipAsync = promisify(zlib.gunzip);
@@ -23,9 +24,9 @@ test("MLST have profiles", async t => {
     t.pass("Skipping for cgmlst");
     return;
   }
-
-  const metadataFiles = await globAsync(
-    "index_dir/mlst_schemes/*/metadata.json.gz"
+  const indexDir = getIndexDir();
+  const metadataFiles = await globAsync(path.join(indexDir,
+    "mlst_schemes/*/metadata.json.gz")
   );
   t.truthy(metadataFiles.length > 100, "Expected more metadata files");
   await Promise.map(

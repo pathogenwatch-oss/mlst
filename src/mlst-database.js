@@ -398,14 +398,21 @@ async function main() {
     path.join(argv.database, "schemes.json")
   );
   await mkdirp(argv.index);
-  if (argv.scheme) {
+  if (argv.scheme[0] === 'IGNORE') {
+    argv.scheme.shift();
+    if (argv.scheme.length === 0) {
+      argv.scheme = undefined;
+    }
+  }
+  if (argv.scheme && argv.scheme[0] !== 'IGNORE') {
+    console.log(argv.scheme);
     schemes = _.filter(schemes, s => argv.scheme.includes(s.shortname));
     const found = new Set(_.map(schemes, "shortname"));
     for (const scheme of argv.scheme) {
       if (!found.has(scheme)) throw Error(`Could not find ${scheme}`);
     }
   }
-  if (argv.type) {
+  if (argv.type && argv.type[0] !== 'IGNORE') {
     schemes = _.filter(schemes, s => s.type === argv.type);
   }
   logger("cgps:info")(`Found ${schemes.length} schemes`);
@@ -484,7 +491,8 @@ module.exports = {
   readSchemeDetails,
   getAlleleDbPath,
   parseAlleleName,
-  Scheme
+  Scheme,
+  DEFAULT_INDEX_DIR
 };
 
 if (require.main === module) {

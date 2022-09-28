@@ -128,7 +128,30 @@ function formatOutput({ alleleMetadata, renamedSequences, bestHits }) {
   // and join them with underscores
   const code = _(genes)
     .map(gene => alleles[gene] || [])
-    .map(hits => _.map(hits, "id").join(","))
+    .map(hits => _.map(hits, "id")
+      .reduce((previous, current) => {
+        if (!isNaN(current)) {
+          const clean = [];
+          for (const previousLocus of previous) {
+            // Allow for multiple "good" codes
+            if (!isNaN(previousLocus)) {
+              clean.push(previousLocus);
+            }
+          }
+          clean.push(current);
+          return clean;
+        }
+        for (const previousLocus of previous) {
+          if (!isNaN(previousLocus)) {
+            // If a "good" code has already been assigned ignore the new candidate match
+            return previous;
+          }
+        }
+        // Otherwise add it to the current list.
+        previous.push(current);
+        return previous;
+      }, [])
+      .join(","))
     .value()
     .join("_")
     .toLowerCase();
@@ -228,7 +251,7 @@ class HitsStore {
     const normalLength = this.alleleLengths[gene][st];
     if (contigLength < 0.8 * normalLength) return false;
     if (contigLength > 1.1 * normalLength) return false;
-    return true
+    return true;
   }
 
   // eslint-disable-next-line max-params
