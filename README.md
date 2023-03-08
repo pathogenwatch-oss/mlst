@@ -61,8 +61,6 @@ docker build --rm --build-arg DATA_VERSION=2208231334 --build-arg CODE_VERSION=v
 
 *NB Currently the automated build pipeline does not work.*
 
-
-
 The following script will bump the version, make a git tag, push the code and build it using out CI
 pipeline.  It will trigger some quick tests.
 
