@@ -34,13 +34,15 @@ cat tests/testdata/saureus_duplicate.fasta | docker run -i -e TAXID=1280 -e DEBU
 ```
 
 ## Making a release
+# Full release
+- Create an updated typing database image following the instructions in [CGPS Typing scripts](https://gitlab.com/cgps/pathogenwatch/analyses/typing-databases/).
+- Update the `.env` file with the code and typing database image versions.
+- Run `./build-all.sh`
 
-*NB The build process is being fundamentally changed and the following README will need modification. However, instructions on how to
-build and run locally should continue to work.*
-
-First, if the code has changed you'll need to build a new version of the code image. Otherwise just reuse the last one.
+## Individual species releases.
+First, if the code has changed you'll need to build a new version of the code image. Otherwise, just reuse the last one.
 ```
-docker build --rm -t registry.gitlab.com/cgps/cgps-mlst/mlst-code:v3.0.1 -f Dockerfile.code .
+docker build --rm -t registry.gitlab.com/cgps/cgps-mlst/mlst-code:v3.2.1 -f Dockerfile.code .
 ```
 
 The next step is to create an updated typing database image following the instructions in [CGPS Typing scripts](https://gitlab.com/cgps/pathogenwatch/analyses/typing-databases/).
@@ -49,14 +51,12 @@ This can take an hour or more for a complete update. It is also possible to do v
 Then create a new image of the indexed schemes by running:
 ```
 # For a single scheme
-docker build --rm --build-arg SCHEME=klebsiella_1 --build-arg DB_TAG=2208231334 --build-arg CODE_VERSION=v3.0.1 -t registry.gitlab.com/cgps/cgps-mlst/mlst-data:2208231334_klebsiella_1 -f Dockerfile.schemes .
-# For all schemes
-docker build --rm --build-arg DB_TAG=2208231334 --build-arg CODE_VERSION=v3.0.1 -t registry.gitlab.com/cgps/cgps-mlst/mlst-data:2208231334 -f Dockerfile.schemes .
+docker build --rm --build-arg SCHEME=klebsiella_1 --build-arg DB_TAG=2208231334 --build-arg CODE_VERSION=v3.2.1 --build-arg TYPE=cgmlst -t registry.gitlab.com/cgps/cgps-mlst/mlst-data:2208231334_klebsiella_1 -f Dockerfile.schemes .
 ```
 
-Finally, create the integrated image by running:
+Finally, create the integrated cgmlst image by running:
 ```
-docker build --rm --build-arg DATA_VERSION=2208231334 --build-arg CODE_VERSION=v3.0.1 --build-arg RUN_CORE_GENOME_MLST=yes -t registry.gitlab.com/cgps/cgps-mlst/mlst:test .
+docker build --rm --build-arg DATA_NAME=cgmlst --build-arg DATA_VERSION=2023041203-klebsiella_1-v3.2.1 --build-arg CODE_VERSION=v3.2.1 --build-arg RUN_CORE_GENOME_MLST=yes -t registry.gitlab.com/cgps/cgps-mlst/cgmlst:2023041203-klebsiella_1-v3.2.1 .
 ```
 
 *NB Currently the automated build pipeline does not work.*
