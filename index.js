@@ -11,7 +11,8 @@ const {
   HitsStore,
   streamFactory,
   findGenesWithInexactResults,
-  formatOutput
+  formatOutput,
+  integrateHits
 } = require("./src/mlst");
 const { findExactHits } = require("./src/exactHits");
 const { fail } = require("./src/utils");
@@ -24,6 +25,8 @@ process.on("unhandledRejection", reason => fail("unhandledRejection")(reason));
 
 const ALLELES_IN_FIRST_RUN = 5;
 
+
+
 async function runMlst(inStream, taxidEnvVariables) {
   const metadataPath = await getMetadataPath(taxidEnvVariables);
   const indexDir = !!taxidEnvVariables.INDEX_DIR ? taxidEnvVariables.INDEX_DIR : DEFAULT_INDEX_DIR;
@@ -35,11 +38,11 @@ async function runMlst(inStream, taxidEnvVariables) {
     inStream
   );
 
-  const exactHits = findExactHits(
+  const exactHits = integrateHits(findExactHits(
     renamedSequences,
     alleleMetadata.alleleDictionary,
     alleleDb
-  );
+  ));
 
   alleleDb.close();
 
@@ -97,7 +100,11 @@ async function runMlst(inStream, taxidEnvVariables) {
     }
   }
 
-  const output = formatOutput({ alleleMetadata, renamedSequences, bestHits });
+  // The above approach still allows exact matches from different loci/genes to significantly overlap where they are paralogs.
+  // For Salmonella (and possibly other species) this means non-existent extra matches are called.
+  const finalSelection = integrateHits(bestHits, exactHits);
+
+  const output = formatOutput({ alleleMetadata, renamedSequences, bestHits: finalSelection });
   if (!taxidEnvVariables.DEBUG) {
     output.alleles = _.mapValues(output.alleles, hits =>
       _.map(hits, ({ id, contig, start, end }) => ({ id, contig, start, end }))
@@ -120,7 +127,7 @@ if (require.main === module) {
   if (argv.cgmlst) {
     taxidEnvVariables.RUN_CORE_GENOME_MLST = "yes"
   }
-  // runMlst(createReadStream('tests/testdata/saureus_data/fasta_headers_test.fasta'), taxidEnvVariables)
+  // runMlst(createReadStream('/opt/project/tests/GCF_006165265.fasta'), taxidEnvVariables)
   runMlst(process.stdin, taxidEnvVariables)
     .then(output => console.log(JSON.stringify(output)))
     .then(() => logger("cgps:info")("Done"))
