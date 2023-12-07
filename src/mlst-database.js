@@ -315,9 +315,12 @@ async function updateMetadata(dataDir, update) {
 async function lookupSchemeMetadataPath(taxid, indexDir = DEFAULT_INDEX_DIR) {
 	const metadataPath = path.join(indexDir, `${taxid}_metadata.json`);
 	logger("cgps:debug")(`Looking up scheme metadata path for ${taxid} at ${metadataPath}`);
-	const metadata = await readJsonAsync(metadataPath);
-	logger("cgps:debug")(`Metadata: ${JSON.stringify(metadata)}`);
-	return metadata.path;
+	if (fs.existsSync(metadataPath)) {
+		const metadata = await readJsonAsync(metadataPath);
+		logger("cgps:debug")(`Metadata: ${JSON.stringify(metadata)}`);
+		return metadata.path
+	}
+	return undefined;
 }
 
 function getAlleleDbPath(schemeDir, indexDir = DEFAULT_INDEX_DIR) {
