@@ -44,8 +44,8 @@ else
   echo "Building integrated image ${DATA_VERSION}"
   docker build --rm --build-arg DATA_NAME=mlst --build-arg DATA_VERSION="${DATA_VERSION}" --build-arg CODE_VERSION="${CODE_VERSION}" --build-arg RUN_CORE_GENOME_MLST=no -t registry.gitlab.com/cgps/cgps-mlst/mlst:"${DATA_VERSION}" .
   docker build --rm --build-arg DATA_NAME=cgmlst --build-arg DATA_VERSION="${DATA_VERSION}" --build-arg CODE_VERSION="${CODE_VERSION}" --build-arg RUN_CORE_GENOME_MLST=yes -t registry.gitlab.com/cgps/cgps-mlst/cgmlst:"${DATA_VERSION}" .
-  docker build --rm --build-arg DATA_NAME=mlst2 --build-arg DATA_VERSION="${DATA_VERSION}" --build-arg CODE_VERSION="${CODE_VERSION}" --build-arg RUN_CORE_GENOME_MLST=yes -t registry.gitlab.com/cgps/cgps-mlst/mlst2:"${DATA_VERSION}" .
-  docker build --rm --build-arg DATA_NAME=ngstar --build-arg DATA_VERSION="${DATA_VERSION}" --build-arg CODE_VERSION="${CODE_VERSION}" --build-arg RUN_CORE_GENOME_MLST=yes -t registry.gitlab.com/cgps/cgps-mlst/ngstar:"${DATA_VERSION}" .
+  docker build --rm --build-arg DATA_NAME=mlst2 --build-arg DATA_VERSION="${DATA_VERSION}" --build-arg CODE_VERSION="${CODE_VERSION}" --build-arg RUN_CORE_GENOME_MLST=no -t registry.gitlab.com/cgps/cgps-mlst/mlst2:"${DATA_VERSION}" .
+  docker build --rm --build-arg DATA_NAME=ngstar --build-arg DATA_VERSION="${DATA_VERSION}" --build-arg CODE_VERSION="${CODE_VERSION}" --build-arg RUN_CORE_GENOME_MLST=no -t registry.gitlab.com/cgps/cgps-mlst/ngstar:"${DATA_VERSION}" .
   docker push registry.gitlab.com/cgps/cgps-mlst/mlst:"${DATA_VERSION}"
   docker push registry.gitlab.com/cgps/cgps-mlst/cgmlst:"${DATA_VERSION}"
   docker push registry.gitlab.com/cgps/cgps-mlst/mlst2:"${DATA_VERSION}"
