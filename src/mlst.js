@@ -95,7 +95,6 @@ function determineSt(genes, alleles, { profiles = {} }) {
 	return hasha(sortedCode, { algorithm: "sha1" });
 }
 
-
 function hitOverlaps({ contigId, contigStart, contigEnd }, ranges, threshold = 300) {
 	if (!(contigId in ranges)) return false;
 	for (const range of ranges[contigId]) {
@@ -106,25 +105,32 @@ function hitOverlaps({ contigId, contigStart, contigEnd }, ranges, threshold = 3
 	return false;
 }
 
-function removeOverlaps(bestHits, ranges) {
-	return bestHits.reduce((acc, hit) => {
-		if (!hitOverlaps(hit, ranges)) {
-			acc.push(hit);
-		}
-		return acc;
-	}, []);
+function extendRanges(hit, ranges) {
+	if (!(hit.contigId in ranges)) {
+		ranges[hit.contigId] = [ { start: hit.contigStart, end: hit.contigEnd } ];
+	} else {
+		ranges[hit.contigId].push({ start: hit.contigStart, end: hit.contigEnd });
+	}
 }
 
-	function extendRanges(hit, ranges) {
-		if (!(hit.contigId in ranges)) {
-			ranges[hit.contigId] = [ { start: hit.contigStart, end: hit.contigEnd } ];
-		} else {
-			ranges[hit.contigId].push({ start: hit.contigStart, end: hit.contigEnd });
-		}
+function cleanExactHits(hits) {
+	const sortedHits = hits.sort((a, b) => a.st - b.st);
+	const selectedHits = [];
+	const seenLoci = new Set();
+	const ranges = {};
+	for (const hit of sortedHits) {
+		if (seenLoci.has(hit.gene)) continue;
+		if (hitOverlaps(hit, ranges)) continue;
+		seenLoci.add(hit.gene);
+		extendRanges(hit, ranges);
+		selectedHits.push(hit);
 	}
+	return selectedHits;
+}
 
 function integrateHits(newHits, currentHits = []) {
 
+	// This is not correct.
 	const sortedHits = newHits.sort((a, b) => {
 		if (a.pident === b.pident) {
 			if (a.alleleLength === b.alleleLength) {
@@ -383,5 +389,5 @@ class HitsStore {
 }
 
 module.exports = {
-	streamFactory, findGenesWithInexactResults, formatOutput, integrateHits, HitsStore
+	cleanExactHits, streamFactory, findGenesWithInexactResults, formatOutput, integrateHits, HitsStore
 };

@@ -185,7 +185,7 @@ class Scheme {
 						if (!(length in alleleDictionary[prefix]))
 							alleleDictionary[prefix][length] = 1;
 						alleleInfo.push([ hash, gene, st, reverse ? 1 : 0 ]);
-						const alleleCode = allele.seq.slice(0, 12) + allele.seq.slice(-12);
+						const alleleCode = allele.seq.slice(0, this.alleleLookupPrefixLength) + allele.seq.slice(-12);
 						if (!(length in selectedReps)) selectedReps[length] = {};
 						if (!(alleleCode in selectedReps[length]))
 							selectedReps[length][alleleCode] = allele;
@@ -301,7 +301,6 @@ async function updateMetadata(dataDir, update) {
 	for (const taxid of Object.keys(update)) {
 		const metadataPath = path.join(dataDir, `${taxid}_metadata.json`);
 		logger("cgps:trace:index")(`Updating metadata from ${metadataPath}`);
-		let metadata = {};
 
 		if (!fs.existsSync(dataDir)) {
 			await mkdirp(dataDir, { mode: 0o755 });

@@ -8,6 +8,7 @@ const argv = require("yargs")
 
 const { makeBlastDb } = require("./src/blast");
 const {
+  cleanExactHits,
   HitsStore,
   streamFactory,
   findGenesWithInexactResults,
@@ -26,7 +27,6 @@ process.on("unhandledRejection", reason => fail("unhandledRejection")(reason));
 const ALLELES_IN_FIRST_RUN = 5;
 
 
-
 async function runMlst(inStream, taxidEnvVariables) {
   const metadataPath = await getMetadataPath(taxidEnvVariables);
   const indexDir = !!taxidEnvVariables.INDEX_DIR ? taxidEnvVariables.INDEX_DIR : DEFAULT_INDEX_DIR;
@@ -38,7 +38,7 @@ async function runMlst(inStream, taxidEnvVariables) {
     inStream
   );
 
-  const exactHits = integrateHits(findExactHits(
+  const exactHits = cleanExactHits(findExactHits(
     renamedSequences,
     alleleMetadata.alleleDictionary,
     alleleDb
@@ -127,7 +127,7 @@ if (require.main === module) {
   if (argv.cgmlst) {
     taxidEnvVariables.RUN_CORE_GENOME_MLST = "yes"
   }
-  // runMlst(createReadStream('/opt/project/tests/GCF_006165265.fasta'), taxidEnvVariables)
+  // runMlst(createReadStream('/opt/project/SAMN32058385.fasta'), taxidEnvVariables)
   runMlst(process.stdin, taxidEnvVariables)
     .then(output => console.log(JSON.stringify(output)))
     .then(() => logger("cgps:info")("Done"))

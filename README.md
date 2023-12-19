@@ -48,7 +48,7 @@ docker build --rm -t registry.gitlab.com/cgps/cgps-mlst/mlst-code:v3.2.1 -f Dock
 The next step is to create an updated typing database image following the instructions in [CGPS Typing scripts](https://gitlab.com/cgps/pathogenwatch/analyses/typing-databases/).
 This can take an hour or more for a complete update. It is also possible to do various partial updates (e.g. a single scheme or cgmlst-only).
 
-Then create a new image of the indexed schemes by running:
+Then create a new imagdockere of the indexed schemes by running:
 ```
 # For a single scheme
 docker build --rm --build-arg SCHEME=klebsiella_1 --build-arg DB_TAG=2208231334 --build-arg CODE_VERSION=v3.2.1 --build-arg TYPE=cgmlst -t registry.gitlab.com/cgps/cgps-mlst/mlst-data:2208231334_klebsiella_1 -f Dockerfile.schemes .
@@ -161,7 +161,7 @@ DEBUG='cgps:info' npm run index -- --type=ngstar --index=index_dir --database=cg
 For cgMLST:
 
 ```
-DEBUG='cgps:info' npm run index -- --type=cgmlst --max-sequences=50 --index=index_dir --database=cgps-typing-databases
+DEBUG='cgps:info' npm run index -- --type=cgmlst --index=index_dir --database=cgps-typing-databases
 ```
 
 NB These commands overwrite the results of one another, you might want to `mv index_dir{,.bak}` between commands
@@ -171,13 +171,13 @@ NB These commands overwrite the results of one another, you might want to `mv in
 For MLST:
 
 ```
-docker build --build-arg RUN_CORE_GENOME_MLST='no' --target prod_build -t mlst:latest .
+docker build --build-arg RUN_CORE_GENOME_MLST='no' -t mlst:latest .
 ```
 
 For cgMLST:
 
 ```
-docker build --build-arg RUN_CORE_GENOME_MLST='yes' --target prod_build -t cgmlst:latest .
+docker build --build-arg RUN_CORE_GENOME_MLST='yes' -t cgmlst:latest .
 ```
 
 ### Running the tests
