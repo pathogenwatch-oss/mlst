@@ -141,15 +141,6 @@ function integrateHits(newHits, currentHits = []) {
 		return b.pident - a.pident;
 	});
 
-	// const geneHits = bestHits.reduce((acc, hit) => {
-	// 	if (!(hit.gene in acc)) {
-	// 		acc[hit.gene] = [];
-	// 	}
-	// 	acc[hit.gene].push(hit);
-	// 	return acc;
-	// }, {});
-
-
 	const selectedHits = currentHits;
 	const seenLoci = new Set(currentHits.map(hit => hit.gene));
 	const ranges = {};
@@ -164,14 +155,6 @@ function integrateHits(newHits, currentHits = []) {
 		extendRanges(hit, ranges);
 		selectedHits.push(hit);
 	}
-
-	// const sortedParalogs = removeOverlaps(paralogHits, ranges).sort((a, b) => a.alleleLength - b.alleleLength);
-	// for (const paralog of sortedParalogs) {
-	// 	if (!hitOverlaps(paralog,ranges)) {
-	// 		selectedHits.push(paralog);
-	// 		extendRanges(paralog)
-	// 	}
-	// }
 
 	return selectedHits;
 }

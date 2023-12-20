@@ -20,7 +20,7 @@ const { fail } = require("./src/utils");
 const { getMetadataPath, shouldRunCgMlst } = require("./src/parseEnvVariables");
 const { readSchemeDetails, getAlleleDbPath, DEFAULT_INDEX_DIR } = require("./src/mlst-database");
 const { dirname } = require('path');
-const { createReadStream } = require('fs');
+// const { createReadStream } = require('fs');
 
 process.on("unhandledRejection", reason => fail("unhandledRejection")(reason));
 
