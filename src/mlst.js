@@ -130,7 +130,6 @@ function cleanExactHits(hits) {
 
 function integrateHits(newHits, currentHits = []) {
 
-	// This is not correct.
 	const sortedHits = newHits.sort((a, b) => {
 		if (a.pident === b.pident) {
 			if (a.alleleLength === b.alleleLength) {
