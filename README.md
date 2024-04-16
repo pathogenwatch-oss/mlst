@@ -1,4 +1,4 @@
-
+# CGPS MLST/cgMLST profile assignments
 ## Running MLST
 
 [![pipeline status](https://gitlab.com/cgps/cgps-mlst/badges/master/pipeline.svg)](https://gitlab.com/cgps/cgps-mlst/commits/master)
@@ -34,12 +34,12 @@ cat tests/testdata/saureus_duplicate.fasta | docker run -i -e TAXID=1280 -e DEBU
 ```
 
 ## Making a release
-# Full release
+### Full release
 - Create an updated typing database image following the instructions in [CGPS Typing scripts](https://gitlab.com/cgps/pathogenwatch/analyses/typing-databases/).
 - Update the `.env` file with the code and typing database image versions.
 - Run `./build-all.sh`
 
-## Individual species releases.
+### Individual species releases.
 First, if the code has changed you'll need to build a new version of the code image. Otherwise, just reuse the last one.
 ```
 docker build --rm -t registry.gitlab.com/cgps/cgps-mlst/mlst-code:v3.2.1 -f Dockerfile.code .
@@ -170,3 +170,16 @@ To build an image for with indexed databases and all dependencies run (e.g. for 
 ```
 docker build --rm --build-arg DATA_VERSION=2023-12-08-senterica_1-v5.4.0-0 --build-arg DATA_NAME=cgmlst -t mlst:dev-build -f Dockerfile.dev .
 ```
+
+## Singularity
+
+While we don't support Singularity directly, it is possible to convert the Docker images to Singularity and run them.
+
+Convert the docker image to singularity format - edit the image name as appropriate:
+`docker run -v /var/run/docker.sock:/var/run/docker.sock -v /home/corin/temp:/output --privileged -t --rm quay.io/singularity/docker2singularity registry.gitlab.com/cgps/pathogenwatch-tasks/{mlst/mlst2/cgmlst/ngmast}:{IMAGE_TAG}`
+
+Then prepare the DB folder:
+`singularity exec pathogenwatch-mlst-231123-v5.2.0.sif cp -rp /usr/local/mlst/index_dir .`
+
+To run it against a genome replace `{/local/path/to/my.fasta}` with the full path to the FASTA file, along with the TAXID parameter:
+`singularity exec --pwd=/usr/local/mlst --bind {/local/path/to/my.fasta}:/tmp/my.fasta --env TAXID=620 pathogenwatch-mlst-202214121127-v3.2.1.sif sh -c 'cat /tmp/my.fasta | /usr/local/bin/node /usr/local/mlst/index.js'.`
