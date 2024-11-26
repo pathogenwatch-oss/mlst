@@ -83,7 +83,7 @@ class FastaString extends Transform {
   }
 }
 
-function reverseCompliment(sequence) {
+function reverseComplement(sequence) {
   return _(sequence.split(""))
     .reverse()
     .map(b => ({ t: "a", a: "t", c: "g", g: "c" }[b] || b))
@@ -98,5 +98,5 @@ module.exports = {
   DeferredPromise,
   fastaSlice,
   loadSequencesFromStream,
-  reverseCompliment
+  reverseComplement
 };

@@ -4,7 +4,7 @@ const hasha = require("hasha");
 const logger = require("debug");
 
 const { createBlastProcess, parseBlastLine } = require("./blast");
-const { fastaSlice, FastaString, reverseCompliment } = require("./utils");
+const { fastaSlice, FastaString, reverseComplement } = require("./utils");
 
 function streamFactory(allelePaths) {
 	return (genes, start, end) => {
@@ -32,36 +32,21 @@ function hashHit(hit, renamedSequences) {
 	const sequence = renamedSequences[contigId].toLowerCase();
 	const closestMatchingSequence = sequence.slice(contigStart - 1, contigEnd);
 	if (reverse) {
-		return hasha(reverseCompliment(closestMatchingSequence), {
+		return hasha(reverseComplement(closestMatchingSequence), {
 			algorithm: "sha1"
 		});
 	}
 	return hasha(closestMatchingSequence, { algorithm: "sha1" });
 }
 
-function determineSt(genes, alleles, { profiles = {} }) {
-	// Some species are expected to have multiple copies of
-	// a locus (e.g. gono has 4 copies of 23s). With long read
-	// data this shows up in `code` but the profiles only
-	// report one copy. This is the expected behaviour for MLST/cgMLST and there
-	// should only be a single allele for each locus.
-	const queryProfile = _(genes)
-		.map(gene => alleles[gene] || [])
-		.map(hits => _.map(hits, "id"))
-		.map(hits => [ ...new Set(hits) ].sort())
-		.map(hits => hits.join(","))
-		.value();
-
-	// First check for exact match
-	const profileLookup = queryProfile
-		.join("_")
-		.toLowerCase();
-
-	if (profileLookup in profiles) {
-		return profiles[profileLookup];
+function determineSt(genes, alleles, profiles = {}, code, checksums) {
+	// // First check for exact match
+	if (code in profiles) {
+		return profiles[code];
 	}
 
 	// Then iterate for partial matches (as some/most cgMLST profiles include "N" - indexed to Nan - in some positions)
+	const queryProfile = code.split("_");
 	for (const [ profileKey, st ] of Object.entries(profiles)) {
 		const referenceProfile = profileKey.split("_");
 		if (referenceProfile.length !== queryProfile.length) continue;
@@ -75,24 +60,8 @@ function determineSt(genes, alleles, { profiles = {} }) {
 		}
 		if (matched) return st;
 	}
-
-	// Generate the hash code as no match.
-	// This is like code but sorts the genes for
-	// consistent hashing.  This is important so
-	// that novel STs remain consistent. I've deduplicated
-	// identical copies so that long and short read data
-	// are more likely to get the same unique hash
-	const sortedCode = _(genes)
-		.sortBy()
-		.map(gene => alleles[gene] || [])
-		.map(hits => _.map(hits, "id"))
-		.map(hits => [ ...new Set(hits) ].sort())
-		.map(hits => hits.join(","))
-		.value()
-		.join("_")
-		.toLowerCase();
-
-	return hasha(sortedCode, { algorithm: "sha1" });
+	// Finally return the hash of the checksums
+	return hasha(checksums, { algorithm: "sha1" });
 }
 
 function hitOverlaps({ contigId, contigStart, contigEnd }, ranges, threshold = 300) {
@@ -158,66 +127,40 @@ function integrateHits(newHits, currentHits = []) {
 	return selectedHits;
 }
 
-function formatOutput({ alleleMetadata, renamedSequences, bestHits }) {
+function formatOutput({ metadata, alleleMetadata, renamedSequences, bestHits }) {
 	/* eslint-disable no-param-reassign */
 	_.forEach(bestHits, hit => {
 		// Add an id to all hits
 		const { exact, st } = hit;
-		if (exact) hit.id = st; else hit.id = hashHit(hit, renamedSequences);
+		hit.checksum = hit.checksum || hashHit(hit, renamedSequences);
+		if (exact) hit.id = st; else hit.id = hit.checksum;
 
 		// Set start and end
 		const { reverse, contigStart, contigEnd } = hit;
 		hit.start = reverse ? contigEnd : contigStart;
 		hit.end = reverse ? contigStart : contigEnd;
 	});
-	/* eslint-enable no-param-reassign */
 
-	const { genes } = alleleMetadata;
-	const alleles = _(bestHits)
-		.groupBy("gene")
-		.mapValues(hits => _.sortBy(hits, [ ({ id }) => String(id), "contig", "start" ]))
-		.value();
-	_.forEach(genes, gene => {
-		alleles[gene] = alleles[gene] || [];
-	});
+	const genes = alleleMetadata.genes;
 
-	// For each gene we make a comma delimited list of allele ids
-	// and join them with underscores
-	const code = _(genes)
-		.map(gene => alleles[gene] || [])
-		.map(hits => _.map(hits, "id")
-			.reduce((previous, current) => {
-				if (!isNaN(current)) {
-					const clean = [];
-					for (const previousLocus of previous) {
-						// Allow for multiple "good" codes
-						if (!isNaN(previousLocus)) {
-							clean.push(previousLocus);
-						}
-					}
-					clean.push(current);
-					return clean;
-				}
-				for (const previousLocus of previous) {
-					if (!isNaN(previousLocus)) {
-						// If a "good" code has already been assigned ignore the new candidate match
-						return previous;
-					}
-				}
-				// Otherwise add it to the current list.
-				previous.push(current);
-				return previous;
-			}, [])
-			.join(","))
-		.value()
-		.join("_")
-		.toLowerCase();
+	const alleles = bestHits.reduce((previous, current) => {
+		if (current.gene in previous) {
+			console.log(`Duplicate hit for gene ${current.gene}:\nOriginal:\n${JSON.stringify(current)}New:\n${JSON.stringify(previous[current.gene])}`);
+		}
+		previous[current.gene] = current;
+		return previous;
+	}, {});
 
-	const st = determineSt(genes, alleles, alleleMetadata);
+	const code = genes.map(gene => alleles[gene] || { id: "" }).map(hit => hit.id).join("_");
+	const checksums = genes.map(gene => alleles[gene] || { checksum: "" }).map(hit => hit.checksum);
+	const rawCode = checksums.join("_");
 
-	const { shortname: scheme, schemeSize, url } = alleleMetadata;
+	const st = determineSt(genes, alleles, alleleMetadata.profiles, code, checksums);
+
+	const { host, type, schemeName, hostPath = "", schemeId = ""  } = metadata;
+	const { shortname: scheme, schemeSize } = alleleMetadata;
 	return {
-		alleles, code, st, scheme, url, genes, schemeSize
+		alleles, code, raw_code: rawCode, st, genes, scheme, schemeName, host, hostPath, schemeId, type, schemeSize
 	};
 }
 

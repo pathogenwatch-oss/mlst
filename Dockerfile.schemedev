@@ -1,26 +1,22 @@
-ARG     DB_TAG
+ARG     DB_TAG=2024-08-19-klebsiella_1
 
-FROM    ubuntu:22.04 as blast_build
+FROM    ubuntu:22.04 AS blast_build
 
 RUN     apt-get update && apt-get install -y wget tar && \
         wget ftp://ftp.ncbi.nlm.nih.gov/blast/executables/blast+/2.10.0/ncbi-blast-2.10.0+-x64-linux.tar.gz && \
         tar xzvf ncbi-blast-*-x64-linux.tar.gz && \
         mv ncbi-blast-*/bin /blast
 
+FROM    registry.gitlab.com/cgps/pathogenwatch/analyses/typing-databases:${DB_TAG} AS schemes
 
-FROM    registry.gitlab.com/cgps/pathogenwatch/analyses/typing-databases:${DB_TAG} as schemes
-
-FROM    node:16-slim as base_build
+FROM    node:16-slim AS base_build
 
 RUN     apt-get update && apt-get install -y git python3
 
 COPY    --from=blast_build /blast/blastn /blast/makeblastdb /usr/local/bin/
 
-COPY    --from=schemes /db/schemes.json /typing-databases/schemes.json
-COPY    --from=schemes /db/cgmlst_schemes /typing-databases/cgmlst_schemes
-COPY    --from=schemes /db/mlst_schemes /typing-databases/mlst_schemes
-COPY    --from=schemes /db/other_schemes /typing-databases/other_schemes
+COPY    --from=schemes /db /typing-databases
 
 WORKDIR /usr/local/mlst
 
-CMD     /bin/bash
+CMD     ["/bin/bash"]

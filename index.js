@@ -3,7 +3,6 @@
 const _ = require("lodash");
 const logger = require("debug");
 const argv = require("yargs")
-  .boolean('cgmlst')
   .argv
 
 const { makeBlastDb } = require("./src/blast");
@@ -17,7 +16,7 @@ const {
 } = require("./src/mlst");
 const { findExactHits } = require("./src/exactHits");
 const { fail } = require("./src/utils");
-const { getMetadataPath, shouldRunCgMlst } = require("./src/parseEnvVariables");
+const { getSchemeMetadata } = require("./src/context");
 const { readSchemeDetails, getAlleleDbPath, DEFAULT_INDEX_DIR } = require("./src/mlst-database");
 const { dirname } = require('path');
 // const { createReadStream } = require('fs');
@@ -27,11 +26,11 @@ process.on("unhandledRejection", reason => fail("unhandledRejection")(reason));
 const ALLELES_IN_FIRST_RUN = 5;
 
 
-async function runMlst(inStream, taxidEnvVariables) {
-  const metadataPath = await getMetadataPath(taxidEnvVariables);
-  const indexDir = !!taxidEnvVariables.INDEX_DIR ? taxidEnvVariables.INDEX_DIR : DEFAULT_INDEX_DIR;
-  const alleleMetadata = await readSchemeDetails(metadataPath, indexDir);
-  const alleleDbPath = getAlleleDbPath(dirname(metadataPath), indexDir );
+async function runMlst(inStream, envVariables) {
+  const metadata = await getSchemeMetadata(envVariables);
+  const indexDir = !!envVariables.INDEX_DIR ? envVariables.INDEX_DIR : DEFAULT_INDEX_DIR;
+  const alleleMetadata = await readSchemeDetails(metadata.path, indexDir);
+  const alleleDbPath = getAlleleDbPath(dirname(metadata.path), indexDir );
   const alleleDb = require('better-sqlite3')(alleleDbPath, { readonly: true });
 
   const { contigNameMap, blastDb, renamedSequences } = await makeBlastDb(
@@ -81,7 +80,7 @@ async function runMlst(inStream, taxidEnvVariables) {
   const inexactGenes = findGenesWithInexactResults(bestHits)
   if (inexactGenes.length > 0) {
     logger("cgps:debug:blast")("Running second round of blast");
-    if (shouldRunCgMlst(taxidEnvVariables)) {
+    if (metadata.type === "cgmlst") {
       bestHits = await runRound(
         20,
         80,
@@ -104,31 +103,19 @@ async function runMlst(inStream, taxidEnvVariables) {
   // For Salmonella (and possibly other species) this means non-existent extra matches are called.
   const finalSelection = integrateHits(bestHits, exactHits);
 
-  const output = formatOutput({ alleleMetadata, renamedSequences, bestHits: finalSelection });
-  if (!taxidEnvVariables.DEBUG) {
-    output.alleles = _.mapValues(output.alleles, hits =>
-      _.map(hits, ({ id, contig, start, end }) => ({ id, contig, start, end }))
-    )
-  }
-  return output;
+  return formatOutput({ metadata, alleleMetadata, renamedSequences, bestHits: finalSelection });
 }
 
 module.exports = { runMlst };
 
 if (require.main === module) {
-  const taxidEnvVariables = {
+  const envVariables = {
     ...process.env,
-    TAXID: argv.taxid || process.env.TAXID,
-    ORGANISM_TAXID: argv.organism || process.env.ORGANISM_TAXID,
-    SPECIES_TAXID: argv.species || process.env.SPECIES_TAXID,
-    GENUS_TAXID: argv.genus || process.env.GENUS_TAXID,
+    SCHEME: argv.scheme || process.env.SCHEME,
     INDEX_DIR: argv.indexDir || process.env.INDEX_DIR,
   }
-  if (argv.cgmlst) {
-    taxidEnvVariables.RUN_CORE_GENOME_MLST = "yes"
-  }
-  // runMlst(createReadStream('/opt/project/SAMN32058385.fasta'), taxidEnvVariables)
-  runMlst(process.stdin, taxidEnvVariables)
+  // runMlst(createReadStream('/opt/project/klebsiella_sample.fasta'), envVariables)
+  runMlst(process.stdin, envVariables)
     .then(output => console.log(JSON.stringify(output)))
     .then(() => logger("cgps:info")("Done"))
     .catch(fail("RunAllBlast"));

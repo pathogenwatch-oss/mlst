@@ -13,7 +13,7 @@ const { exec } = require("child_process");
 const os = require("os");
 
 const {
-	reverseCompliment,
+	reverseComplement,
 	DeferredPromise,
 	loadSequencesFromStream
 } = require("./utils");
@@ -41,7 +41,7 @@ async function readJsonAsync(outputPath) {
 async function readGenes(genesFile) {
 	logger("cgps:trace:readGenes")(`Reading genes from ${genesFile}`);
 	const contents = await readFileAsync(genesFile, { encoding: "utf8" });
-	return _.filter(contents.split("\n"), line => line);
+	return JSON.parse(contents).genes;
 }
 
 
@@ -53,13 +53,8 @@ class Scheme {
 		this.schemeDir = path.join(this.indexDir, this.schemePath);
 		this.alleleLookupPrefixLength = 20;
 		this.metadata = options.metadata;
-		const genesFile = path.join(
-			this.dataDir,
-			this.schemePath,
-			".bin",
-			"genes.txt"
-		);
-		this.genes = readGenes(genesFile);
+		this.schemeDataFile = path.join(this.dataDir, this.schemePath, "metadata.json");
+		this.genes = readGenes(this.schemeDataFile);
 	}
 
 	async alleles(gene) {
@@ -131,7 +126,6 @@ class Scheme {
 	}
 
 	async index(maxSeqs = 0) {
-		// maxSeqs is the maximum number of sequences for each gene
 		await mkdirp(this.schemeDir, { mode: 0o755 });
 		const alleleDb = require("better-sqlite3")(`${this.schemeDir}/allele.db`);
 		alleleDb.pragma("synchronous=normal");
@@ -224,7 +218,6 @@ class Scheme {
 			alleleCounts,
 			lengths,
 			alleleDictionary,
-			maxSeqs,
 			schemeSize: (await this.genes).length,
 			profiles: await this.profiles()
 		};
@@ -260,9 +253,9 @@ class Scheme {
 		const hash = hasha(seq, { algorithm: "sha1" });
 		const prefix = seq.slice(0, this.alleleLookupPrefixLength);
 
-		const complimentarySequence = reverseCompliment(seq);
-		const rcHash = hasha(complimentarySequence, { algorithm: "sha1" });
-		const rcPrefix = complimentarySequence.slice(
+		const complementarySequence = reverseComplement(seq);
+		const rcHash = hasha(complementarySequence, { algorithm: "sha1" });
+		const rcPrefix = complementarySequence.slice(
 			0,
 			this.alleleLookupPrefixLength
 		);
@@ -297,27 +290,24 @@ class Scheme {
 	}
 }
 
-async function updateMetadata(dataDir, update) {
-	for (const taxid of Object.keys(update)) {
-		const metadataPath = path.join(dataDir, `${taxid}_metadata.json`);
-		logger("cgps:trace:index")(`Updating metadata from ${metadataPath}`);
+async function updateMetadata(dataDir, { name, scheme }) {
+	const metadataPath = path.join(dataDir, `${name}_metadata.json`);
+	logger("cgps:trace:index")(`Updating metadata from ${metadataPath}`);
 
-		if (!fs.existsSync(dataDir)) {
-			await mkdirp(dataDir, { mode: 0o755 });
-		}
-		await writeJsonAsync(metadataPath, update[taxid]);
-		logger("cgps:trace:index")(`Wrote metadata to ${metadataPath}`);
-
+	if (!fs.existsSync(dataDir)) {
+		await mkdirp(dataDir, { mode: 0o755 });
 	}
+	await writeJsonAsync(metadataPath, scheme);
+	logger("cgps:trace:index")(`Wrote metadata to ${metadataPath}`);
 }
 
-async function lookupSchemeMetadataPath(taxid, indexDir = DEFAULT_INDEX_DIR) {
-	const metadataPath = path.join(indexDir, `${taxid}_metadata.json`);
-	logger("cgps:debug")(`Looking up scheme metadata path for ${taxid} at ${metadataPath}`);
+async function readSchemeMetadata(scheme, indexDir = DEFAULT_INDEX_DIR) {
+	const metadataPath = path.join(indexDir, `${scheme}_metadata.json`);
+	logger("cgps:debug")(`Looking up scheme metadata path for ${scheme} at ${metadataPath}`);
 	if (fs.existsSync(metadataPath)) {
 		const metadata = await readJsonAsync(metadataPath);
 		logger("cgps:debug")(`Metadata: ${JSON.stringify(metadata)}`);
-		return metadata.path
+		return metadata;
 	}
 	return undefined;
 }
@@ -361,7 +351,8 @@ function parseAlleleName(allele) {
 
 async function readSchemeUpdatedDate(dir) {
 	try {
-		return await readFileAsync(path.join(dir, "updated.txt"));
+		const text = await readFileAsync(path.join(dir, "metadata.json"), "utf8");
+		return JSON.parse(text).last_updated;
 	} catch (err) {
 		return "0";
 	}
@@ -396,12 +387,6 @@ async function main() {
 			type: "string",
 			demandOption: true
 		})
-		.option("max-sequences", {
-			alias: "n",
-			describe: "number of complete alleles to index",
-			type: "number",
-			default: 0
-		})
 		.help("h")
 		.alias("h", "help");
 
@@ -427,8 +412,6 @@ async function main() {
 		schemes = _.filter(schemes, s => s.type === argv.type);
 	}
 	logger("cgps:info")(`Found ${schemes.length} schemes`);
-
-	let latestSchemeUpdate = await readSchemeUpdatedDate(argv.index);
 
 	if (schemes.length > 1) {
 		const concurrency =
@@ -459,47 +442,55 @@ async function main() {
 		);
 	} else {
 		const schemeData = schemes[0];
+		// This is to deal with paths that have erroneously included the database root directory.
+		console.log("Checking db_path:", schemeData.db_path);
+		if (schemeData.db_path.startsWith("db/")) {
+			schemeData.db_path = schemeData.db_path.replace("db/", "");
+			console.log("Adjusted db_path:", schemeData.db_path);
+		}
 		// for (const schemeData of schemes) {
-		const { path: schemePath, targets, ...metadata } = schemeData;
-		const { name: schemeName, url, shortname, type } = metadata;
+		const { targets, ...metadata } = schemeData;
+		const {
+			name: schemeName,
+			url,
+			shortname,
+			type,
+			host,
+			host_path: hostPath,
+			db_path: schemePath,
+			scheme_id: schemeId,
+			last_updated: lastUpdated
+		} = metadata;
 		const scheme = new Scheme({
 			dataDir: argv.database,
 			indexDir: argv.index,
 			schemePath,
 			metadata
 		});
-		const maxSeqs = argv.n;
 		logger("cgps:info")(`Indexing ${schemeData.shortname}`);
-		const schemeIndexPath = await scheme.index(maxSeqs);
-		const update = {};
-		for (const { name: species, taxid } of targets) {
-			update[taxid] = {
+		const schemeIndexPath = await scheme.index();
+		await updateMetadata(argv.index, {
+			name: shortname,
+			scheme: {
 				path: schemeIndexPath,
-				species,
 				schemeName,
 				url,
 				type,
 				shortname,
-				maxSeqs
-			};
-			logger("cgps:info")(`Added scheme for ${taxid}`);
-		}
-		await updateMetadata(argv.index, update);
+				host,
+				hostPath,
+        schemePath,
+        schemeId,
+        lastUpdated,
+        targets
+			}
+		});
 		logger("cgps:trace:index")(`Updated metadata for ${schemeData.shortname}`);
-		const schemeUpdated = await readSchemeUpdatedDate(
-			path.join(argv.database, schemePath)
-		);
-		latestSchemeUpdate =
-			schemeUpdated > latestSchemeUpdate ? schemeUpdated : latestSchemeUpdate;
-		await writeFileAsync(
-			path.join(argv.index, "updated.txt"),
-			latestSchemeUpdate
-		);
 	}
 }
 
 module.exports = {
-	lookupSchemeMetadataPath,
+	readSchemeMetadata,
 	readSchemeDetails,
 	getAlleleDbPath,
 	parseAlleleName,

@@ -1,4 +1,4 @@
-FROM    ubuntu:22.04 as blast_build
+FROM    ubuntu:22.04 AS blast_build
 
 RUN     apt-get update && apt-get install -y wget tar && \
         rm -rf /var/lib/apt/lists/* && \
@@ -6,7 +6,7 @@ RUN     apt-get update && apt-get install -y wget tar && \
         tar xzvf ncbi-blast-*-x64-linux.tar.gz && \
         mv ncbi-blast-*/bin /blast
 
-FROM    node:16-slim as base_build
+FROM    node:16-slim AS base_build
 
 WORKDIR /usr/local/mlst
 COPY    --from=blast_build /blast/blastn /blast/makeblastdb /usr/local/bin/
@@ -15,11 +15,11 @@ RUN     apt-get update && apt-get install -y git
 COPY    package.json /usr/local/mlst/
 RUN     npm install --production --force
 
-FROM    node:16-slim as prod_build
+FROM    node:16-slim AS prod_build
 
 COPY    --from=base_build /usr/local/mlst/node_modules /usr/local/mlst/node_modules
 COPY    --from=blast_build /blast/blastn /blast/makeblastdb /usr/local/bin/
-COPY    *.js *.json /usr/local/mlst/
+COPY    *.js package.json package-lock.json /usr/local/mlst/
 COPY    src /usr/local/mlst/src/
 
 WORKDIR /usr/local/mlst

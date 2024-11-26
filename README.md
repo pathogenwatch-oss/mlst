@@ -1,63 +1,42 @@
 # CGPS MLST/cgMLST profile assignments
 ## Running MLST
 
-[![pipeline status](https://gitlab.com/cgps/cgps-mlst/badges/master/pipeline.svg)](https://gitlab.com/cgps/cgps-mlst/commits/master)
-
-You can manually run seven gene as follows:
-
+e.g. to search `my.fasta` against the klebsiella MLST scheme downloaded on 3rd Sept 2024 and save the results in `my_output.json`.
 ```
-cat FILE_TO_BE_TYPED.fasta | docker run -i --rm registry.gitlab.com/cgps/cgps-mlst:latest --taxid=1280
-# or
-cat FILE_TO_BE_TYPED.fasta | docker run -i -e TAXID=ORGANISM_TAXID --rm registry.gitlab.com/cgps/cgps-mlst:mlst-v1.5.58
+cat my.fasta > docker run --rm -i registry.gitlab.com/cgps/cgps-mlst:2024-09-03-klebsiella_1 > my_output.json
 ```
 
-For example:
+For a full list of schemes and their tags view the [schemes.json file](https://github.com/pathogenwatch-oss/typing-databases/blob/main/schemes.json).
+
+
+You can get information for debugging by passing in the `DEBUG` environment variable, e.g:
 
 ```
-cat tests/testdata/saureus_duplicate.fasta | docker run -i -e TAXID=1280 --rm registry.gitlab.com/cgps/cgps-mlst:mlst-v1.5.58
-```
-
-You can get information for debugging by passing in the `DEBUG` environment variable:
-
-```
-cat tests/testdata/saureus_duplicate.fasta | docker run -i -e TAXID=1280 -e DEBUG='cgps:*,-cgps:trace*' --rm registry.gitlab.com/cgps/cgps-mlst:mlst-v1.5.58
+... | docker run --rm -i -e DEBUG='cgps:*,-cgps:trace*' registry...
 ```
 
 The output data also includes more details if you set the `DEBUG` environment variable.  This includes
 the position of the best match and any other close matches.  You can see this without much clutter
 by setting `DEBUG='.'`.
 
-You can run Core Genome MLST by running the `cgmlst` container instead of the `mlst` container.
-
-```
-cat tests/testdata/saureus_duplicate.fasta | docker run -i -e TAXID=1280 -e DEBUG='cgps:*' --rm registry.gitlab.com/cgps/cgps-mlst:cgmlst-v1.5.58
-```
-
 ## Making a release
 ### Full release
-- Create an updated typing database image following the instructions in [CGPS Typing scripts](https://gitlab.com/cgps/pathogenwatch/analyses/typing-databases/).
-- Update the `.env` file with the code and typing database image versions.
-- Run `./build-all.sh`
+- If the code has changed create a new code image according to the instructions
+- Create the individual scheme images as defined in [CGPS Typing scripts](https://gitlab.com/cgps/pathogenwatch/analyses/typing-databases/) and save the output file.
+- Run `python3 build.py -v [code image version] [scheme file CSV] > latest_schemes.json`
 
 ### Individual species releases.
-First, if the code has changed you'll need to build a new version of the code image. Otherwise, just reuse the last one.
-```
-docker build --rm -t registry.gitlab.com/cgps/cgps-mlst/mlst-code:v3.2.1 -f Dockerfile.code .
-```
+The follow the instructions as for a full release but only provide a single line CSV file.
 
-The next step is to create an updated typing database image following the instructions in [CGPS Typing scripts](https://gitlab.com/cgps/pathogenwatch/analyses/typing-databases/).
-This can take an hour or more for a complete update. It is also possible to do various partial updates (e.g. a single scheme or cgmlst-only).
+### Input CSV file description
+```
+scheme shortname,date stamp,scheme image name
+```
+This is the format output by the typing-databases build script.
 
-Then create a new imagdockere of the indexed schemes by running:
-```
-# For a single scheme
-docker build --rm --build-arg SCHEME=klebsiella_1 --build-arg DB_TAG=2208231334 --build-arg CODE_VERSION=v3.2.1 --build-arg TYPE=cgmlst -t registry.gitlab.com/cgps/cgps-mlst/mlst-data:2208231334_klebsiella_1 -f Dockerfile.schemes .
-```
-
-Finally, create the integrated cgmlst image by running:
-```
-docker build --rm --build-arg DATA_NAME=cgmlst --build-arg DATA_VERSION=2023041203-klebsiella_1-v3.2.1 --build-arg CODE_VERSION=v3.2.1 --build-arg RUN_CORE_GENOME_MLST=yes -t registry.gitlab.com/cgps/cgps-mlst/cgmlst:2023041203-klebsiella_1-v3.2.1 .
-```
+1. The shortname is as in the schemes.json file.
+2. The date stamp is expected to be ISO format, e.g. `2024-09-03`.
+3. The scheme image name.
 
 ## How it works
 
@@ -98,77 +77,41 @@ Finally, in the second part all matches are resolved down to build a PubMLST-typ
 * One match per locus
 * If more than one exact hit is found then the lowest ST is used.
 
-
 ## Building the images locally
-
-7 gene MLST and Core Genome MLST use the same code but different databases
-which you build into two separate containers.  This means that you can
-update the databases independently.
 
 There are three stages to building the containers:
 
 * Build the database images
 * Build the code image
-* Build the indexed data images
 * Build the final images
 
-These steps are encapsulated in the build-all.sh script.
+The final image build consists of two stages. The first indexes the schemes while the second creates a compiled image
+of the code and indexed scheme.
 
-### Download the data
+## Developing locally
 
-Clone the [CGPS Typing scripts](https://gitlab.com/cgps/cgps-typing-databases/) repo and follow the README.md
+Dockerfile.schemedev allows the building of a development environment for running test code inside.
 
-### Index the data
+Schemes can be mounted from images for testing locally using the (e.g) the following command:
+
+```
+docker run --rm -it --mount type=volume,dst=/db,volume-driver=local,volume-opt=type=none,volume-opt=o=bind,volume-opt=device=/home/corin/cgps-gits/pathogenwatch/mlst/db --entrypoint /bin/sh registry.gitlab.com/cgps/pathogenwatch/analyses/typing-databases:2024-09-03-klebsiella_1
+```
+
+Similarly indexed schemes can be mounted from built (or index stage images).
+
+
+## Index the data
 
 The commands below are run to index the data.
 
-The previous step downloaded data, this needs to be indexed before we can
+After downloading the data it needs to be indexed before we can
 use it to call STs.  This formats the data into a consistent format and
 calculates things like hashes of alleles to enable quick exact matches.
 
-For MLST:
-
+Replace `${SCHEME}` with the shortname of the scheme.
 ```
-DEBUG='cgps:info' npm run index -- --type=mlst --index=index_dir --database=cgps-typing-databases
-```
-
-For ngstar:
-
-```
-DEBUG='cgps:info' npm run index -- --type=ngstar --index=index_dir --database=cgps-typing-databases
-```
-
-For cgMLST:
-
-```
-DEBUG='cgps:info' npm run index -- --type=cgmlst --index=index_dir --database=cgps-typing-databases
-```
-
-NB These commands overwrite the results of one another, you might want to `mv index_dir{,.bak}` between commands
-
-### Building the images
-
-Copy the commands in build-all.sh to build a specific image.
-
-## Testing and developing.
-
-Two Dockerfiles are provided to aid testing and developing the software.
-
-### Working on indexing
-
-To build an image based on an specific cgmlst database download image, and with all necessary dependencies,
-run the following command:
-
-```
-docker build --rm --build-arg DB_TAG=2023-12-08-cgmlst -t cgmlst:schemedev -f Dockerfile.schemedev . 
-```
-
-### General development
-
-To build an image for with indexed databases and all dependencies run (e.g. for testing cgMLST on a specific schema):
-
-```
-docker build --rm --build-arg DATA_VERSION=2023-12-08-senterica_1-v5.4.0-0 --build-arg DATA_NAME=cgmlst -t mlst:dev-build -f Dockerfile.dev .
+DEBUG='cgps:info' npm run index -- --scheme=${SCHEME} --index=index_dir --database=/typing-databases
 ```
 
 ## Singularity
@@ -182,4 +125,4 @@ Then prepare the DB folder:
 `singularity exec pathogenwatch-mlst-231123-v5.2.0.sif cp -rp /usr/local/mlst/index_dir .`
 
 To run it against a genome replace `{/local/path/to/my.fasta}` with the full path to the FASTA file, along with the TAXID parameter:
-`singularity exec --pwd=/usr/local/mlst --bind {/local/path/to/my.fasta}:/tmp/my.fasta --env TAXID=620 pathogenwatch-mlst-202214121127-v3.2.1.sif sh -c 'cat /tmp/my.fasta | /usr/local/bin/node /usr/local/mlst/index.js'.`
+`singularity exec --pwd=/usr/local/mlst --bind {/local/path/to/my.fasta}:/tmp/my.fasta pathogenwatch-mlst-202214121127-v3.2.1.sif sh -c 'cat /tmp/my.fasta | /usr/local/bin/node /usr/local/mlst/index.js'.`
