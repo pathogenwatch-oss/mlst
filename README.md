@@ -22,7 +22,7 @@ by setting `DEBUG='.'`.
 ## Making a release
 ### Full release
 - If the code has changed create a new code image according to the instructions
-- Create the individual scheme images as defined in [CGPS Typing scripts](https://gitlab.com/cgps/pathogenwatch/analyses/typing-databases/) and save the output file.
+- Create the individual scheme images as defined in [CGPS Typing scripts](https://github.com/pathogenwatch-oss/typing-databases) and save the output file.
 - Run `python3 build.py -v [code image version] [scheme file CSV] > latest_schemes.json`
 
 ### Individual species releases.
@@ -40,7 +40,7 @@ This is the format output by the typing-databases build script.
 
 ## How it works
 
-This project loads typing databases which have been collected using the [CGPS Typing scripts](https://gitlab.com/cgps/cgps-typing-databases/).  These
+This project loads typing databases which have been collected using the [CGPS Typing scripts](https://github.com/pathogenwatch-oss/typing-databases).  These
 scripts download data from a variety of sources and reformat them consistently.  The build is stored as a docker image.
 This will take several hours if you are trying to update all of the databases at once.
 
@@ -49,7 +49,7 @@ This project indexes the typing databases so that typing can be run quickly.  Th
 Genomes are typed by searching for exact matches and by calling Blast.  Exact matches are found by looking for prefixes and in the assembly and
 then comparing the hash of a sequence with a list of known hashes.
 
-Blast is used to identify novel alleles (i.e. ones which are not included in the database).  This is done in a couple of rounds.  The first round Blasts
+BLAST is used to identify novel alleles (i.e. ones which are not included in the database).  This is done in a couple of rounds.  The first round Blasts
 a small number of alleles against the genome to identify areas which might contain alleles.  The results of this intial round are compared with the
 results of the exact matching to identify which (if any) loci might have novel hits.
 
