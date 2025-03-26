@@ -17,14 +17,14 @@ Use this software for commercial purposes, including but not limited to:
 3. Attribution
 - If you distribute or modify this software, you must retain the original copyright notice and include a copy of this licence.
 - You must provide clear attribution to the original author(s) in any public use of the software.
-- You are not granted rights or licenses to the trademarks of the CGPS or any party, including without limitation the CGPS name or logo. If you fork the project and publish it, please choose another name.
+- You are not granted rights or licenses to the trademarks of the CGPS or any party, including without limitation the Microreact name or logo. If you fork the project and publish it, please choose another name.
 
-1. Warranty Disclaimer & Liability
+4. Warranty Disclaimer & Liability
 THIS SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED.
 THE AUTHOR(S) SHALL NOT BE LIABLE FOR ANY CLAIMS, DAMAGES, OR OTHER LIABILITY ARISING FROM THE USE OF THIS SOFTWARE.
 
-1. Termination
+5. Termination
 If you violate any terms of this licence, your rights under this licence will automatically terminate.
 
-1. Contact
+6. Contact
 For licensing requests and inquiries, please contact support@cgps.group.
