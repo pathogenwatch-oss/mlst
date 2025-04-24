@@ -10,7 +10,7 @@ ARG     SCHEME=bpseudomallei
 ENV     SCHEME=${SCHEME}
 
 COPY    --from=scheme /db /typing-databases
-COPY    --from=scheme /db/schemes.json /typing-databases/schemes.json
+COPY    --from=scheme /selected_schemes.json /typing-databases/schemes.json
 
 RUN     npm run index -- --scheme=${SCHEME} --index=index_dir --database=/typing-databases
 

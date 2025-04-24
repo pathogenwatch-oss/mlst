@@ -67,6 +67,8 @@ def full(
 
     scheme_descs = {}
 
+    print(f"{len(schemes)} schemes found", file=sys.stderr)
+
     for scheme in schemes:
         scheme_metadata = json.loads(client.containers.run(scheme["image"], remove=True).decode("utf-8"))['schemes'][0]
         scheme_tag = f"{scheme['date']}-{scheme['name']}"
