@@ -1,3 +1,11 @@
+# /// script
+# requires-python = ">=3.12"
+# dependencies = [
+#     "docker",
+#     "typer",
+# ]
+# ///
+
 import csv
 import json
 import sys
@@ -86,7 +94,8 @@ def full(
                     "SCHEME": scheme["name"],
                     "SCHEME_TAG": scheme_tag,
                     "CODE_VERSION": code_version
-                }
+                },
+
             )
             scheme_metadata["image"] = new_image_name
             scheme_descs[scheme["name"]] = scheme_metadata
@@ -96,5 +105,24 @@ def full(
     print(json.dumps(scheme_descs), file=sys.stdout)
 
 
+def log_docker_output(generator, task_name: str = 'docker command execution') -> None:
+    """
+    Log output to console from a generator returned from docker client
+    :param Any generator: The generator to log the output of
+    :param str task_name: A name to give the task, i.e. 'Build database image', used for logging
+    """
+    while True:
+        try:
+            output = generator.__next__()
+            if 'stream' in output:
+                output_str = output['stream'].strip('\r\n').strip('\n')
+                click.echo(output_str)
+        except StopIteration:
+            click.echo(f'{task_name} complete.')
+            break
+        except ValueError:
+            click.echo(f'Error parsing output from {task_name}: {output}')
+
 if __name__ == "__main__":
     typer.run(full)
+

@@ -19,6 +19,19 @@ FROM    registry.gitlab.com/cgps/cgps-mlst/mlst-code:${CODE_VERSION} AS producti
 ARG     SCHEME
 ENV     SCHEME=${SCHEME}
 
+RUN     apt update && \
+        apt install -y --no-install-recommends curl ca-certificates && \
+        rm -rf /var/lib/apt/lists && \
+        curl -L -o sanitiser "https://github.com/CorinYeatsCGPS/sanitise-fasta/releases/download/2/sanitiser" && \
+        chmod +x ./sanitiser && \
+        mv sanitiser /usr/local/bin/
+
 COPY    --from=indexer /usr/local/mlst/index_dir /usr/local/mlst/index_dir
 
-ENTRYPOINT [ "/usr/local/bin/node", "/usr/local/mlst/index.js" ]
+RUN     mkdir /mapping_store
+
+COPY    entrypoint.sh /
+
+RUN     chmod +x /entrypoint.sh
+
+ENTRYPOINT ["/entrypoint.sh"]
