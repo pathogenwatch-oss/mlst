@@ -116,12 +116,12 @@ def log_docker_output(generator, task_name: str = 'docker command execution') ->
             output = generator.__next__()
             if 'stream' in output:
                 output_str = output['stream'].strip('\r\n').strip('\n')
-                click.echo(output_str)
+                print(output_str, file=sys.stderr)
         except StopIteration:
-            click.echo(f'{task_name} complete.')
+            print(f'{task_name} complete.', file=sys.stderr)
             break
         except ValueError:
-            click.echo(f'Error parsing output from {task_name}: {output}')
+            print(f'Error parsing output from {task_name}: {output}', file=sys.stderr)
 
 if __name__ == "__main__":
     typer.run(full)
