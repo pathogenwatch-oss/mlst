@@ -244,3 +244,18 @@ Then prepare the DB folder:
 To run it against a genome replace `{/local/path/to/my.fasta}` with the full path to the FASTA file, along with the
 TAXID parameter:
 `singularity exec --pwd=/usr/local/mlst --bind {/local/path/to/my.fasta}:/tmp/my.fasta pathogenwatch-mlst-202214121127-v3.2.1.sif sh -c 'cat /tmp/my.fasta | /usr/local/bin/node /usr/local/mlst/index.js'.`
+
+### Build singularity image from scratch
+Build image:
+```bash
+singularity build --fakeroot build/mlst.sif mlst.def
+```
+
+Usage:
+```bash
+# Run indexer
+singularity exec --pwd /usr/local/mlst build/mlst.sif npm run index -- --scheme=<scheme_name> --index=<index_dir> --database=<typing_databases_dir>
+
+# Run mlst
+singularity run --pwd /usr/local/mlst build/mlst.sif <input_fasta_file> <output_json_file> <scheme_name> <index_dir>
+```
