@@ -114,7 +114,7 @@ if (require.main === module) {
     SCHEME: argv.scheme || process.env.SCHEME,
     INDEX_DIR: argv.indexDir || process.env.INDEX_DIR,
   }
-  // runMlst(createReadStream('/opt/project/klebsiella_sample.fasta'), envVariables)
+  // runMlst(createReadStream('/opt/project//48c255fac62bf460ce81eb8789911ec820038ee4.fa'), envVariables)
   runMlst(process.stdin, envVariables)
     .then(output => console.log(JSON.stringify(output)))
     .then(() => logger("cgps:info")("Done"))

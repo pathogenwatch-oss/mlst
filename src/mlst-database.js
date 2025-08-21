@@ -77,7 +77,7 @@ class Scheme {
 				.zip(row)
 				.fromPairs()
 				.value();
-			const alleles = _.map(genes, gene => Number(rowObj[gene]));
+			const alleles = _.map(genes, gene => rowObj[gene] !== "0" ? rowObj[gene] : "");
 			const { ST: st } = rowObj;
 			return { st, alleles };
 		};
@@ -346,15 +346,6 @@ function parseAlleleName(allele) {
 	} catch (err) {
 		logger("cgps:error")(`Couldn't parse gene and st from ${allele}`);
 		throw err;
-	}
-}
-
-async function readSchemeUpdatedDate(dir) {
-	try {
-		const text = await readFileAsync(path.join(dir, "metadata.json"), "utf8");
-		return JSON.parse(text).last_updated;
-	} catch (err) {
-		return "0";
 	}
 }
 
