@@ -1,13 +1,36 @@
 # CGPS MLST/cgMLST profile assignments
 
-## How to run
+## Table of Contents
 
-This assumes you have already built the mlst/cgmlst images using the standard pipeline.
+- [Docker Quickstart](#docker-quickstart)
+- [Making a release](#making-a-release)
+  - [Full release](#full-release)
+  - [Individual species releases](#individual-species-releases)
+  - [Input CSV file description](#input-csv-file-description)
+- [How it works](#how-it-works)
+- [Building the images locally](#building-the-images-locally)
+  - [A Docker image for local development](#a-docker-image-for-local-development)
+- [Running directly](#running-directly)
+  - [Command Line Options](#command-line-options)
+  - [Environment Variables](#environment-variables)
+  - [Usage Examples](#usage-examples)
+- [Index the data](#index-the-data)
+  - [Command Line Options](#command-line-options-1)
+  - [Usage Examples](#usage-examples-1)
+- [Sanitiser](#sanitiser)
+- [Singularity](#singularity)
+  - [Converting existing Docker images](#converting-existing-docker-images)
+  - [Build a singularity image from scratch](#build-a-singularity-image-from-scratch)
+
+## Docker Quickstart
+
+This assumes you have already built the mlst/cgmlst images
+using [the standard pipeline](https://github.com/pathogenwatch-oss/typing-databases/).
 
 Search `my.fasta` against the klebsiella MLST scheme downloaded on 3rd Sept 2024 and save the results in
 `my_output.json`.
 
-```
+```bash
 cat my.fasta > docker run --rm -i {IMAGE_PATH}/cgps-mlst:2024-09-03-klebsiella_1 > my_output.json
 ```
 
@@ -118,11 +141,13 @@ Dockerfile.schemedev allows the building of a development environment for runnin
 
 Schemes can be mounted from images for testing locally using the (e.g) the following command:
 
-```
+```bash
 docker run --rm -it -v /home/corin/cgps-gits/pathogenwatch/mlst/db:/db --entrypoint /bin/sh registry.gitlab.com/cgps/pathogenwatch/analyses/typing-databases:2024-09-03-klebsiella_1
 ```
 
 Similarly, indexed schemes can be mounted from built indexes (or index stage images).
+
+## Singularity
 
 ## Running directly
 
@@ -225,7 +250,7 @@ npm run index -- --type=mlst --scheme=klebsiella_1 --index=custom_index --databa
 
 ## Sanitiser
 
-The full image includes a GO binary called `sanitise`. This pre-processes the FASTAs to ensure they are in a format
+The full image includes a GO binary called `sanitiser`. This pre-processes the FASTAs to ensure they are in a format
 that can be read reliably by general bioinformatics software. This software is not required for general use and is aimed
 at supporting web servers and other systems that might have to process highly variable 3rd party FASTAs.
 
@@ -233,14 +258,46 @@ For more information see the [sanitise-fasta GitHub repository](https://github.c
 
 ## Singularity
 
-While we don't support Singularity directly, it is possible to convert the Docker images to Singularity and run them.
+NB Singularity is supported on an "as-is" basis. We welcome contributions and fixes from the community.
 
-Convert the docker image to singularity format - edit the image name as appropriate:
-`docker run -v /var/run/docker.sock:/var/run/docker.sock -v /home/corin/temp:/output --privileged -t --rm quay.io/singularity/docker2singularity registry.gitlab.com/cgps/pathogenwatch-tasks/{mlst/mlst2/cgmlst/ngmast}:{IMAGE_TAG}`
+There are two ways to run MLST with Singularity:
 
-Then prepare the DB folder:
-`singularity exec pathogenwatch-mlst-231123-v5.2.0.sif cp -rp /usr/local/mlst/index_dir .`
+1. Build the Singularity image from scratch and create indexed databases to run with it.
+2. Create and convert the final Docker images.
 
-To run it against a genome replace `{/local/path/to/my.fasta}` with the full path to the FASTA file, along with the
-TAXID parameter:
-`singularity exec --pwd=/usr/local/mlst --bind {/local/path/to/my.fasta}:/tmp/my.fasta pathogenwatch-mlst-202214121127-v3.2.1.sif sh -c 'cat /tmp/my.fasta | /usr/local/bin/node /usr/local/mlst/index.js'.`
+
+### Converting existing Docker images
+
+The individual scheme images can be converted using the following approach.
+
+```bash
+# Convert the docker image to singularity format - edit the image name as appropriate:
+docker run -v /var/run/docker.sock:/var/run/docker.sock -v /home/corin/temp:/output --privileged -t --rm quay.io/singularity/docker2singularity registry.gitlab.com/cgps/pathogenwatch-tasks/{mlst/mlst2/cgmlst/ngmast}:{IMAGE_TAG}
+
+# Then prepare the DB folder:
+singularity exec pathogenwatch-mlst-231123-v5.2.0.sif cp -rp /usr/local/mlst/index_dir .
+
+#To run it against a genome replace `{/local/path/to/my.fasta}` with the full path to the FASTA file, along with the TAXID parameter:
+singularity exec --pwd=/usr/local/mlst --bind {/local/path/to/my.fasta}:/tmp/my.fasta pathogenwatch-mlst-202214121127-v3.2.1.sif sh -c 'cat /tmp/my.fasta | /usr/local/bin/node /usr/local/mlst/index.js'.
+```
+
+### Build a singularity image from scratch
+
+The individual scheme databases will need downloading first using the
+CGPS [typing database downloader](https://github.com/pathogenwatch-oss/typing-databases/) first.
+
+Build image:
+
+```bash
+singularity build --fakeroot build/mlst.sif mlst.def
+```
+
+Usage:
+
+```bash
+# Run indexer
+singularity exec --pwd /usr/local/mlst build/mlst.sif npm run index -- --scheme=<scheme_name> --index=<index_dir> --database=<typing_databases_dir>
+
+# Run mlst
+singularity run --pwd /usr/local/mlst build/mlst.sif <input_fasta_file> <output_json_file> <scheme_name> <index_dir>
+```

@@ -14,43 +14,36 @@ from typing import Annotated
 
 import docker
 import typer
-from docker.errors import ImageNotFound, BuildError
+from docker.errors import BuildError, ImageNotFound
 
 
 def full(
-        schemes_file: Annotated[
-            Path,
-            typer.Argument(
-                help="Path to the CSV file with the format "
-                     "'<scheme shortname>,<image tag>,<image full name>' (no header)",
-                exists=True,
-                file_okay=True,
-                dir_okay=False,
-            ),
-        ],
-        code_version: Annotated[
-            str,
-            typer.Option(
-                "-v",
-                "--code-version",
-                help="Version of the MLST code image to use.")] = "v7.0.0",
-        mlst_basename: Annotated[
-            str,
-            typer.Option(
-                "-m",
-                "--mlst-basename",
-                help="Code and schemes images basename"
-            )] = "registry.gitlab.com/cgps/cgps-mlst",
+    schemes_file: Annotated[
+        Path,
+        typer.Argument(
+            help="Path to the CSV file with the format "
+            "'<scheme shortname>,<image tag>,<image full name>' (no header)",
+            exists=True,
+            file_okay=True,
+            dir_okay=False,
+        ),
+    ],
+    code_version: Annotated[
+        str,
+        typer.Option(
+            "-v", "--code-version", help="Version of the MLST code image to use."
+        ),
+    ] = "v8.0.0",
+    mlst_basename: Annotated[
+        str,
+        typer.Option("-m", "--mlst-basename", help="Code and schemes images basename"),
+    ] = "registry.gitlab.com/cgps/cgps-mlst",
 ) -> None:
     schemes: list[dict[str, str]] = []
-    with open(schemes_file, 'r') as scheme_fh:
+    with open(schemes_file, "r") as scheme_fh:
         reader = csv.reader(scheme_fh, delimiter=",")
         for row in reader:
-            schemes.append({
-                "name": row[0],
-                "date": row[1],
-                "image": row[2]
-            })
+            schemes.append({"name": row[0], "date": row[1], "image": row[2]})
     client = docker.from_env()
 
     # Confirm the code image exists
@@ -78,12 +71,23 @@ def full(
     print(f"{len(schemes)} schemes found", file=sys.stderr)
 
     for scheme in schemes:
-        scheme_metadata = json.loads(client.containers.run(scheme["image"], remove=True).decode("utf-8"))['schemes'][0]
+        scheme_metadata = json.loads(
+            client.containers.run(scheme["image"], remove=True).decode("utf-8")
+        )["schemes"][0]
         scheme_tag = f"{scheme['date']}-{scheme['name']}"
-        new_scheme_tag = scheme_tag if scheme_metadata["type"] != "other" else scheme["date"]
-        scheme_type = scheme_metadata['type'].replace("alternative_mlst", "mlst2").replace("other", scheme["name"])
+        new_scheme_tag = (
+            scheme_tag if scheme_metadata["type"] != "other" else scheme["date"]
+        )
+        scheme_type = (
+            scheme_metadata["type"]
+            .replace("alternative_mlst", "mlst2")
+            .replace("other", scheme["name"])
+        )
         new_image_name = f"{mlst_basename}/{scheme_type}:{new_scheme_tag}"
-        print(f"Building image {new_image_name} for {scheme['name']} version {scheme_tag}", file=sys.stderr)
+        print(
+            f"Building image {new_image_name} for {scheme['name']} version {scheme_tag}",
+            file=sys.stderr,
+        )
         # index --scheme=klebsiella_1 --index=index_dir --database=/typing-databases
         try:
             image, log = client.images.build(
@@ -93,9 +97,8 @@ def full(
                 buildargs={
                     "SCHEME": scheme["name"],
                     "SCHEME_TAG": scheme_tag,
-                    "CODE_VERSION": code_version
+                    "CODE_VERSION": code_version,
                 },
-
             )
             scheme_metadata["image"] = new_image_name
             scheme_descs[scheme["name"]] = scheme_metadata
@@ -105,7 +108,7 @@ def full(
     print(json.dumps(scheme_descs), file=sys.stdout)
 
 
-def log_docker_output(generator, task_name: str = 'docker command execution') -> None:
+def log_docker_output(generator, task_name: str = "docker command execution") -> None:
     """
     Log output to console from a generator returned from docker client
     :param Any generator: The generator to log the output of
@@ -114,15 +117,15 @@ def log_docker_output(generator, task_name: str = 'docker command execution') ->
     while True:
         try:
             output = generator.__next__()
-            if 'stream' in output:
-                output_str = output['stream'].strip('\r\n').strip('\n')
+            if "stream" in output:
+                output_str = output["stream"].strip("\r\n").strip("\n")
                 print(output_str, file=sys.stderr)
         except StopIteration:
-            print(f'{task_name} complete.', file=sys.stderr)
+            print(f"{task_name} complete.", file=sys.stderr)
             break
         except ValueError:
-            print(f'Error parsing output from {task_name}: {output}', file=sys.stderr)
+            print(f"Error parsing output from {task_name}: {output}", file=sys.stderr)
+
 
 if __name__ == "__main__":
     typer.run(full)
-

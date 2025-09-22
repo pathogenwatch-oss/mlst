@@ -1,0 +1,60 @@
+Bootstrap: library
+From: debian
+Stage: blast_build
+
+%post
+    # Download BLAST binaries
+    apt-get update && apt-get install -y wget tar
+    rm -rf /var/lib/apt/lists/*
+    wget ftp://ftp.ncbi.nlm.nih.gov/blast/executables/blast+/2.10.0/ncbi-blast-2.10.0+-x64-linux.tar.gz
+    tar xzvf ncbi-blast-*-x64-linux.tar.gz
+    mv ncbi-blast-*/bin /blast
+
+Bootstrap: docker
+From: node:22-slim
+Stage: base_build
+
+%files
+    package.json /usr/local/mlst/
+    package-lock.json /usr/local/mlst/
+
+%post
+    # Install node dependencies
+    cd /usr/local/mlst/
+    npm install --omit=dev --force
+
+Bootstrap: docker
+From: node:22-slim
+Stage: prod_build
+
+%files from base_build
+    /usr/local/mlst/node_modules /usr/local/mlst/node_modules
+
+%files from blast_build
+    /blast/blastn /usr/local/bin/
+    /blast/makeblastdb /usr/local/bin/
+
+%files
+    index.js /usr/local/mlst/
+    package.json /usr/local/mlst/
+    package-lock.json /usr/local/mlst/
+    mlst.sh /usr/local/mlst/
+    src /usr/local/mlst/
+
+%post
+    chmod +x /usr/local/mlst/mlst.sh
+
+%help
+    This image contains the MLST implementation from Pathogenwatch. Note that it does not include the databases, these
+     need to be downloaded separately using the CGPS typing-databases tool and indexed using the "Run Indexer" command
+     below.
+
+    Usage:
+        # Run indexer
+        singularity exec --pwd /usr/local/mlst <image_name> npm run index -- --scheme=<scheme_name> --index=<index_dir> --database=<typing_databases_dir>
+
+        # Run mlst
+        singularity run --pwd /usr/local/mlst <image_name> <input_fasta_file> <output_json_file> <scheme_name> <index_dir>
+
+%runscript
+    /usr/local/mlst/mlst.sh $*

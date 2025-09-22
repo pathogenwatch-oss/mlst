@@ -29,7 +29,5 @@ COPY    *.js package.json package-lock.json /usr/local/mlst/
 COPY    src /usr/local/mlst/src/
 
 WORKDIR /usr/local/mlst
-# ARG     RUN_CORE_GENOME_MLST
-# ENV     RUN_CORE_GENOME_MLST=$RUN_CORE_GENOME_MLST
 
 ENTRYPOINT [ "/usr/local/bin/node", "/usr/local/mlst/index.js" ]
